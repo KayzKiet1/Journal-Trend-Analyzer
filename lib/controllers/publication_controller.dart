@@ -1,31 +1,49 @@
+import 'package:flutter/material.dart';
 import '../models/publication_model.dart';
-import '../utils/mock_data.dart';
+import '../services/openalex_service.dart';
 
-class PublicationController {
-  List<Publication> publications = [];
+/// Bộ điều khiển quản lý trạng thái của danh sách bài báo và tìm kiếm
+class PublicationController extends ChangeNotifier {
+  final OpenAlexService _apiService = OpenAlexService();
+  
+  List<Publication> _publications = [];
+  bool _isLoading = false;
+  String _errorMessage = '';
+  String _currentTopic = '';
 
-  Future<List<Publication>> search(String topic) async {
-    await Future.delayed(
-      const Duration(seconds: 1),
-    );
+  List<Publication> get publications => _publications;
+  bool get isLoading => _isLoading;
+  String get errorMessage => _errorMessage;
+  String get currentTopic => _currentTopic;
 
-    final keyword = topic.toLowerCase();
+  /// Thực hiện tìm kiếm bài báo theo chủ đề
+  Future<void> searchByTopic(String topic) async {
+    if (topic.isEmpty) return;
+    
+    _currentTopic = topic;
+    _isLoading = true;
+    _errorMessage = '';
+    notifyListeners();
 
-    publications = mockPublications.where((publication) {
-      return publication.title
-              .toLowerCase()
-              .contains(keyword) ||
+    try {
+      _publications = await _apiService.searchWorks(topic);
+      if (_publications.isEmpty) {
+        _errorMessage = 'Không tìm thấy bài báo nào cho chủ đề này.';
+      }
+    } catch (e) {
+      _errorMessage = 'Đã xảy ra lỗi: ${e.toString()}';
+      _publications = [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
-          publication.journal
-              .toLowerCase()
-              .contains(keyword) ||
-
-          publication.authors
-              .join(' ')
-              .toLowerCase()
-              .contains(keyword);
-    }).toList();
-
-    return publications;
+  /// Xóa dữ liệu tìm kiếm hiện tại
+  void clearSearch() {
+    _publications = [];
+    _currentTopic = '';
+    _errorMessage = '';
+    notifyListeners();
   }
 }

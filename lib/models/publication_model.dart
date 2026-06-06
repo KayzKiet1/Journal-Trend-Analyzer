@@ -1,19 +1,59 @@
+import 'author_model.dart';
+import '../utils/abstract_parser.dart';
+
+/// Lớp đại diện cho một bài báo nghiên cứu (Publication/Work) từ OpenAlex
 class Publication {
+  final String id;
   final String title;
-  final int year;
-  final int citations;
-  final String journal;
-  final List<String> authors;
+  final int publicationYear;
+  final String publicationDate;
+  final int citedByCount;
+  final String journalName;
+  final List<Author> authors;
   final String doi;
   final String abstractText;
 
   Publication({
+    required this.id,
     required this.title,
-    required this.year,
-    required this.citations,
-    required this.journal,
+    required this.publicationYear,
+    required this.publicationDate,
+    required this.citedByCount,
+    required this.journalName,
     required this.authors,
     required this.doi,
     required this.abstractText,
   });
+
+  /// Chuyển đổi từ dữ liệu JSON của OpenAlex sang đối tượng Publication
+  factory Publication.fromJson(Map<String, dynamic> json) {
+    // Lấy danh sách tác giả
+    var authorships = json['authorships'] as List? ?? [];
+    List<Author> authorsList = authorships
+        .map((a) => Author.fromJson(a as Map<String, dynamic>))
+        .toList();
+
+    // Lấy tên tạp chí
+    String journal = json['primary_location']?['source']?['display_name'] ?? 'Unknown Source';
+
+    // Xử lý abstract từ inverted index
+    String parsedAbstract = AbstractParser.parseInvertedIndex(
+      json['abstract_inverted_index'] as Map<String, dynamic>?
+    );
+
+    return Publication(
+      id: json['id'] ?? '',
+      title: json['display_name'] ?? 'Untitled',
+      publicationYear: json['publication_year'] ?? 0,
+      publicationDate: json['publication_date'] ?? '',
+      citedByCount: json['cited_by_count'] ?? 0,
+      journalName: journal,
+      authors: authorsList,
+      doi: json['doi'] ?? '',
+      abstractText: parsedAbstract,
+    );
+  }
+
+  /// Trả về chuỗi danh sách tên các tác giả cách nhau bởi dấu phẩy
+  String get authorsString => authors.map((a) => a.name).join(', ');
 }

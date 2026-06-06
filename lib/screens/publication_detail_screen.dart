@@ -1,139 +1,100 @@
 import 'package:flutter/material.dart';
-
 import '../models/publication_model.dart';
+import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
 
-class PublicationDetailScreen
-    extends StatelessWidget {
+/// Màn hình hiển thị thông tin chi tiết của một bài báo
+class PublicationDetailScreen extends StatelessWidget {
   final Publication publication;
 
-  const PublicationDetailScreen({
-    super.key,
-    required this.publication,
-  });
+  const PublicationDetailScreen({super.key, required this.publication});
 
-  Widget buildInfoTile(
-    String title,
-    String value,
-  ) {
-    return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-        vertical: 6,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Chi tiết bài báo', style: TextStyle(color: AppColors.textInverted)),
+        backgroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: AppColors.textInverted),
       ),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              title,
-              style:
-                  const TextStyle(
-                fontWeight:
-                    FontWeight.bold,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Tiêu đề bài báo
+            Text(
+              publication.title,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
               ),
             ),
-          ),
-          Expanded(
-            child: Text(value),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.md),
+            
+            // Các thông tin cơ bản
+            _buildInfoRow(Icons.person, 'Tác giả', publication.authorsString),
+            _buildInfoRow(Icons.calendar_today, 'Năm xuất bản', publication.publicationYear.toString()),
+            _buildInfoRow(Icons.book, 'Tạp chí', publication.journalName),
+            _buildInfoRow(Icons.format_quote, 'Lượt trích dẫn', publication.citedByCount.toString()),
+            _buildInfoRow(Icons.link, 'DOI', publication.doi),
+            
+            const SizedBox(height: AppSpacing.lg),
+            
+            // Phần tóm tắt (Abstract)
+            const Text(
+              'Tóm tắt (Abstract)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              publication.abstractText,
+              style: const TextStyle(
+                fontSize: 16,
+                height: 1.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+        ),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-
-    return Scaffold(
-      appBar: AppBar(
-        title:
-            const Text("Publication Detail"),
-      ),
-      body: SingleChildScrollView(
-        padding:
-            const EdgeInsets.all(16),
-        child: Card(
-          elevation: 3,
-          child: Padding(
-            padding:
-                const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-
-                Text(
-                  publication.title,
-                  style:
-                      const TextStyle(
-                    fontSize: 24,
-                    fontWeight:
-                        FontWeight.bold,
+  /// Widget phụ trợ để hiển thị một dòng thông tin có icon
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: AppColors.secondary),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ),
-
-                const SizedBox(
-                  height: 20,
-                ),
-
-                buildInfoTile(
-                  "Year",
-                  publication.year
-                      .toString(),
-                ),
-
-                buildInfoTile(
-                  "Journal",
-                  publication.journal,
-                ),
-
-                buildInfoTile(
-                  "Citations",
-                  publication.citations
-                      .toString(),
-                ),
-
-                buildInfoTile(
-                  "Authors",
-                  publication.authors
-                      .join(', '),
-                ),
-
-                buildInfoTile(
-                  "DOI",
-                  publication.doi,
-                ),
-
-                const Divider(
-                  height: 30,
-                ),
-
-                const Text(
-                  "Abstract",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight:
-                        FontWeight.bold,
+                  TextSpan(
+                    text: value.isEmpty ? 'N/A' : value,
+                    style: const TextStyle(color: AppColors.textPrimary),
                   ),
-                ),
-
-                const SizedBox(
-                  height: 10,
-                ),
-
-                Text(
-                  publication.abstractText,
-                  style:
-                      const TextStyle(
-                    height: 1.6,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

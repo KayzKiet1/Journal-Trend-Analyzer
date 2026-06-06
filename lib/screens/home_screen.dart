@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
-import '../controllers/publication_controller.dart';
+import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
 import 'search_result_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,74 +11,20 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController topicController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
-  bool isLoading = false;
-
-  @override
-  void dispose() {
-    topicController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _search() async {
-    final topic = topicController.text.trim();
-
-    if (topic.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Please enter a research topic",
-          ),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final controller = PublicationController();
-
-      final publications = await controller.search(topic);
-
-      if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
-
-      if (publications.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "No publications found",
-            ),
-          ),
-        );
-      }
-
+  void _handleSearch() {
+    final topic = _searchController.text.trim();
+    if (topic.isNotEmpty) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => SearchResultScreen(
-            publications: publications,
-          ),
+          builder: (context) => SearchResultScreen(topic: topic),
         ),
       );
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Error: $e",
-          ),
-        ),
+        const SnackBar(content: Text('Please enter a topic')),
       );
     }
   }
@@ -86,136 +32,105 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(
-          "Journal Trend Analyzer",
-        ),
-        centerTitle: true,
+        title: const Text('Journal Trend Analyzer', 
+          style: TextStyle(color: AppColors.textInverted, fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.primary,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 30),
-
-            Icon(
-              Icons.auto_graph,
-              size: 90,
-              color: Colors.indigo.shade700,
-            ),
-
-            const SizedBox(height: 20),
-
+            const SizedBox(height: AppSpacing.xl),
             const Text(
-              "Journal Trend Analyzer",
-              textAlign: TextAlign.center,
+              'Analyze Research Trends',
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
               ),
             ),
-
-            const SizedBox(height: 10),
-
+            const SizedBox(height: AppSpacing.sm),
             const Text(
-              "Search research publications and explore academic trends.",
-              textAlign: TextAlign.center,
+              'Enter a topic to explore publications, citations, and research insights from OpenAlex.',
               style: TextStyle(
-                color: Colors.grey,
                 fontSize: 16,
+                color: AppColors.textSecondary,
               ),
             ),
-
-            const SizedBox(height: 40),
-
-            TextField(
-              controller: topicController,
-              decoration: InputDecoration(
-                labelText: "Research Topic",
-                hintText: "AI, Blockchain, Data Science...",
-                prefixIcon: const Icon(
-                  Icons.search,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    12,
+            const SizedBox(height: AppSpacing.xl),
+            
+            // Search TextField
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                onSubmitted: (_) => _handleSearch(),
+                decoration: InputDecoration(
+                  hintText: 'e.g., Artificial Intelligence',
+                  hintStyle: const TextStyle(color: AppColors.secondary),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.all(AppSpacing.md),
                 ),
               ),
-              onSubmitted: (_) => _search(),
             ),
-
-            const SizedBox(height: 25),
-
-            isLoading
-                ? const Column(
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 12),
-                      Text(
-                        "Searching publications...",
-                      ),
-                    ],
-                  )
-                : SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton.icon(
-                      onPressed: _search,
-                      icon: const Icon(
-                        Icons.search,
-                      ),
-                      label: const Text(
-                        "Search",
-                        style: TextStyle(
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
+            const SizedBox(height: AppSpacing.lg),
+            
+            // Search Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _handleSearch,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textInverted,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   ),
-
-            const SizedBox(height: 40),
-
-            Card(
-              elevation: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(
-                  16,
                 ),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Features",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 15),
-
-                    _featureItem(
-                      Icons.article,
-                      "Search Publications",
-                    ),
-
-                    _featureItem(
-                      Icons.menu_book,
-                      "View Publication Details",
-                    ),
-
-                    _featureItem(
-                      Icons.trending_up,
-                      "Analyze Research Trends",
-                    ),
-
-                    _featureItem(
-                      Icons.bar_chart,
-                      "Dashboard Statistics",
-                    ),
-                  ],
-                ),
+                child: const Text('Search Publications', 
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
+            ),
+            
+            const SizedBox(height: AppSpacing.xl),
+            const Text(
+              'Popular Topics',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                _buildTopicChip('Artificial Intelligence'),
+                _buildTopicChip('Software Engineering'),
+                _buildTopicChip('Data Science'),
+                _buildTopicChip('Cybersecurity'),
+                _buildTopicChip('Blockchain'),
+              ],
             ),
           ],
         ),
@@ -223,23 +138,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _featureItem(
-    IconData icon,
-    String title,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 6,
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: Colors.indigo,
-          ),
-          const SizedBox(width: 10),
-          Text(title),
-        ],
+  Widget _buildTopicChip(String label) {
+    return ActionChip(
+      label: Text(label),
+      onPressed: () {
+        _searchController.text = label;
+        _handleSearch();
+      },
+      backgroundColor: AppColors.primaryLight,
+      labelStyle: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w500),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
       ),
     );
   }

@@ -58,7 +58,7 @@ class AppTheme {
             horizontal: AppSpacing.lg,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: AppSpacing.radiusMd, // Bo góc 12px theo chuẩn
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           ),
         ),
       ),
@@ -77,23 +77,23 @@ class AppTheme {
 
         // Trạng thái viền bình thường khi không nhấn vào
         border: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusSm, // Bo góc 8px theo chuẩn
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusSm,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
         ),
 
         // Trạng thái viền khi đang nhấn vào ô nhập để gõ chữ
         focusedBorder: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusSm,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           borderSide: const BorderSide(color: AppColors.primary, width: 2.0),
         ),
 
         // Trạng thái viền khi xảy ra lỗi nhập liệu
         errorBorder: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusSm,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           borderSide: const BorderSide(color: AppColors.error, width: 1.0),
         ),
       ),
@@ -103,7 +103,9 @@ class AppTheme {
         color: AppColors.surface,
         elevation: 2,
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        shape: RoundedRectangleBorder(borderRadius: AppSpacing.radiusLg),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
       ),
     );
   }
