@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../models/publication_model.dart';
 
 class PublicationCard extends StatelessWidget {
@@ -15,26 +14,38 @@ class PublicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: 3,
       margin: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
+        horizontal: 12,
+        vertical: 6,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
         title: Text(
           publication.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 8),
+
             Text(
-              "${publication.year} • ${publication.citations} citations",
+              "📅 ${publication.year}",
             ),
+
             Text(
-              publication.journal,
+              "📚 ${publication.journal}",
+            ),
+
+            Text(
+              "⭐ ${publication.citations} citations",
             ),
           ],
         ),

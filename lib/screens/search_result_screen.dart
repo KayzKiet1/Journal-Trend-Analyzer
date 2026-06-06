@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/publication_model.dart';
+import '../widgets/empty_state_widget.dart';
 import '../widgets/publication_card.dart';
 import 'publication_detail_screen.dart';
 
@@ -21,36 +22,61 @@ class SearchResultScreen extends StatelessWidget {
         ),
       ),
       body: publications.isEmpty
-          ? const Center(
-              child: Text(
-                "No publications found",
-              ),
+          ? const EmptyStateWidget(
+              message:
+                  "No publications found",
             )
-          : ListView.builder(
-              itemCount: publications.length,
-              itemBuilder: (
-                context,
-                index,
-              ) {
-                final publication =
-                    publications[index];
+          : Column(
+              children: [
 
-                return PublicationCard(
-                  publication: publication,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            PublicationDetailScreen(
-                          publication:
-                              publication,
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.all(16),
+                  color: Colors.indigo
+                      .shade50,
+                  child: Text(
+                    "Found ${publications.length} publications",
+                    style:
+                        const TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+                ),
+
+                Expanded(
+                  child: ListView.builder(
+                    itemCount:
+                        publications.length,
+                    itemBuilder:
+                        (context, index) {
+
+                      final publication =
+                          publications[index];
+
+                      return PublicationCard(
+                        publication:
+                            publication,
+                        onTap: () {
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  PublicationDetailScreen(
+                                publication:
+                                    publication,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
     );
   }
