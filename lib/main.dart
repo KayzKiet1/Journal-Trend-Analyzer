@@ -1,40 +1,23 @@
 import 'package:flutter/material.dart';
+import 'screens/home_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const JournalTrendAnalyzerApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class JournalTrendAnalyzerApp extends StatelessWidget {
+  const JournalTrendAnalyzerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Journal Trend Analyzer',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
+        primarySwatch: Colors.indigo,
+        scaffoldBackgroundColor: Colors.grey.shade100,
       ),
-      home: const MyHomePage(),
-    );
-  }
-}
-
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Journal Trend Analyzer'),
-      ),
-      body: const Center(
-        child: Text(
-          'Hello World',
-          style: TextStyle(fontSize: 24),
-        ),
-      ),
+      home: const HomeScreen(),
     );
   }
 }
