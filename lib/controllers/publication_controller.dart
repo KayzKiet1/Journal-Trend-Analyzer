@@ -6,10 +6,25 @@ class PublicationController {
 
   Future<List<Publication>> search(String topic) async {
     await Future.delayed(
-      const Duration(seconds: 2),
+      const Duration(seconds: 1),
     );
 
-    publications = mockPublications;
+    final keyword = topic.toLowerCase();
+
+    publications = mockPublications.where((publication) {
+      return publication.title
+              .toLowerCase()
+              .contains(keyword) ||
+
+          publication.journal
+              .toLowerCase()
+              .contains(keyword) ||
+
+          publication.authors
+              .join(' ')
+              .toLowerCase()
+              .contains(keyword);
+    }).toList();
 
     return publications;
   }
