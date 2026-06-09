@@ -1,28 +1,17 @@
+/// Lớp đại diện cho tạp chí xuất bản bài báo
 class Journal {
-  const Journal({
-    required this.id,
-    required this.name,
-  });
-
   final String id;
   final String name;
 
-  factory Journal.fromOpenAlexJson(Map<String, dynamic>? json) {
-    if (json == null) {
-      return const Journal(id: '', name: 'Unknown Journal');
-    }
+  Journal({required this.id, required this.name});
 
+  /// Chuyển đổi từ dữ liệu JSON của OpenAlex sang đối tượng Journal
+  factory Journal.fromJson(Map<String, dynamic> json) {
+    // OpenAlex cấu trúc source bên trong primary_location
+    final source = json['primary_location']?['source'];
     return Journal(
-      id: _asString(json['id']),
-      name: _asString(json['display_name'], fallback: 'Unknown Journal'),
+      id: source?['id'] ?? '',
+      name: source?['display_name'] ?? 'Unknown Journal',
     );
-  }
-
-  static String _asString(
-    dynamic value, {
-    String fallback = '',
-  }) {
-    if (value == null) return fallback;
-    return value.toString();
   }
 }

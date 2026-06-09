@@ -1,82 +1,67 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:http/http.dart' as http;
-import 'package:journal_trend_analyzer/models/publication_model.dart';
-import 'package:journal_trend_analyzer/utils/api_constants.dart';
+import '../models/publication_model.dart';
+import '../models/trend_data_model.dart';
+import '../utils/api_constants.dart';
 
-class OpenAlexException implements Exception {
-  const OpenAlexException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
-}
-
+/// Dịch vụ kết nối và lấy dữ liệu từ OpenAlex API
 class OpenAlexService {
-  OpenAlexService({http.Client? client}) : _client = client ?? http.Client();
-
-  final http.Client _client;
-
-  Future<List<Publication>> searchPublications(String topic) async {
-    final trimmedTopic = topic.trim();
-    if (trimmedTopic.isEmpty) {
-      throw const OpenAlexException('Search topic cannot be empty.');
-    }
-
-    final uri = Uri.parse(ApiConstants.worksEndpoint).replace(
+  /// Tìm kiếm các bài báo theo từ khóa (topic)
+  /// Sắp xếp theo số lượng trích dẫn giảm dần để lấy các bài báo có ảnh hưởng nhất
+  Future<List<Publication>> searchWorks(String query) async {
+    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
       queryParameters: {
-        'search': trimmedTopic,
+        'search': query,
         'sort': 'cited_by_count:desc',
-        'per_page': ApiConstants.defaultPerPage.toString(),
+        'mailto': ApiConstants.contactEmail,
       },
     );
 
     try {
-      final response = await _client
-          .get(uri)
-          .timeout(ApiConstants.requestTimeout);
-
-      if (response.statusCode != HttpStatus.ok) {
-        throw OpenAlexException(
-          'OpenAlex request failed with status ${response.statusCode}.',
-        );
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List results = data['results'] ?? [];
+        return results.map((json) => Publication.fromJson(json)).toList();
+      } else {
+        throw Exception('Lỗi khi tải dữ liệu từ OpenAlex: ${response.statusCode}');
       }
-
-      final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, dynamic>) {
-        throw const OpenAlexException('Unexpected response format from OpenAlex.');
-      }
-
-      final results = decoded['results'];
-      if (results is! List) {
-        return [];
-      }
-
-      return results
-          .whereType<Map<String, dynamic>>()
-          .map(Publication.fromOpenAlexJson)
-          .toList();
-    } on TimeoutException {
-      throw const OpenAlexException(
-        'Request timed out. Please check your connection and try again.',
-      );
-    } on FormatException {
-      throw const OpenAlexException('Failed to parse OpenAlex response.');
-    } on SocketException {
-      throw const OpenAlexException(
-        'Unable to reach OpenAlex. Please check your internet connection.',
-      );
-    } on OpenAlexException {
-      rethrow;
-    } catch (error) {
-      throw OpenAlexException('An unexpected error occurred: $error');
+    } catch (e) {
+      throw Exception('Lỗi kết nối API: $e');
     }
   }
 
-  void dispose() {
-    _client.close();
+  /// Lấy dữ liệu xu hướng số lượng bài báo theo năm của một chủ đề
+  Future<List<TrendData>> getYearlyTrend(String query) async {
+    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
+      queryParameters: {
+        'search': query,
+        'group_by': 'publication_year',
+        'mailto': ApiConstants.contactEmail,
+      },
+    );
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List groups = data['group_by'] ?? [];
+        
+        // Chuyển đổi và sắp xếp theo năm tăng dần
+        List<TrendData> trends = groups.map((json) => TrendData.fromJson(json)).toList();
+        trends.sort((a, b) => a.year.compareTo(b.year));
+        
+        // Chỉ lấy các năm gần đây (ví dụ 10 năm) để biểu đồ không bị quá dày
+        if (trends.length > 10) {
+          trends = trends.sublist(trends.length - 10);
+        }
+        
+        return trends;
+      } else {
+        throw Exception('Lỗi khi tải dữ liệu xu hướng: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Lỗi kết nối API: $e');
+    }
   }
 }

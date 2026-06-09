@@ -83,7 +83,7 @@ Chỉ cần làm **Flutter mobile app chạy được trên Android device/emula
 | Chart | `fl_chart` |
 | Data source | OpenAlex API |
 | Platform cần chạy | Android device / Android emulator |
-
+| Code review AI | GitHub Copilot Review, CodeRabbit, SonarQube hoặc Kodus AI |
 
 OpenAlex `/works` có thể dùng:
 
