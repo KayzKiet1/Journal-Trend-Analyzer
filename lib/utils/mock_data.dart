@@ -5,7 +5,7 @@ import 'package:journal_trend_analyzer/models/publication_model.dart';
 class MockData {
   MockData._();
 
-  static const List<Publication> samplePublications = [
+  static final List<Publication> samplePublications = [
     Publication(
       id: 'https://openalex.org/Wmock001',
       title: 'Deep Learning for Scientific Trend Analysis',
