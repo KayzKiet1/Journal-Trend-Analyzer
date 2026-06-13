@@ -4,6 +4,7 @@ import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/analysis_helper.dart';
+import '../widgets/stat_card.dart'; // 1. Import StatCard mới vào hệ thống
 
 /// Màn hình Dashboard tổng quan hiển thị các số liệu thống kê phân tích
 class DashboardScreen extends StatelessWidget {
@@ -37,47 +38,86 @@ class DashboardScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Số liệu thống kê nhanh',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  'Số liệu tổng quan',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 
-                // Hiển thị các thẻ thông số
+                // Lưới hiển thị các thẻ thông số thống kê chính
                 GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
                   crossAxisCount: 2,
                   crossAxisSpacing: AppSpacing.md,
                   mainAxisSpacing: AppSpacing.md,
-                  childAspectRatio: 1.5,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _buildStatCard('Tổng bài báo', publications.length.toString()),
-                    _buildStatCard('Trích dẫn TB', avgCitations.toStringAsFixed(1)),
-                    _buildStatCard('Chủ đề', controller.currentTopic),
-                    _buildStatCard('Nguồn tin', topJournals.length.toString()),
+                    // 2. Sử dụng class StatCard thay cho hàm build cũ
+                    StatCard(
+                      title: 'Tổng số bài báo', 
+                      value: '${publications.length}',
+                    ),
+                    StatCard(
+                      title: 'Trích dẫn trung bình', 
+                      value: avgCitations.toStringAsFixed(1),
+                    ),
                   ],
                 ),
                 
-                const SizedBox(height: AppSpacing.lg),
-                
-                // Danh sách các tạp chí hàng đầu
+                const SizedBox(height: AppSpacing.xl),
                 const Text(
-                  'Tạp chí xuất bản nhiều nhất',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  'Top 5 Tạp chí phổ biến',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                ...topJournals.entries.map((e) => _buildListItem(e.key, '${e.value} bài báo')),
+                Card(
+                  color: AppColors.surface,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: topJournals.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final entry = topJournals.entries.elementAt(index);
+                        return _buildListItem(entry.key, '${entry.value} bài báo');
+                      },
+                    ),
+                  ),
+                ),
                 
-                const SizedBox(height: AppSpacing.lg),
-                
-                // Danh sách các tác giả hàng đầu
+                const SizedBox(height: AppSpacing.xl),
                 const Text(
-                  'Tác giả đóng góp nhiều nhất',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  'Top 5 Tác giả nổi bật',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                ...topAuthors.entries.map((e) => _buildListItem(e.key, '${e.value} bài báo')),
-                
+                Card(
+                  color: AppColors.surface,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: topAuthors.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final entry = topAuthors.entries.elementAt(index);
+                        return _buildListItem(entry.key, 'Đóng góp ${entry.value} lượt');
+                      },
+                    ),
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.xl),
               ],
             ),
@@ -87,30 +127,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  /// Widget hiển thị thẻ thông số
-  Widget _buildStatCard(String title, String value) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            value, 
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
+  // 3. Hàm _buildStatCard cũ đã được loại bỏ hoàn toàn tại đây để tránh code rác
 
   /// Widget hiển thị mục trong danh sách (Tác giả/Tạp chí)
   Widget _buildListItem(String title, String subtitle) {
@@ -120,8 +137,8 @@ class DashboardScreen extends StatelessWidget {
         backgroundColor: AppColors.primary,
         child: Icon(Icons.star, color: Colors.white, size: 16),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle, style: const TextStyle(color: AppColors.textSecondary)),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+      subtitle: Text(subtitle, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
     );
   }
 }

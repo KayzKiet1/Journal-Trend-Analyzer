@@ -1,5 +1,5 @@
-// TODO: Implement AppButton - Assigned to Person 1
 import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
 
 class AppButton extends StatelessWidget {
   final String text;
@@ -9,9 +9,21 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      child: Text(text),
+    return SizedBox(
+      width: double.infinity,
+      height: 48, // Chiều cao tiêu chuẩn cho Reno 2F
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.0), // Bo góc 8px theo job.md
+          ),
+          elevation: 0,
+        ),
+        onPressed: onPressed,
+        child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+      ),
     );
   }
 }
