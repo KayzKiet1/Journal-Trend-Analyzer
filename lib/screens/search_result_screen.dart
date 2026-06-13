@@ -5,6 +5,7 @@ import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../widgets/publication_card.dart';
 import '../widgets/loading_widget.dart';
+import '../widgets/app_button.dart'; // 1. Thêm import AppButton
 import 'publication_detail_screen.dart';
 import 'trend_analysis_screen.dart';
 
@@ -33,17 +34,23 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Kết quả: ${widget.topic}', 
-          style: const TextStyle(color: AppColors.textInverted)),
+        title: Text(
+          'Kết quả: ${widget.topic}',
+          style: const TextStyle(color: AppColors.textInverted),
+        ),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: AppColors.textInverted),
+        // 2. Giữ lại nút trên AppBar hoặc xóa bỏ tùy nhu cầu. 
+        // Để UI tập trung vào AppButton bên dưới, ta giữ nguyên hoặc có thể lược bỏ.
         actions: [
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => TrendAnalysisScreen(topic: widget.topic)),
+                MaterialPageRoute(
+                  builder: (context) => TrendAnalysisScreen(topic: widget.topic),
+                ),
               );
             },
           ),
@@ -61,9 +68,11 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Text(controller.errorMessage, 
+                child: Text(
+                  controller.errorMessage,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red)),
+                  style: const TextStyle(color: Colors.red),
+                ),
               ),
             );
           }
@@ -93,17 +102,23 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => TrendAnalysisScreen(topic: widget.topic)),
-          );
-        },
-        label: const Text('Phân tích xu hướng'),
-        icon: const Icon(Icons.bar_chart),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textInverted,
+      // 3. Loại bỏ hoàn toàn `floatingActionButton` cũ rườm rà.
+      // 4. Thay thế bằng `bottomNavigationBar` cố định phía dưới màn hình để mang lại cảm giác cao cấp, vững chãi.
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md), // Khoảng đệm 16px chuẩn hệ thống
+          child: AppButton(
+            text: 'Phân tích xu hướng',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TrendAnalysisScreen(topic: widget.topic),
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
