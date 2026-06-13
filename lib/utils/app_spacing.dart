@@ -7,6 +7,6 @@ class AppSpacing {
   
   // Radius
   static const double radiusSm = 8.0;
-  static const double radiusMd = 12.0;
-  static const double radiusLg = 16.0;
+  static const double radiusMd = 8.0; // Hạ từ 12.0 xuống 8.0
+  static const double radiusLg = 8.0; // Hạ từ 16.0 xuống 8.0
 }
