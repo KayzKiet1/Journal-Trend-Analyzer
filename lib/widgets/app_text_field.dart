@@ -1,7 +1,7 @@
-// TODO: Implement AppTextField - Assigned to Person 1
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
+import '../utils/app_text_styles.dart';
 
 class AppTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -17,43 +17,38 @@ class AppTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      style: const TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 16.0,
-      ),
-      cursorColor: AppColors.primary,
+      style: AppTextStyles.bodyLarge,
+      cursorColor: AppColors.accent,
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: const TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 14.0,
+        hintStyle: AppTextStyles.bodySmall.copyWith(
+          color: AppColors.secondary,
         ),
-        fillColor: AppColors.surface, // Màu trắng tinh nổi bật trên nền Warm Limestone
+        fillColor: AppColors.surface,
         filled: true,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, // 16.0
+          horizontal: AppSpacing.md,
           vertical: 14.0,
         ),
         
-        // Trạng thái viền bình thường
+        // Border: 1px secondary
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm), // Bo góc cứng cáp 8.0
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
         ),
         
-        // Trạng thái viền khi đang focus (Gõ chữ)
+        // Active state: accent (Boston Clay)
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2.0), // Viền đỏ gạch Boston Clay dày 2px
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: const BorderSide(color: AppColors.accent, width: 2.0),
         ),
         
-        // Trạng thái viền khi lỗi (Nếu sau này cần tích hợp validator)
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.error, width: 1.0),
         ),
       ),

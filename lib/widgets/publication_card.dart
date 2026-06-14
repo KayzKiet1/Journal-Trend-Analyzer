@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
+import '../utils/app_text_styles.dart';
 
 /// Thẻ hiển thị tóm tắt thông tin một bài báo trong danh sách kết quả
 class PublicationCard extends StatelessWidget {
@@ -30,28 +31,22 @@ class PublicationCard extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          // Level 1: surface cards with 1px secondary border, no shadow
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(
+            color: AppColors.secondary,
+            width: 1.0,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Tiêu đề bài báo (Giới hạn 2 dòng)
+            // Tiêu đề bài báo
             Text(
               title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+              style: AppTextStyles.h2,
             ),
             const SizedBox(height: AppSpacing.sm),
             
@@ -60,10 +55,7 @@ class PublicationCard extends StatelessWidget {
               authors,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: AppTextStyles.bodySmall,
             ),
             const SizedBox(height: AppSpacing.md),
             
@@ -76,11 +68,7 @@ class PublicationCard extends StatelessWidget {
                     journal,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primary,
-                    ),
+                    style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -92,20 +80,16 @@ class PublicationCard extends StatelessWidget {
                     vertical: AppSpacing.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
+                    color: AppColors.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.star, size: 14, color: AppColors.primary),
+                      const Icon(Icons.format_quote, size: 14, color: AppColors.accent),
                       const SizedBox(width: 4),
                       Text(
                         '$citations',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
+                        style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
                       ),
                     ],
                   ),
@@ -115,10 +99,7 @@ class PublicationCard extends StatelessWidget {
                 // Năm xuất bản
                 Text(
                   year,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: AppTextStyles.labelCaps,
                 ),
               ],
             ),

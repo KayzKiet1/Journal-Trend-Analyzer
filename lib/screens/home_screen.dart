@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
@@ -15,19 +17,38 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  String _selectedCategory = 'Works';
+  
+  final List<Map<String, dynamic>> _categories = [
+    {'name': 'Works', 'icon': Icons.article_outlined},
+    {'name': 'Authors', 'icon': Icons.person_outline},
+    {'name': 'Sources', 'icon': Icons.book_outlined},
+    {'name': 'Institutions', 'icon': Icons.account_balance_outlined},
+  ];
 
-  void _handleSearch() {
-    final topic = _searchController.text.trim();
-    if (topic.isNotEmpty) {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PublicationController>().fetchPopularTopics();
+    });
+  }
+
+  void _handleSearch([String? topic]) {
+    final searchQuery = topic ?? _searchController.text.trim();
+    if (searchQuery.isNotEmpty) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => SearchResultScreen(topic: topic),
+          builder: (context) => SearchResultScreen(
+            topic: searchQuery, 
+            category: _selectedCategory,
+          ),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a topic')),
+        const SnackBar(content: Text('Vui lòng nhập từ khóa tìm kiếm')),
       );
     }
   }
@@ -38,62 +59,102 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Journal Trend Analyzer'),
-        // Do AppBarTheme trong app_theme.dart đã cấu hình đầy đủ màu sắc, 
-        // chữ TextStyle và centerTitle nên ở đây chúng ta tối giản thuộc tính.
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: AppSpacing.xl),
-            const Text(
-              'Analyze Research Trends',
-              style: AppTextStyles.h1,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xl,
             ),
-            const SizedBox(height: AppSpacing.sm),
-            const Text(
-              'Enter a topic to explore publications, citations, and research insights from OpenAlex.',
-              style: AppTextStyles.bodyLarge,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            
-            // Search Input Field (Đã thay thế bằng AppTextField custom)
-            AppTextField(
-              controller: _searchController,
-              hintText: 'e.g., Artificial Intelligence',
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            
-            // Search Button (Đã thay thế bằng AppButton custom)
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: AppButton(
-                text: 'Search Publications',
-                onPressed: _handleSearch,
-              ),
-            ),
-            
-            const SizedBox(height: AppSpacing.xl),
-            const Text(
-              'Popular Topics',
-              style: AppTextStyles.h2,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTopicChip('Artificial Intelligence'),
-                _buildTopicChip('Software Engineering'),
-                _buildTopicChip('Data Science'),
-                _buildTopicChip('Cybersecurity'),
-                _buildTopicChip('Blockchain'),
+                const SizedBox(height: AppSpacing.xl),
+                Text(
+                  'Explore Academic Insights',
+                  style: AppTextStyles.h1,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Search across millions of academic works, authors, sources, and institutions from OpenAlex.',
+                  style: AppTextStyles.bodyLarge,
+                ),
+                const SizedBox(height: AppSpacing.xl * 2),
+                
+                // Category Selector
+                Text('SEARCH CATEGORY', style: AppTextStyles.labelCaps),
+                const SizedBox(height: AppSpacing.md),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _categories.map((cat) => Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.sm),
+                      child: ChoiceChip(
+                        label: Text(cat['name']),
+                        avatar: Icon(
+                          cat['icon'], 
+                          size: 16, 
+                          color: _selectedCategory == cat['name'] 
+                            ? AppColors.textInverted 
+                            : AppColors.primary,
+                        ),
+                        selected: _selectedCategory == cat['name'],
+                        onSelected: (selected) {
+                          if (selected) setState(() => _selectedCategory = cat['name']);
+                        },
+                      ),
+                    )).toList(),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Search Input Field
+                AppTextField(
+                  controller: _searchController,
+                  hintText: 'Search for ${_selectedCategory.toLowerCase()}...',
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                
+                // Search Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: AppButton(
+                    text: 'Search ${_selectedCategory}',
+                    onPressed: () => _handleSearch(),
+                  ),
+                ),
+                
+                const SizedBox(height: AppSpacing.xl * 2),
+                Text(
+                  'POPULAR TOPICS',
+                  style: AppTextStyles.labelCaps,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                
+                Consumer<PublicationController>(
+                  builder: (context, controller, child) {
+                    if (controller.isTopicsLoading) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
+                      );
+                    }
+                    
+                    final topics = controller.popularTopics;
+                    return Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: topics.map((topic) => _buildTopicChip(topic)).toList(),
+                    );
+                  },
+                ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -103,16 +164,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return ActionChip(
       label: Text(label),
       onPressed: () {
-        _searchController.text = label;
-        _handleSearch();
+        setState(() => _selectedCategory = 'Works');
+        _handleSearch(label);
       },
-      backgroundColor: AppColors.primaryLight,
-      labelStyle: AppTextStyles.bodyMedium.copyWith(
+      backgroundColor: AppColors.surface,
+      labelStyle: AppTextStyles.labelCaps.copyWith(
         color: AppColors.primary,
-        fontWeight: FontWeight.w500,
+        fontSize: 11,
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        side: const BorderSide(color: AppColors.secondary, width: 1.0),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       ),
     );
   }

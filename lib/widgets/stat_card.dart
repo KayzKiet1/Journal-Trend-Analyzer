@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
+import '../utils/app_text_styles.dart';
 
 class StatCard extends StatelessWidget {
   final String title;
@@ -13,22 +14,13 @@ class StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface, // Thẻ màu trắng nổi bật trên nền ứng dụng
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm), // Bo góc 8px
+        color: AppColors.surface,
+        // Level 1: surface cards with 1px secondary border, no shadow
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(
-          color: AppColors
-              .primaryLight, // Đường viền mỏng đỏ nhẹ tạo sự liên kết tinh tế
+          color: AppColors.secondary,
           width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: 0.03,
-            ), // Đổ bóng siêu nhẹ theo chuẩn Heritage
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,22 +30,14 @@ class StatCard extends StatelessWidget {
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+            style: AppTextStyles.labelCaps,
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.primary, // Chỉ số mang màu nhấn chủ đạo
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AppTextStyles.statValue,
           ),
         ],
       ),

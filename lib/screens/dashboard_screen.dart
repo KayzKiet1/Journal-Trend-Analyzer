@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
+import '../utils/app_text_styles.dart';
 import '../utils/analysis_helper.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/top_author_list.dart';
 import '../widgets/top_journal_list.dart';
+import '../widgets/publication_card.dart';
+import 'publication_detail_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -16,12 +19,7 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(
-          'Bảng điều khiển nghiên cứu',
-          style: TextStyle(color: AppColors.textInverted),
-        ),
-        backgroundColor: AppColors.primary,
-        iconTheme: const IconThemeData(color: AppColors.textInverted),
+        title: const Text('Bảng điều khiển nghiên cứu'),
       ),
       body: Consumer<PublicationController>(
         builder: (context, controller, child) {
@@ -38,83 +36,149 @@ class DashboardScreen extends StatelessWidget {
               AnalysisHelper.getTotalCitations(publications).toString();
           final avgCitations =
               AnalysisHelper.getAverageCitations(publications).toStringAsFixed(1);
+          final mostActiveYear = 
+              AnalysisHelper.getMostActivePublicationYear(publications)?.toString() ?? 'N/A';
 
           final topJournals = AnalysisHelper.getTopJournals(publications);
           final topAuthors = AnalysisHelper.getTopAuthors(publications);
+          final topPapers = AnalysisHelper.getTopCitedPapers(publications, limit: 5);
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Thống kê tổng quan',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'THỐNG KÊ TỔNG QUAN',
+                      style: AppTextStyles.labelCaps,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final crossAxisCount =
+                            constraints.maxWidth >= 600 ? 4 : 2;
+
+                        return GridView.count(
+                          crossAxisCount: crossAxisCount,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisSpacing: AppSpacing.md,
+                          mainAxisSpacing: AppSpacing.md,
+                          childAspectRatio: constraints.maxWidth >= 600 ? 1.5 : 1.2,
+                          children: [
+                            StatCard(
+                              title: 'Tổng bài báo',
+                              value: totalPublications,
+                            ),
+                            StatCard(
+                              title: 'Tổng trích dẫn',
+                              value: totalCitations,
+                            ),
+                            StatCard(
+                              title: 'Trích dẫn TB',
+                              value: avgCitations,
+                            ),
+                            StatCard(
+                              title: 'Năm tích cực nhất',
+                              value: mostActiveYear,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl * 1.5),
+                    
+                    Text(
+                      'TOP 5 BÀI BÁO CÓ ẢNH HƯỞNG NHẤT',
+                      style: AppTextStyles.labelCaps,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    ...topPapers.map((pub) => PublicationCard(
+                      title: pub.title,
+                      year: pub.publicationYear.toString(),
+                      journal: pub.journalName,
+                      authors: pub.authorsString,
+                      citations: pub.citedByCount,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PublicationDetailScreen(publication: pub),
+                          ),
+                        );
+                      },
+                    )),
+
+                    const SizedBox(height: AppSpacing.xl * 1.5),
+
+                    // Sử dụng LayoutBuilder để tự động chuyển sang Column trên màn hình hẹp
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        if (constraints.maxWidth < 600) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'TOP 5 TẠP CHÍ PHỔ BIẾN',
+                                style: AppTextStyles.labelCaps,
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              TopJournalList(journals: topJournals),
+                              const SizedBox(height: AppSpacing.xl),
+                              Text(
+                                'TOP 5 TÁC GIẢ ĐÓNG GÓP',
+                                style: AppTextStyles.labelCaps,
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              TopAuthorList(authors: topAuthors),
+                            ],
+                          );
+                        } else {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'TOP 5 TẠP CHÍ PHỔ BIẾN',
+                                      style: AppTextStyles.labelCaps,
+                                    ),
+                                    const SizedBox(height: AppSpacing.md),
+                                    TopJournalList(journals: topJournals),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.xl),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'TOP 5 TÁC GIẢ ĐÓNG GÓP',
+                                      style: AppTextStyles.labelCaps,
+                                    ),
+                                    const SizedBox(height: AppSpacing.md),
+                                    TopAuthorList(authors: topAuthors),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl * 2),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final crossAxisCount =
-                        constraints.maxWidth >= 700 ? 3 : 2;
-
-                    return GridView.count(
-                      crossAxisCount: crossAxisCount,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: AppSpacing.sm,
-                      mainAxisSpacing: AppSpacing.sm,
-                      childAspectRatio: 1.5,
-                      children: [
-                        StatCard(
-                          title: 'Tổng bài báo',
-                          value: totalPublications,
-                        ),
-                        StatCard(
-                          title: 'Tổng trích dẫn',
-                          value: totalCitations,
-                        ),
-                        StatCard(
-                          title: 'Trích dẫn TB',
-                          value: avgCitations,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-
-                const SizedBox(height: AppSpacing.lg),
-
-                const Text(
-                  'Top 5 Tạp chí phổ biến',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                TopJournalList(journals: topJournals),
-
-                const SizedBox(height: AppSpacing.lg),
-
-                const Text(
-                  'Top 5 Tác giả đóng góp',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                TopAuthorList(authors: topAuthors),
-
-                const SizedBox(height: AppSpacing.xl),
-              ],
+              ),
             ),
           );
         },

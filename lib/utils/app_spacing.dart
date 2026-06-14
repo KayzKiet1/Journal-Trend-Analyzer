@@ -5,8 +5,11 @@ class AppSpacing {
   static const double lg = 24.0;
   static const double xl = 32.0;
   
-  // Radius
-  static const double radiusSm = 8.0;
-  static const double radiusMd = 8.0; // Hạ từ 12.0 xuống 8.0
-  static const double radiusLg = 8.0; // Hạ từ 16.0 xuống 8.0
+  // Radius (Strict Heritage Control)
+  static const double radiusSm = 4.0; // Small tags or chips
+  static const double radiusMd = 8.0; // Standard for cards, buttons, inputs
+  
+  // Base unit for 8px grid
+  static const double baseUnit = 8.0;
+  static const double pagePadding = 16.0;
 }

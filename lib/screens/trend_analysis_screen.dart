@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/analysis_controller.dart';
+import '../models/trend_data_model.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
+import '../utils/app_text_styles.dart';
 import '../widgets/year_trend_chart.dart';
 import '../widgets/loading_widget.dart';
 import 'dashboard_screen.dart';
 
-/// Màn hình phân tích xu hướng và hiển thị biểu đồ theo thời gian
 class TrendAnalysisScreen extends StatefulWidget {
   final String topic;
 
@@ -21,7 +22,6 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
   @override
   void initState() {
     super.initState();
-    // Gọi API lấy dữ liệu xu hướng sau khi màn hình được khởi tạo
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AnalysisController>().fetchTrendAnalysis(widget.topic);
     });
@@ -32,9 +32,7 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Xu hướng: ${widget.topic}', style: const TextStyle(color: AppColors.textInverted)),
-        backgroundColor: AppColors.primary,
-        iconTheme: const IconThemeData(color: AppColors.textInverted),
+        title: Text('Xu hướng: ${widget.topic}'),
         actions: [
           TextButton.icon(
             onPressed: () {
@@ -43,8 +41,8 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
                 MaterialPageRoute(builder: (context) => const DashboardScreen()),
               );
             },
-            icon: const Icon(Icons.dashboard_customize, color: AppColors.textInverted),
-            label: const Text('Tổng quan', style: TextStyle(color: AppColors.textInverted)),
+            icon: const Icon(Icons.dashboard_customize),
+            label: Text('DASHBOARD', style: AppTextStyles.labelCaps.copyWith(color: AppColors.primary)),
           ),
         ],
       ),
@@ -58,36 +56,45 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
             return Center(child: Text(controller.errorMessage));
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Biểu đồ xu hướng theo năm
-                YearTrendChart(trends: controller.trends),
-                
-                const SizedBox(height: AppSpacing.lg),
-                const Text(
-                  'Phân tích chi tiết',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          // Logic tìm năm tích cực nhất dựa trên dữ liệu thật
+          TrendData? mostActiveTrend;
+          if (controller.trends.isNotEmpty) {
+            mostActiveTrend = controller.trends.reduce((curr, next) => curr.count > next.count ? curr : next);
+          }
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    YearTrendChart(trends: controller.trends),
+                    
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'PHÂN TÍCH CHI TIẾT',
+                      style: AppTextStyles.labelCaps,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    
+                    if (controller.trends.isNotEmpty && mostActiveTrend != null) ...[
+                      _buildInsightCard(
+                        Icons.trending_up, 
+                        'Năm hoạt động mạnh nhất', 
+                        'Năm ${mostActiveTrend.year} có số lượng bài báo cao nhất với ${mostActiveTrend.count} công trình.'
+                      ),
+                      _buildInsightCard(
+                        Icons.history, 
+                        'Giai đoạn nghiên cứu', 
+                        'Dữ liệu bao gồm các nghiên cứu từ năm ${controller.trends.first.year} đến ${controller.trends.last.year}.'
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                
-                // Hiển thị các nhận định dựa trên dữ liệu thật
-                if (controller.trends.isNotEmpty) ...[
-                  _buildInsightCard(
-                    Icons.trending_up, 
-                    'Năm hoạt động mạnh nhất', 
-                    'Năm ${controller.trends.last.year} có số lượng bài báo cao nhất với ${controller.trends.last.count} công trình.'
-                  ),
-                  _buildInsightCard(
-                    Icons.history, 
-                    'Giai đoạn nghiên cứu', 
-                    'Dữ liệu bao gồm các nghiên cứu từ năm ${controller.trends.first.year} đến ${controller.trends.last.year}.'
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.xl),
-              ],
+              ),
             ),
           );
         },
@@ -95,7 +102,6 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
     );
   }
 
-  /// Widget hiển thị thẻ nhận định
   Widget _buildInsightCard(IconData icon, String title, String description) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -103,31 +109,25 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: AppColors.secondary, width: 1.0),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: const BoxDecoration(
-              color: AppColors.primaryLight,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: AppColors.primary),
+            child: Icon(icon, color: AppColors.accent, size: 20),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(description, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                Text(title, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
+                Text(description, style: AppTextStyles.bodySmall),
               ],
             ),
           ),

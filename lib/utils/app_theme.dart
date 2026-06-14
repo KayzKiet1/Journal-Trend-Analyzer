@@ -3,53 +3,50 @@ import 'app_colors.dart';
 import 'app_spacing.dart';
 import 'app_text_styles.dart';
 
-/// Class cấu hình Theme toàn cục cho ứng dụng.
-/// Kết nối tất cả các Design Tokens (Colors, Spacing, TextStyles) vào hệ thống MaterialApp.
+/// Class cấu hình Theme toàn cục theo hệ thống Heritage.
 class AppTheme {
   AppTheme._();
 
-  /// Cấu hình Light Theme (Nền sáng) dành cho ứng dụng phân tích học thuật
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-
-      // Cấu hình màu nền chính của ứng dụng
       scaffoldBackgroundColor: AppColors.background,
+      
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
+        onPrimary: AppColors.textInverted,
         secondary: AppColors.secondary,
+        onSecondary: AppColors.textInverted,
         surface: AppColors.surface,
+        onSurface: AppColors.textPrimary,
         error: AppColors.error,
+        outline: AppColors.secondary,
       ),
 
-      // Cấu hình thanh AppBar tiêu chuẩn ở đỉnh màn hình
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textInverted,
+      // AppBar: Journalistic style (Warm Limestone background, Deep Ink text)
+      appBarTheme: AppBarTheme(
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.primary,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontFamily: 'Roboto',
-          fontSize: 20.0,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textInverted,
-        ),
+        titleTextStyle: AppTextStyles.h2,
+        iconTheme: const IconThemeData(color: AppColors.primary),
       ),
 
-      // Cấu hình phong cách hiển thị chữ mặc định của hệ thống
-      textTheme: const TextTheme(
+      // Text Theme
+      textTheme: TextTheme(
         displayLarge: AppTextStyles.h1,
         headlineMedium: AppTextStyles.h2,
         bodyLarge: AppTextStyles.bodyLarge,
-        bodyMedium: AppTextStyles.bodyMedium,
-        labelSmall: AppTextStyles.caption,
+        bodyMedium: AppTextStyles.bodySmall,
+        labelSmall: AppTextStyles.labelCaps,
       ),
 
-      // Cấu hình cho các nút bấm chính dạng nổi (ElevatedButton)
+      // Button Theme: Boston Clay (#B8422E)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.accent,
           foregroundColor: AppColors.textInverted,
           textStyle: AppTextStyles.buttonText,
           elevation: 0,
@@ -63,48 +60,49 @@ class AppTheme {
         ),
       ),
 
-      // Cấu hình cho ô nhập liệu tìm kiếm (TextField / InputDecoration)
+      // Input Theme: Paper White surface, Sophisticated Slate border
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.all(AppSpacing.md),
-        hintStyle: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.secondary,
-        ),
-        labelStyle: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.textPrimary,
-        ),
-
-        // Trạng thái viền bình thường khi không nhấn vào
+        hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
+        labelStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),
+        
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
         ),
-
-        // Trạng thái viền khi đang nhấn vào ô nhập để gõ chữ
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2.0),
-        ),
-
-        // Trạng thái viền khi xảy ra lỗi nhập liệu
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-          borderSide: const BorderSide(color: AppColors.error, width: 1.0),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: const BorderSide(color: AppColors.accent, width: 2.0),
         ),
       ),
 
-      // Cấu hình hiển thị cho các thẻ Card (Ví dụ: Card chứa bài báo)
+      // Card Theme: Level 1 (Paper White surface, 1px Slate border, No shadow)
       cardTheme: CardThemeData(
         color: AppColors.surface,
-        elevation: 2,
+        elevation: 0,
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          side: const BorderSide(color: AppColors.secondary, width: 1.0),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+      ),
+      
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surface,
+        disabledColor: AppColors.secondary.withValues(alpha: 0.1),
+        selectedColor: AppColors.accent,
+        secondarySelectedColor: AppColors.accent,
+        padding: const EdgeInsets.all(4),
+        labelStyle: AppTextStyles.labelCaps,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: AppColors.secondary, width: 1.0),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         ),
       ),
     );

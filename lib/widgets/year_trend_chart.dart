@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/trend_data_model.dart';
+import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
+import '../utils/app_text_styles.dart';
 
-/// Widget hiển thị biểu đồ đường về xu hướng bài báo qua các năm
-/// Áp dụng màu chủ đạo Boston Clay (#B8422E) và bo góc 8px chuẩn Heritage
+/// Widget hiển thị biểu đồ cột (Bar Chart) về xu hướng bài báo qua các năm.
 class YearTrendChart extends StatelessWidget {
   final List<TrendData> trends;
 
@@ -19,39 +20,28 @@ class YearTrendChart extends StatelessWidget {
       );
     }
 
-    // Màu Boston Clay nhấn cho biểu đồ theo chuẩn Heritage
-    const Color bostonClay = Color(0xFFB8422E);
-
     return Container(
       height: 300,
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8.0), // Quy chuẩn bo góc 8px trong job.md
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.secondary, width: 1.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Số lượng bài báo theo năm',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
-            ),
+            style: AppTextStyles.h2,
           ),
           const SizedBox(height: AppSpacing.md),
           Expanded(
-            child: LineChart(
-              LineChartData(
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: (trends.map((e) => e.count).reduce((a, b) => a > b ? a : b) * 1.2).toDouble(),
                 gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
                   bottomTitles: AxisTitles(
@@ -61,11 +51,18 @@ class YearTrendChart extends StatelessWidget {
                       getTitlesWidget: (value, meta) {
                         int index = value.toInt();
                         if (index >= 0 && index < trends.length) {
-                          // Chỉ hiển thị cách năm để tránh dày đặc trên màn hình
-                          if (index % 2 == 0) {
+                          // Chỉ hiển thị nhãn cách quãng nếu dữ liệu quá nhiều
+                          if (trends.length > 8) {
+                            if (index % 2 == 0) {
+                              return Text(
+                                trends[index].year.toString(),
+                                style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
+                              );
+                            }
+                          } else {
                             return Text(
                               trends[index].year.toString(),
-                              style: const TextStyle(color: Color(0xFF475569), fontSize: 10),
+                              style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
                             );
                           }
                         }
@@ -78,33 +75,31 @@ class YearTrendChart extends StatelessWidget {
                   rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: trends.asMap().entries.map((e) {
-                      return FlSpot(e.key.toDouble(), e.value.count.toDouble());
-                    }).toList(),
-                    isCurved: true,
-                    color: bostonClay,
-                    barWidth: 4,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: true),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: bostonClay.withValues(alpha: 0.1),
-                    ),
-                  ),
-                ],
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipColor: (spot) => bostonClay,
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((spot) {
-                        final year = trends[spot.x.toInt()].year;
-                        return LineTooltipItem(
-                          '$year: ${spot.y.toInt()} bài',
-                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                        );
-                      }).toList();
+                barGroups: trends.asMap().entries.map((e) {
+                  return BarChartGroupData(
+                    x: e.key,
+                    barRods: [
+                      BarChartRodData(
+                        toY: e.value.count.toDouble(),
+                        color: AppColors.accent,
+                        width: 16,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(4),
+                          topRight: Radius.circular(4),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (group) => AppColors.accent,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final year = trends[group.x.toInt()].year;
+                      return BarTooltipItem(
+                        '$year: ${rod.toY.toInt()} bài',
+                        AppTextStyles.labelCaps.copyWith(color: AppColors.textInverted),
+                      );
                     },
                   ),
                 ),
