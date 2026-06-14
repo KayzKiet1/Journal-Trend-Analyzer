@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'controllers/publication_controller.dart';
 import 'controllers/analysis_controller.dart';
 import 'screens/home_screen.dart';
-import 'utils/app_colors.dart';
 import 'utils/app_theme.dart';
 
 void main() {
