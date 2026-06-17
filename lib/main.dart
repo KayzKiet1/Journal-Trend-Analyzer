@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/publication_controller.dart';
 import 'controllers/analysis_controller.dart';
+import 'controllers/user_controller.dart';
 import 'screens/home_screen.dart';
 import 'utils/app_theme.dart';
 
@@ -20,6 +21,7 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => PublicationController()),
         ChangeNotifierProvider(create: (_) => AnalysisController()),
+        ChangeNotifierProvider(create: (_) => UserController()),
       ],
       child: MaterialApp(
         title: 'Journal Trend Analyzer',

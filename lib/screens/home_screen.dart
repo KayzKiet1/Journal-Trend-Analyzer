@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../controllers/publication_controller.dart';
+import '../controllers/user_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/app_button.dart';
+import '../widgets/app_drawer.dart';
 import 'search_result_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,17 +27,12 @@ class _HomeScreenState extends State<HomeScreen> {
     {'name': 'Institutions', 'icon': Icons.account_balance_outlined},
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PublicationController>().fetchPopularTopics();
-    });
-  }
-
   void _handleSearch([String? topic]) {
     final searchQuery = topic ?? _searchController.text.trim();
     if (searchQuery.isNotEmpty) {
+      // Lưu vào lịch sử tìm kiếm
+      context.read<UserController>().addSearch(searchQuery);
+      
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -61,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Journal Trend Analyzer'),
         elevation: 0,
       ),
+      drawer: const AppDrawer(currentRoute: 'home'),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
@@ -123,32 +120,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: double.infinity,
                   height: 56,
                   child: AppButton(
-                    text: 'Search ${_selectedCategory}',
+                    text: 'Search $_selectedCategory',
                     onPressed: () => _handleSearch(),
                   ),
                 ),
                 
                 const SizedBox(height: AppSpacing.xl * 2),
                 Text(
-                  'POPULAR TOPICS',
+                  'RECENT SEARCHES',
                   style: AppTextStyles.labelCaps,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 
-                Consumer<PublicationController>(
-                  builder: (context, controller, child) {
-                    if (controller.isTopicsLoading) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
+                Consumer<UserController>(
+                  builder: (context, userController, child) {
+                    final history = userController.recentSearches;
+                    
+                    if (history.isEmpty) {
+                      return Text(
+                        'Chưa có lịch sử tìm kiếm.',
+                        style: AppTextStyles.bodySmall,
                       );
                     }
                     
-                    final topics = controller.popularTopics;
                     return Wrap(
                       spacing: AppSpacing.sm,
                       runSpacing: AppSpacing.sm,
-                      children: topics.map((topic) => _buildTopicChip(topic)).toList(),
+                      children: history.map((topic) => _buildTopicChip(topic)).toList(),
                     );
                   },
                 ),
@@ -163,10 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTopicChip(String label) {
     return ActionChip(
       label: Text(label),
-      onPressed: () {
-        setState(() => _selectedCategory = 'Works');
-        _handleSearch(label);
-      },
+      onPressed: () => _handleSearch(label),
       backgroundColor: AppColors.surface,
       labelStyle: AppTextStyles.labelCaps.copyWith(
         color: AppColors.primary,

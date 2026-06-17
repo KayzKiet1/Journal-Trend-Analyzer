@@ -50,7 +50,7 @@ class TopJournalList extends StatelessWidget {
                   border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
                 ),
                 child: Text(
-                  '${entry.value} bài',
+                  '${entry.value} ấn phẩm',
                   style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent, fontSize: 10),
                 ),
               ),

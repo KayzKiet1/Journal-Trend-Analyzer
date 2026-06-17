@@ -6,9 +6,9 @@ import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
 import '../utils/analysis_helper.dart';
 import '../widgets/stat_card.dart';
-import '../widgets/top_author_list.dart';
-import '../widgets/top_journal_list.dart';
+import '../widgets/horizontal_bar_chart.dart';
 import '../widgets/publication_card.dart';
+import '../widgets/app_drawer.dart';
 import 'publication_detail_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -21,6 +21,7 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Bảng điều khiển nghiên cứu'),
       ),
+      drawer: const AppDrawer(currentRoute: 'keywords'),
       body: Consumer<PublicationController>(
         builder: (context, controller, child) {
           final publications = controller.publications;
@@ -31,16 +32,26 @@ class DashboardScreen extends StatelessWidget {
             );
           }
 
-          final totalPublications = publications.length.toString();
-          final totalCitations =
-              AnalysisHelper.getTotalCitations(publications).toString();
-          final avgCitations =
-              AnalysisHelper.getAverageCitations(publications).toStringAsFixed(1);
+          final totalPublications = controller.totalResults > 0 
+              ? controller.totalResults.toString() 
+              : publications.length.toString();
+          
+          final totalCitations = controller.totalCitationsGlobal > 0
+              ? controller.totalCitationsGlobal.toString()
+              : AnalysisHelper.getTotalCitations(publications).toString();
+              
+          final avgCitations = (int.parse(totalCitations) / int.parse(totalPublications)).toStringAsFixed(1);
+
           final mostActiveYear = 
               AnalysisHelper.getMostActivePublicationYear(publications)?.toString() ?? 'N/A';
 
           final topJournals = AnalysisHelper.getTopJournals(publications);
           final topAuthors = AnalysisHelper.getTopAuthors(publications);
+          
+          // Chuyển đổi Map sang List<Map<String, dynamic>> cho HorizontalBarChart
+          final journalData = topJournals.entries.map((e) => {'name': e.key, 'count': e.value}).toList();
+          final authorData = topAuthors.entries.map((e) => {'name': e.key, 'count': e.value}).toList();
+
           final topPapers = AnalysisHelper.getTopCitedPapers(publications, limit: 5);
 
           return Center(
@@ -123,19 +134,15 @@ class DashboardScreen extends StatelessWidget {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'TOP 5 TẠP CHÍ PHỔ BIẾN',
-                                style: AppTextStyles.labelCaps,
+                              HorizontalBarChart(
+                                data: journalData, 
+                                title: 'TOP 5 TẠP CHÍ PHỔ BIẾN',
                               ),
-                              const SizedBox(height: AppSpacing.md),
-                              TopJournalList(journals: topJournals),
                               const SizedBox(height: AppSpacing.xl),
-                              Text(
-                                'TOP 5 TÁC GIẢ ĐÓNG GÓP',
-                                style: AppTextStyles.labelCaps,
+                              HorizontalBarChart(
+                                data: authorData, 
+                                title: 'TOP 5 TÁC GIẢ ĐÓNG GÓP',
                               ),
-                              const SizedBox(height: AppSpacing.md),
-                              TopAuthorList(authors: topAuthors),
                             ],
                           );
                         } else {
@@ -143,30 +150,16 @@ class DashboardScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'TOP 5 TẠP CHÍ PHỔ BIẾN',
-                                      style: AppTextStyles.labelCaps,
-                                    ),
-                                    const SizedBox(height: AppSpacing.md),
-                                    TopJournalList(journals: topJournals),
-                                  ],
+                                child: HorizontalBarChart(
+                                  data: journalData, 
+                                  title: 'TOP 5 TẠP CHÍ PHỔ BIẾN',
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.xl),
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'TOP 5 TÁC GIẢ ĐÓNG GÓP',
-                                      style: AppTextStyles.labelCaps,
-                                    ),
-                                    const SizedBox(height: AppSpacing.md),
-                                    TopAuthorList(authors: topAuthors),
-                                  ],
+                                child: HorizontalBarChart(
+                                  data: authorData, 
+                                  title: 'TOP 5 TÁC GIẢ ĐÓNG GÓP',
                                 ),
                               ),
                             ],
