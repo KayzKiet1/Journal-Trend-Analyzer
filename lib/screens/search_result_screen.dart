@@ -7,8 +7,10 @@ import '../utils/app_text_styles.dart';
 import '../widgets/publication_card.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/empty_state_widget.dart';
+import '../widgets/app_drawer.dart';
 import 'publication_detail_screen.dart';
 import 'trend_analysis_screen.dart';
+import 'home_screen.dart';
 
 class SearchResultScreen extends StatefulWidget {
   final String topic;
@@ -65,6 +67,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   @override
   Widget build(BuildContext context) {
     String displayTitle = widget.topic;
+    bool isSubPage = widget.category == 'AuthorWorks';
+
     if (widget.category == 'AuthorWorks') {
       displayTitle = 'Bài báo của ${widget.topic}';
     } else {
@@ -73,9 +77,31 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: isSubPage ? null : AppDrawer(
+        currentRoute: widget.category == 'Sources' ? 'journal' : '',
+      ),
       appBar: AppBar(
         title: Text(displayTitle),
+        leading: isSubPage 
+          ? null 
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => HomeScreen()),
+                (route) => false,
+              );
+            },
+            tooltip: 'Tìm kiếm mới',
+          ),
           if (widget.category == 'Works')
             IconButton(
               icon: const Icon(Icons.analytics_outlined),
@@ -239,12 +265,23 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           border: Border.all(color: AppColors.secondary, width: 1.0),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              offset: const Offset(0, 2),
+              blurRadius: 4,
+            ),
+          ],
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: AppColors.accent.withValues(alpha: 0.1),
-              child: Icon(icon, color: AppColors.accent),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.accent, size: 24),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -252,14 +289,29 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: AppTextStyles.h2, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
                   Text(subtitle, style: AppTextStyles.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
-                  Text(meta, style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.format_quote, size: 12, color: AppColors.accent),
+                      const SizedBox(width: 4),
+                      Text(meta, style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent, fontSize: 10)),
+                    ],
+                  ),
                 ],
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Text(trailing, style: AppTextStyles.labelCaps),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+              ),
+              child: Text(trailing, style: AppTextStyles.labelCaps.copyWith(fontSize: 10)),
+            ),
           ],
         ),
       ),

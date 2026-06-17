@@ -12,7 +12,8 @@ import '../widgets/app_drawer.dart';
 import 'publication_detail_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  final String route;
+  const DashboardScreen({super.key, this.route = 'journal'});
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +22,7 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Bảng điều khiển nghiên cứu'),
       ),
-      drawer: const AppDrawer(currentRoute: 'keywords'),
+      drawer: AppDrawer(currentRoute: route),
       body: Consumer<PublicationController>(
         builder: (context, controller, child) {
           final publications = controller.publications;
@@ -84,18 +85,22 @@ class DashboardScreen extends StatelessWidget {
                             StatCard(
                               title: 'Tổng bài báo',
                               value: totalPublications,
+                              icon: Icons.article_outlined,
                             ),
                             StatCard(
                               title: 'Tổng trích dẫn',
                               value: totalCitations,
+                              icon: Icons.format_quote,
                             ),
                             StatCard(
                               title: 'Trích dẫn TB',
                               value: avgCitations,
+                              icon: Icons.analytics_outlined,
                             ),
                             StatCard(
-                              title: 'Năm tích cực nhất',
+                              title: 'Năm tích cực',
                               value: mostActiveYear,
+                              icon: Icons.calendar_today_outlined,
                             ),
                           ],
                         );

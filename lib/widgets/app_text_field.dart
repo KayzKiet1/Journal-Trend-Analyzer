@@ -6,11 +6,15 @@ import '../utils/app_text_styles.dart';
 class AppTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
+  final IconData? prefixIcon;
+  final VoidCallback? onSubmitted;
 
   const AppTextField({
     super.key, 
     required this.controller, 
     required this.hintText,
+    this.prefixIcon,
+    this.onSubmitted,
   });
 
   @override
@@ -19,11 +23,14 @@ class AppTextField extends StatelessWidget {
       controller: controller,
       style: AppTextStyles.bodyLarge,
       cursorColor: AppColors.accent,
+      onSubmitted: (_) => onSubmitted?.call(),
       decoration: InputDecoration(
         hintText: hintText,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.secondary, size: 20) : null,
         hintStyle: AppTextStyles.bodySmall.copyWith(
           color: AppColors.secondary,
         ),
+// ...
         fillColor: AppColors.surface,
         filled: true,
         contentPadding: const EdgeInsets.symmetric(

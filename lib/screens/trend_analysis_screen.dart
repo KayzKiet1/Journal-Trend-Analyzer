@@ -39,9 +39,11 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.push(
+              Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const DashboardScreen(route: 'journal'),
+                ),
               );
             },
             icon: const Icon(Icons.dashboard_customize),

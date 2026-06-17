@@ -33,7 +33,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // Lưu vào lịch sử tìm kiếm
       context.read<UserController>().addSearch(searchQuery);
       
-      Navigator.push(
+      // Sử dụng pushReplacement để màn hình kết quả có thanh Sidebar (Drawer) thay vì nút Back
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => SearchResultScreen(
@@ -87,23 +88,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: _categories.map((cat) => Padding(
-                      padding: const EdgeInsets.only(right: AppSpacing.sm),
-                      child: ChoiceChip(
-                        label: Text(cat['name']),
-                        avatar: Icon(
-                          cat['icon'], 
-                          size: 16, 
-                          color: _selectedCategory == cat['name'] 
-                            ? AppColors.textInverted 
-                            : AppColors.primary,
+                    children: _categories.map((cat) {
+                      final isSelected = _selectedCategory == cat['name'];
+                      return Padding(
+                        padding: const EdgeInsets.only(right: AppSpacing.sm),
+                        child: ChoiceChip(
+                          label: Text(cat['name']),
+                          labelStyle: AppTextStyles.labelCaps.copyWith(
+                            color: isSelected ? Colors.white : AppColors.primary,
+                          ),
+                          avatar: Icon(
+                            cat['icon'], 
+                            size: 16, 
+                            color: isSelected ? Colors.white : AppColors.primary,
+                          ),
+                          selected: isSelected,
+                          selectedColor: AppColors.accent,
+                          backgroundColor: AppColors.surface,
+                          checkmarkColor: Colors.white,
+                          side: BorderSide(
+                            color: isSelected ? AppColors.accent : AppColors.secondary,
+                            width: 1.0,
+                          ),
+                          onSelected: (selected) {
+                            if (selected) setState(() => _selectedCategory = cat['name']);
+                          },
                         ),
-                        selected: _selectedCategory == cat['name'],
-                        onSelected: (selected) {
-                          if (selected) setState(() => _selectedCategory = cat['name']);
-                        },
-                      ),
-                    )).toList(),
+                      );
+                    }).toList(),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
@@ -112,6 +124,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 AppTextField(
                   controller: _searchController,
                   hintText: 'Search for ${_selectedCategory.toLowerCase()}...',
+                  prefixIcon: Icons.search,
+                  onSubmitted: () => _handleSearch(),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 

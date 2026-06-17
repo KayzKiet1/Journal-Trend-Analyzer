@@ -7,6 +7,7 @@ import '../utils/app_text_styles.dart';
 import '../screens/home_screen.dart';
 import '../screens/dashboard_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/search_result_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   final String currentRoute;
@@ -42,8 +43,15 @@ class AppDrawer extends StatelessWidget {
             label: 'JOURNAL',
             route: 'journal',
             onTap: () {
-              // Journal section - Show top journals analysis
-              _navigate(context, const DashboardScreen());
+              // Lấy từ khóa tìm kiếm gần nhất, nếu không có thì mặc định là 'AI'
+              final lastSearch = userController.recentSearches.isNotEmpty 
+                  ? userController.recentSearches.first 
+                  : 'AI';
+              
+              _navigate(context, SearchResultScreen(
+                topic: lastSearch,
+                category: 'Works',
+              ));
             },
           ),
           _buildMenuItem(
@@ -52,12 +60,8 @@ class AppDrawer extends StatelessWidget {
             label: 'KEYWORDS',
             route: 'keywords',
             onTap: () {
-              // Chuyển đến màn hình phân tích với một topic mặc định hoặc rỗng
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardScreen()),
-              );
+              // Giữ Dashboard cho phần Keywords/Phân tích
+              _navigate(context, const DashboardScreen(route: 'keywords'));
             },
           ),
           const Spacer(),
