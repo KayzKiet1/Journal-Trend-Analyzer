@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/user_controller.dart';
+import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
@@ -18,23 +19,29 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _selectedCategory = 'Works';
+  String _selectedCategory = 'Sources';
   
   final List<Map<String, dynamic>> _categories = [
+    {'name': 'Sources', 'icon': Icons.book_outlined},
     {'name': 'Works', 'icon': Icons.article_outlined},
     {'name': 'Authors', 'icon': Icons.person_outline},
-    {'name': 'Sources', 'icon': Icons.book_outlined},
     {'name': 'Institutions', 'icon': Icons.account_balance_outlined},
   ];
 
   void _handleSearch([String? topic]) {
-    final searchQuery = topic ?? _searchController.text.trim();
-    if (searchQuery.isNotEmpty) {
+    final searchQuery = (topic ?? _searchController.text).trim();
+    
+    // Always update the controller's search text to preserve state
+    final controller = context.read<PublicationController>();
+    controller.updateSearchText(searchQuery);
+    controller.updateSearchCategory(_selectedCategory);
+
+    if (searchQuery.isNotEmpty || _selectedCategory == 'Sources') {
       // Lưu vào lịch sử tìm kiếm
-      context.read<UserController>().addSearch(searchQuery);
-      
-      // Sử dụng pushReplacement để màn hình kết quả có thanh Sidebar (Drawer) thay vì nút Back
-      Navigator.pushReplacement(
+      if (searchQuery.isNotEmpty) {
+        context.read<UserController>().addSearch(searchQuery);
+      }
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => SearchResultScreen(
@@ -47,6 +54,25 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng nhập từ khóa tìm kiếm')),
       );
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Initialize search text and category from controller when returning to screen
+    final controller = context.read<PublicationController>();
+    final lastSearch = controller.lastSearchText;
+    final lastCategory = controller.lastSearchCategory;
+
+    if (_searchController.text.isEmpty && lastSearch.isNotEmpty) {
+      _searchController.text = lastSearch;
+    }
+    
+    if (_selectedCategory != lastCategory) {
+      setState(() {
+        _selectedCategory = lastCategory;
+      });
     }
   }
 
@@ -123,7 +149,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Search Input Field
                 AppTextField(
                   controller: _searchController,
-                  hintText: 'Search for ${_selectedCategory.toLowerCase()}...',
+                  hintText: _selectedCategory == 'Sources' 
+                      ? 'Search academic journals...' 
+                      : 'Search for ${_selectedCategory.toLowerCase()}...',
                   prefixIcon: Icons.search,
                   onSubmitted: () => _handleSearch(),
                 ),

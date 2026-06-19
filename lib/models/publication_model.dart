@@ -12,6 +12,7 @@ class Publication {
   final List<Author> authors;
   final String doi;
   final String abstractText;
+  final List<String> topics;
 
   Publication({
     required this.id,
@@ -23,6 +24,7 @@ class Publication {
     required this.authors,
     required this.doi,
     required this.abstractText,
+    required this.topics,
   });
 
   /// Chuyển đổi từ dữ liệu JSON của OpenAlex sang đối tượng Publication
@@ -41,6 +43,20 @@ class Publication {
       json['abstract_inverted_index'] as Map<String, dynamic>?
     );
 
+    // Lấy danh sách topics hoặc concepts làm fallback
+    var topicsJson = json['topics'] as List? ?? [];
+    List<String> topicsList = topicsJson
+        .map((t) => t['display_name'] as String? ?? '')
+        .where((name) => name.isNotEmpty)
+        .toList();
+    if (topicsList.isEmpty) {
+      var conceptsJson = json['concepts'] as List? ?? [];
+      topicsList = conceptsJson
+          .map((c) => c['display_name'] as String? ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList();
+    }
+
     return Publication(
       id: json['id'] ?? '',
       title: json['display_name'] ?? 'Untitled',
@@ -51,6 +67,7 @@ class Publication {
       authors: authorsList,
       doi: json['doi'] ?? '',
       abstractText: parsedAbstract,
+      topics: topicsList,
     );
   }
 
