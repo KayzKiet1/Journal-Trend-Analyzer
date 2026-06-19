@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/publication_controller.dart';
+import '../models/publication_model.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
 import '../widgets/publication_card.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/empty_state_widget.dart';
+<<<<<<< Updated upstream
+=======
+import '../widgets/adaptive_layout_wrapper.dart';
+>>>>>>> Stashed changes
 import 'publication_detail_screen.dart';
 import 'trend_analysis_screen.dart';
 
@@ -28,6 +33,7 @@ class SearchResultScreen extends StatefulWidget {
 
 class _SearchResultScreenState extends State<SearchResultScreen> {
   final ScrollController _scrollController = ScrollController();
+  Publication? _selectedPublication;
 
   @override
   void initState() {
@@ -39,7 +45,6 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
         context.read<PublicationController>().search(widget.topic, widget.category);
       }
     });
-    
     _scrollController.addListener(_onScroll);
   }
 
@@ -71,6 +76,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       displayTitle = '${widget.category}: ${widget.topic}';
     }
 
+<<<<<<< Updated upstream
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -92,13 +98,48 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
         ],
       ),
       body: Consumer<PublicationController>(
+=======
+    final width = MediaQuery.of(context).size.width;
+    final bool isLargeScreen = width > 1000;
+
+    return AdaptiveLayoutWrapper(
+      title: displayTitle,
+      currentRoute: widget.category == 'Sources' ? 'journal' : '',
+      isSubPage: isSubPage,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search),
+          onPressed: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomeScreen()), (route) => false),
+        ),
+        if (widget.category == 'Works')
+          IconButton(
+            icon: const Icon(Icons.analytics_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => TrendAnalysisScreen(topic: widget.topic))),
+          ),
+      ],
+      child: Consumer<PublicationController>(
+>>>>>>> Stashed changes
         builder: (context, controller, child) {
-          if (controller.isLoading && controller.publications.isEmpty && controller.authors.isEmpty && controller.sources.isEmpty && controller.institutions.isEmpty) {
+          if (controller.isLoading && controller.publications.isEmpty && controller.authors.isEmpty && controller.sources.isEmpty) {
             return const LoadingWidget();
           }
 
-          if (controller.errorMessage.isNotEmpty && controller.publications.isEmpty) {
-            return Center(child: Text(controller.errorMessage));
+          if (isLargeScreen && (widget.category == 'Works' || widget.category == 'AuthorWorks')) {
+            return Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: _buildResultList(controller),
+                ),
+                const VerticalDivider(width: 1, color: AppColors.secondary),
+                Expanded(
+                  flex: 3,
+                  child: _selectedPublication == null
+                      ? const Center(child: Text('Chọn một bài báo để xem chi tiết'))
+                      : PublicationDetailView(publication: _selectedPublication!),
+                ),
+              ],
+            );
           }
 
           return Center(
@@ -127,49 +168,57 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             if (index == controller.publications.length) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                child: Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
 
             final pub = controller.publications[index];
+            final isSelected = _selectedPublication?.id == pub.id;
+
             return PublicationCard(
               title: pub.title,
               authors: pub.authorsString,
               journal: pub.journalName,
               year: pub.publicationYear.toString(),
               citations: pub.citedByCount,
+              isSelected: isSelected,
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PublicationDetailScreen(publication: pub),
-                  ),
-                );
+                final width = MediaQuery.of(context).size.width;
+                if (width > 1000) {
+                  setState(() => _selectedPublication = pub);
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PublicationDetailScreen(publication: pub),
+                    ),
+                  );
+                }
               },
             );
           },
         );
+
       case 'Authors':
-        if (controller.authors.isEmpty && !controller.isLoading) return const EmptyStateWidget(message: 'Không tìm thấy tác giả nào.');
+        if (controller.authors.isEmpty && !controller.isLoading) {
+          return const EmptyStateWidget(message: 'Không tìm thấy tác giả nào.');
+        }
         return ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.all(AppSpacing.lg),
           itemCount: controller.authors.length + (controller.hasMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index == controller.authors.length) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                child: Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
 
             final author = controller.authors[index];
             return _buildEntityCard(
               title: author.name,
-              subtitle: author.lastKnownInstitution ?? 'No institution info',
-              trailing: '${author.worksCount} works',
+              subtitle: author.lastKnownInstitution ?? 'Không có thông tin tổ chức',
+              trailing: '${author.worksCount} bài báo',
               icon: Icons.person_outline,
-              meta: '${author.citedByCount} citations',
+              meta: '${author.citedByCount} trích dẫn',
               onTap: () {
                 Navigator.push(
                   context,
@@ -185,8 +234,11 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             );
           },
         );
+
       case 'Sources':
-        if (controller.sources.isEmpty) return const EmptyStateWidget(message: 'Không tìm thấy nguồn nào.');
+        if (controller.sources.isEmpty && !controller.isLoading) {
+          return const EmptyStateWidget(message: 'Không tìm thấy tạp chí nào.');
+        }
         return ListView.builder(
           padding: const EdgeInsets.all(AppSpacing.lg),
           itemCount: controller.sources.length,
@@ -194,15 +246,18 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             final source = controller.sources[index];
             return _buildEntityCard(
               title: source.name,
-              subtitle: source.publisher ?? source.type ?? 'Source',
-              trailing: '${source.worksCount} works',
+              subtitle: source.publisher ?? source.type ?? 'Nguồn xuất bản',
+              trailing: '${source.worksCount} bài báo',
               icon: Icons.book_outlined,
-              meta: '${source.citedByCount} citations',
+              meta: '${source.citedByCount} trích dẫn',
             );
           },
         );
+
       case 'Institutions':
-        if (controller.institutions.isEmpty) return const EmptyStateWidget(message: 'Không tìm thấy tổ chức nào.');
+        if (controller.institutions.isEmpty && !controller.isLoading) {
+          return const EmptyStateWidget(message: 'Không tìm thấy tổ chức nào.');
+        }
         return ListView.builder(
           padding: const EdgeInsets.all(AppSpacing.lg),
           itemCount: controller.institutions.length,
@@ -210,15 +265,16 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             final inst = controller.institutions[index];
             return _buildEntityCard(
               title: inst.name,
-              subtitle: '${inst.type ?? 'Institution'} • ${inst.countryCode ?? ''}',
-              trailing: '${inst.worksCount} works',
+              subtitle: '${inst.type ?? 'Tổ chức'} • ${inst.countryCode ?? ''}',
+              trailing: '${inst.worksCount} bài báo',
               icon: Icons.account_balance_outlined,
-              meta: '${inst.citedByCount} citations',
+              meta: '${inst.citedByCount} trích dẫn',
             );
           },
         );
+
       default:
-        return const EmptyStateWidget(message: 'Category unknown');
+        return const EmptyStateWidget(message: 'Danh mục không xác định');
     }
   }
 
@@ -238,7 +294,18 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+<<<<<<< Updated upstream
           border: Border.all(color: AppColors.secondary, width: 1.0),
+=======
+          border: Border.all(color: AppColors.outline, width: 1.0),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              offset: const Offset(0, 2),
+              blurRadius: 4,
+            ),
+          ],
+>>>>>>> Stashed changes
         ),
         child: Row(
           children: [
@@ -259,7 +326,19 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
+<<<<<<< Updated upstream
             Text(trailing, style: AppTextStyles.labelCaps),
+=======
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                border: Border.all(color: AppColors.outline),
+              ),
+              child: Text(trailing, style: AppTextStyles.labelCaps.copyWith(fontSize: 10)),
+            ),
+>>>>>>> Stashed changes
           ],
         ),
       ),

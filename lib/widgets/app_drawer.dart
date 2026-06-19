@@ -10,15 +10,47 @@ import '../screens/profile_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   final String currentRoute;
+  final bool isPermanent;
 
-  const AppDrawer({super.key, required this.currentRoute});
+  const AppDrawer({super.key, required this.currentRoute, this.isPermanent = false});
 
   @override
   Widget build(BuildContext context) {
     final userController = context.watch<UserController>();
 
+    final drawerContent = Column(
+      children: [
+        if (!isPermanent) _buildHeader(userController),
+        const SizedBox(height: AppSpacing.md),
+        _buildMenuItem(context, icon: Icons.home_outlined, label: 'HOME', route: 'home', 
+            onTap: () => _navigate(context, const HomeScreen())),
+        _buildMenuItem(context, icon: Icons.book_outlined, label: 'JOURNAL', route: 'journal', 
+            onTap: () {
+              final lastSearch = userController.recentSearches.isNotEmpty ? userController.recentSearches.first : 'AI';
+              _navigate(context, SearchResultScreen(topic: lastSearch, category: 'Works'));
+            }),
+        _buildMenuItem(context, icon: Icons.analytics_outlined, label: 'KEYWORDS', route: 'keywords', 
+            onTap: () => _navigate(context, const DashboardScreen(route: 'keywords'))),
+        const Spacer(),
+        _buildMenuItem(context, icon: Icons.person_outline, label: 'PROFILE', route: 'profile', 
+            onTap: () => _navigate(context, const ProfileScreen())),
+        const SizedBox(height: AppSpacing.lg),
+      ],
+    );
+
+    if (isPermanent) {
+      return Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          border: Border(right: BorderSide(color: AppColors.secondary, width: 0.5)),
+        ),
+        child: drawerContent,
+      );
+    }
+
     return Drawer(
       backgroundColor: AppColors.background,
+<<<<<<< Updated upstream
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topRight: Radius.circular(AppSpacing.radiusMd),
@@ -72,6 +104,9 @@ class AppDrawer extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
         ],
       ),
+=======
+      child: drawerContent,
+>>>>>>> Stashed changes
     );
   }
 
@@ -83,60 +118,31 @@ class AppDrawer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CircleAvatar(
-            radius: 30,
-            backgroundColor: AppColors.accent,
-            child: Icon(Icons.auto_stories, color: Colors.white, size: 30),
-          ),
+          const CircleAvatar(radius: 30, backgroundColor: AppColors.accent, child: Icon(Icons.auto_stories, color: Colors.white)),
           const SizedBox(height: AppSpacing.md),
-          Text(
-            'Journal Analyzer',
-            style: AppTextStyles.h2.copyWith(color: Colors.white),
-          ),
-          Text(
-            user.hasEmail ? user.email : 'Chưa thiết lập Email',
-            style: AppTextStyles.labelCaps.copyWith(color: AppColors.background.withValues(alpha: 0.7)),
-          ),
+          Text('Journal Analyzer', style: AppTextStyles.h2.copyWith(color: Colors.white)),
         ],
       ),
     );
   }
 
-  Widget _buildMenuItem(BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String route,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildMenuItem(BuildContext context, {required IconData icon, required String label, required String route, required VoidCallback onTap}) {
     final isSelected = currentRoute == route;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: ListTile(
-        onTap: isSelected ? () => Navigator.pop(context) : onTap,
-        leading: Icon(
-          icon,
-          color: isSelected ? AppColors.accent : AppColors.primary,
-        ),
-        title: Text(
-          label,
-          style: AppTextStyles.labelCaps.copyWith(
-            color: isSelected ? AppColors.accent : AppColors.primary,
-            letterSpacing: 1.2,
-          ),
-        ),
+        onTap: isSelected ? null : onTap,
+        leading: Icon(icon, color: isSelected ? AppColors.accent : AppColors.primary),
+        title: Text(label, style: AppTextStyles.labelCaps.copyWith(color: isSelected ? AppColors.accent : AppColors.primary)),
         selected: isSelected,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
-        selectedTileColor: AppColors.accent.withValues(alpha: 0.05),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)), // M3 style
+        selectedTileColor: AppColors.accent.withValues(alpha: 0.1),
       ),
     );
   }
 
   void _navigate(BuildContext context, Widget screen) {
-    Navigator.pop(context); // Close drawer
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
+    if (!isPermanent) Navigator.pop(context);
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => screen));
   }
 }

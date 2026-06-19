@@ -19,8 +19,8 @@ class OpenAlexService {
   Future<Map<String, dynamic>> searchWorks(String query, {int page = 1, int perPage = 10}) async {
     final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
       queryParameters: {
-        'search': query,
-        'sort': 'cited_by_count:desc',
+        // Sử dụng title.search để ưu tiên các bài báo có từ khóa trong tiêu đề
+        'filter': 'title.search:$query',
         'page': page.toString(),
         'per_page': perPage.toString(),
         'mailto': _contactEmail,
@@ -84,8 +84,8 @@ class OpenAlexService {
   Future<Map<String, dynamic>> searchAuthors(String query, {int page = 1, int perPage = 10}) async {
     final Uri url = Uri.parse('${ApiConstants.baseUrl}/authors').replace(
       queryParameters: {
-        'search': query,
-        'sort': 'works_count:desc',
+        // Sử dụng filter display_name.search để tìm chính xác theo tên tác giả
+        'filter': 'display_name.search:$query',
         'page': page.toString(),
         'per_page': perPage.toString(),
         'mailto': _contactEmail,
@@ -267,15 +267,26 @@ class OpenAlexService {
         return groups
             .where((json) => json['key'] != null && json['key'] != 'Unknown')
             .map((json) {
-              String rawName = json['display_name'] ?? '';
-              if (rawName.startsWith('http')) {
-                final uri = Uri.parse(rawName);
-                rawName = uri.pathSegments.last;
+              String countryId = json['key'] ?? '';
+              String countryDisplayName = json['display_name'] ?? json['key_display_name'] ?? '';
+              
+              // Nếu display_name là link, hãy tách lấy mã quốc gia (ví dụ: US từ .../countries/US)
+              if (countryDisplayName.startsWith('http')) {
+                final parts = countryDisplayName.split('/');
+                if (parts.isNotEmpty) {
+                  countryDisplayName = parts.last;
+                }
               }
               
+              // Nếu vẫn trống, dùng countryId
+              if (countryDisplayName.isEmpty || countryDisplayName.startsWith('http')) {
+                final parts = countryId.split('/');
+                countryDisplayName = parts.isNotEmpty ? parts.last : countryId;
+              }
+
               return {
-                'country_code': json['key'],
-                'name': rawName.isNotEmpty ? rawName : json['key'],
+                'country_code': countryDisplayName.toUpperCase(),
+                'name': countryDisplayName.toUpperCase(),
                 'count': json['count'] ?? 0,
               };
             }).toList();
@@ -304,13 +315,11 @@ class OpenAlexService {
         final List groups = data['group_by'] ?? [];
         
         return groups
-            .where((json) => json['display_name'] != null && 
-                            json['display_name'].toString().isNotEmpty &&
-                            json['display_name'] != 'Unknown Journal' &&
+            .where((json) => (json['display_name'] != null || json['key_display_name'] != null) && 
                             json['key'] != 'null')
             .take(10)
             .map((json) => {
-              'name': json['display_name'],
+              'name': json['display_name'] ?? json['key_display_name'] ?? 'Unknown',
               'count': json['count'] ?? 0,
             }).toList();
       } else {
@@ -338,12 +347,11 @@ class OpenAlexService {
         final List groups = data['group_by'] ?? [];
         
         return groups
-            .where((json) => json['display_name'] != null && 
-                            json['display_name'].toString().isNotEmpty &&
+            .where((json) => (json['display_name'] != null || json['key_display_name'] != null) && 
                             json['key'] != 'null')
             .take(10)
             .map((json) => {
-              'name': json['display_name'],
+              'name': json['display_name'] ?? json['key_display_name'] ?? 'Unknown',
               'count': json['count'] ?? 0,
             }).toList();
       } else {
@@ -426,7 +434,7 @@ class OpenAlexService {
         final List groups = data['group_by'] ?? [];
         
         return groups.take(10).map((json) => {
-          'name': json['display_name'] ?? 'Tổ chức chưa xác định',
+          'name': json['display_name'] ?? json['key_display_name'] ?? 'Tổ chức chưa xác định',
           'count': json['count'] ?? 0,
         }).toList();
       }

@@ -11,6 +11,7 @@ class PublicationCard extends StatelessWidget {
   final String authors;
   final int citations;
   final VoidCallback onTap;
+  final bool isSelected;
 
   const PublicationCard({
     super.key,
@@ -20,6 +21,7 @@ class PublicationCard extends StatelessWidget {
     required this.authors,
     required this.citations,
     required this.onTap,
+    this.isSelected = false,
   });
 
   @override
@@ -30,14 +32,14 @@ class PublicationCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: AppSpacing.md),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          // Level 1: surface cards with 1px secondary border, no shadow
+          color: isSelected ? AppColors.accent.withValues(alpha: 0.05) : AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           border: Border.all(
-            color: AppColors.secondary,
-            width: 1.0,
+            color: isSelected ? AppColors.accent : AppColors.secondary,
+            width: isSelected ? 2.0 : 1.0,
           ),
         ),
+// ...
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

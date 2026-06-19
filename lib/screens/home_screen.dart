@@ -6,7 +6,7 @@ import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/app_button.dart';
-import '../widgets/app_drawer.dart';
+import '../widgets/adaptive_layout_wrapper.dart';
 import 'search_result_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,9 +30,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void _handleSearch([String? topic]) {
     final searchQuery = topic ?? _searchController.text.trim();
     if (searchQuery.isNotEmpty) {
-      // Lưu vào lịch sử tìm kiếm
       context.read<UserController>().addSearch(searchQuery);
+<<<<<<< Updated upstream
       
+=======
+>>>>>>> Stashed changes
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -42,48 +44,29 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập từ khóa tìm kiếm')),
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Journal Trend Analyzer'),
-        elevation: 0,
-      ),
-      drawer: const AppDrawer(currentRoute: 'home'),
-      body: Center(
+    return AdaptiveLayoutWrapper(
+      title: 'Explore Academic Insights',
+      currentRoute: 'home',
+      child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.xl,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text('Search across millions of academic data from OpenAlex.', style: AppTextStyles.bodyLarge),
                 const SizedBox(height: AppSpacing.xl),
-                Text(
-                  'Explore Academic Insights',
-                  style: AppTextStyles.h1,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Search across millions of academic works, authors, sources, and institutions from OpenAlex.',
-                  style: AppTextStyles.bodyLarge,
-                ),
-                const SizedBox(height: AppSpacing.xl * 2),
                 
-                // Category Selector
+                // M3 Chips
                 Text('SEARCH CATEGORY', style: AppTextStyles.labelCaps),
                 const SizedBox(height: AppSpacing.md),
+<<<<<<< Updated upstream
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -105,17 +88,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     )).toList(),
                   ),
+=======
+                Wrap(
+                  spacing: 8,
+                  children: _categories.map((cat) {
+                    final isSelected = _selectedCategory == cat['name'];
+                    return ChoiceChip(
+                      label: Text(cat['name']),
+                      selected: isSelected,
+                      onSelected: (val) => setState(() => _selectedCategory = cat['name']),
+                    );
+                  }).toList(),
+>>>>>>> Stashed changes
                 ),
+                
                 const SizedBox(height: AppSpacing.xl),
-
-                // Search Input Field
                 AppTextField(
                   controller: _searchController,
                   hintText: 'Search for ${_selectedCategory.toLowerCase()}...',
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                
-                // Search Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -126,51 +118,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 
                 const SizedBox(height: AppSpacing.xl * 2),
-                Text(
-                  'RECENT SEARCHES',
-                  style: AppTextStyles.labelCaps,
-                ),
+                Text('RECENT SEARCHES', style: AppTextStyles.labelCaps),
                 const SizedBox(height: AppSpacing.md),
-                
                 Consumer<UserController>(
-                  builder: (context, userController, child) {
-                    final history = userController.recentSearches;
-                    
-                    if (history.isEmpty) {
-                      return Text(
-                        'Chưa có lịch sử tìm kiếm.',
-                        style: AppTextStyles.bodySmall,
-                      );
-                    }
-                    
-                    return Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: history.map((topic) => _buildTopicChip(topic)).toList(),
-                    );
-                  },
+                  builder: (context, user, _) => Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: user.recentSearches.map((topic) => ActionChip(
+                      label: Text(topic),
+                      onPressed: () => _handleSearch(topic),
+                    )).toList(),
+                  ),
                 ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTopicChip(String label) {
-    return ActionChip(
-      label: Text(label),
-      onPressed: () => _handleSearch(label),
-      backgroundColor: AppColors.surface,
-      labelStyle: AppTextStyles.labelCaps.copyWith(
-        color: AppColors.primary,
-        fontSize: 11,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.secondary, width: 1.0),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       ),
     );
   }

@@ -3,7 +3,6 @@ import 'app_colors.dart';
 import 'app_spacing.dart';
 import 'app_text_styles.dart';
 
-/// Class cấu hình Theme toàn cục theo hệ thống Heritage.
 class AppTheme {
   AppTheme._();
 
@@ -11,98 +10,67 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: AppColors.background,
       
+      // Cấu hình ColorScheme chuẩn M3
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         onPrimary: AppColors.textInverted,
         secondary: AppColors.secondary,
         onSecondary: AppColors.textInverted,
+        tertiary: AppColors.accent, // Dùng màu đỏ gạch làm màu nhấn
         surface: AppColors.surface,
         onSurface: AppColors.textPrimary,
+        surfaceContainer: AppColors.surfaceVariant,
+        outline: AppColors.outline,
         error: AppColors.error,
-        outline: AppColors.secondary,
       ),
 
-      // AppBar: Journalistic style (Warm Limestone background, Deep Ink text)
+      scaffoldBackgroundColor: AppColors.background,
+      
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.primary,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: AppTextStyles.h2,
-        iconTheme: const IconThemeData(color: AppColors.primary),
       ),
 
-      // Text Theme
-      textTheme: TextTheme(
-        displayLarge: AppTextStyles.h1,
-        headlineMedium: AppTextStyles.h2,
-        bodyLarge: AppTextStyles.bodyLarge,
-        bodyMedium: AppTextStyles.bodySmall,
-        labelSmall: AppTextStyles.labelCaps,
+      // Tối ưu hóa Chip theo chuẩn M3 (Trông mềm mại hơn)
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surface,
+        selectedColor: AppColors.primary,
+        labelStyle: AppTextStyles.labelCaps,
+        secondaryLabelStyle: AppTextStyles.labelCaps.copyWith(color: Colors.white),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: StadiumBorder(side: BorderSide(color: AppColors.outline)),
       ),
 
-      // Button Theme: Boston Clay (#B8422E)
+      // Nút bấm M3 (Bo tròn nhiều hơn - Stadium shape)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.accent,
           foregroundColor: AppColors.textInverted,
-          textStyle: AppTextStyles.buttonText,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.md,
-            horizontal: AppSpacing.lg,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          ),
+          shape: const StadiumBorder(),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         ),
       ),
 
-      // Input Theme: Paper White surface, Sophisticated Slate border
+      // Input chuẩn M3
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.all(AppSpacing.md),
-        hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
-        labelStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),
-        
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: AppColors.outline),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: AppColors.outline),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.accent, width: 2.0),
-        ),
-      ),
-
-      // Card Theme: Level 1 (Paper White surface, 1px Slate border, No shadow)
-      cardTheme: CardThemeData(
-        color: AppColors.surface,
-        elevation: 0,
-        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(color: AppColors.secondary, width: 1.0),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        ),
-      ),
-      
-      chipTheme: ChipThemeData(
-        backgroundColor: AppColors.surface,
-        disabledColor: AppColors.secondary.withValues(alpha: 0.1),
-        selectedColor: AppColors.accent,
-        secondarySelectedColor: AppColors.accent,
-        padding: const EdgeInsets.all(4),
-        labelStyle: AppTextStyles.labelCaps,
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(color: AppColors.secondary, width: 1.0),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          borderRadius: BorderRadius.circular(28),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
       ),
     );

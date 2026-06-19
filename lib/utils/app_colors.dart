@@ -1,38 +1,37 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // === MÀU CHỦ ĐẠO THIẾT KẾ (HERITAGE THEME) ===
+  // === MÀU CHỦ ĐẠO (HERITAGE M3) ===
   
-  /// Màu chính (Deep Ink): #1A1C1E - Headlines, core body text, icons
+  /// Primary: Deep Ink (#1A1C1E) - Dùng cho tiêu đề chính, điều hướng
   static const Color primary = Color(0xFF1A1C1E);
   
-  /// Màu phụ (Sophisticated Slate): #6C7278 - Borders, captions, meta-data
+  /// Secondary: Sophisticated Slate (#6C7278) - Dùng cho văn bản phụ
   static const Color secondary = Color(0xFF6C7278); 
   
-  /// Màu nhấn (Boston Clay): #B8422E - Primary CTAs, active states, chart lines
+  /// Accent/Tertiary: Boston Clay (#B8422E) - Màu nhấn cho nút, link, biểu đồ
   static const Color accent = Color(0xFFB8422E);
   
-  /// Màu nền (Warm Limestone / Neutral): #F7F5F2 - Main application background
+  // === HỆ THỐNG NỀN (M3 TONAL SURFACES) ===
+  
+  /// Background: Warm Limestone (#F7F5F2) - Nền thấp nhất (Level 0)
   static const Color background = Color(0xFFF7F5F2);
   
-  /// Màu bề mặt (Paper White / Surface): #FFFFFF - Cards, modal sheets, input fields
+  /// Surface: Paper White (#FFFFFF) - Nền cho thẻ Card, Modal (Level 1)
   static const Color surface = Color(0xFFFFFFFF);
   
-  // === MÀU TRẠNG THÁI HỆ THỐNG ===
+  /// Surface Variant: Màu xám nhẹ hơn để phân tách các vùng nội dung (Level 2)
+  static const Color surfaceVariant = Color(0xFFEEEBE6);
+  
+  /// Outline: Màu viền mảnh theo chuẩn M3
+  static const Color outline = Color(0xFFD1CFCC);
+
+  // === TRẠNG THÁI ===
   static const Color success = Color(0xFF15803D); 
-  static const Color warning = Color(0xFFB45309);
   static const Color error = Color(0xFF991B1B);   
   
-  // === MÀU VĂN BẢN (TYPOGRAPHY) ===
-  /// Chữ chính: Dùng màu primary (Deep Ink)
+  // === VĂN BẢN ===
   static const Color textPrimary = primary;
-  
-  /// Chữ phụ: Dùng màu secondary (Sophisticated Slate)
   static const Color textSecondary = secondary;
-  
-  /// Chữ đảo ngược (Hiển thị trên nền tối hoặc nút nhấn)
-  static const Color textInverted = background;
-  
-  /// Màu cho Tag hoặc Thẻ nhẹ (Tùy chọn thêm để giữ tính tương thích)
-  static const Color accentLight = Color(0xFFFBEBE9); 
+  static const Color textInverted = Color(0xFFFFFFFF);
 }

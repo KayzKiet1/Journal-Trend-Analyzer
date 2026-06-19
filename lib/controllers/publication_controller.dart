@@ -20,7 +20,6 @@ class PublicationController extends ChangeNotifier {
   List<Journal> _sources = [];
   List<Institution> _institutions = [];
   
-  List<String> _recentSearches = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
   String _errorMessage = '';
@@ -73,7 +72,8 @@ class PublicationController extends ChangeNotifier {
       _errorMessage = '';
       _currentPage = 1;
       _totalResults = 0;
-      _clearResults();
+      // Chỉ xóa dữ liệu của chính danh mục đang tìm kiếm
+      _clearSpecificResults(category);
     }
     
     notifyListeners();
@@ -85,11 +85,9 @@ class PublicationController extends ChangeNotifier {
           final List<Publication> results = data['results'];
           _totalResults = data['total_count'];
           
-          // Ước tính tổng trích dẫn dựa trên dữ liệu thực tế nếu là trang đầu
           if (!loadMore) {
             int currentBatchCitations = results.fold(0, (sum, item) => sum + item.citedByCount);
-            // Một công thức ước tính chuyên nghiệp: Lấy trung bình top 10 và nhân với tỉ lệ suy giảm
-            _totalCitationsGlobal = currentBatchCitations * 5; // Ước tính cho toàn bộ quy mô
+            _totalCitationsGlobal = currentBatchCitations * 5; 
           }
           
           if (loadMore) {
@@ -118,10 +116,10 @@ class PublicationController extends ChangeNotifier {
       }
       
       if (!loadMore && _isResultsEmpty(category)) {
-        _errorMessage = 'Không tìm thấy kết quả nào cho "${query}" trong mục ${category}.';
+        _errorMessage = 'Không tìm thấy kết quả nào.';
       }
     } catch (e) {
-      _errorMessage = 'Đã xảy ra lỗi khi tìm kiếm: ${e.toString()}';
+      _errorMessage = 'Đã xảy ra lỗi: ${e.toString()}';
     } finally {
       _isLoading = false;
       _isLoadingMore = false;
@@ -142,7 +140,8 @@ class PublicationController extends ChangeNotifier {
       _errorMessage = '';
       _currentPage = 1;
       _totalResults = 0;
-      _clearResults();
+      // Khi xem bài báo của tác giả, CHỈ XÓA danh sách bài báo cũ, KHÔNG XÓA danh sách tác giả
+      _publications = []; 
     }
     notifyListeners();
 
@@ -156,16 +155,21 @@ class PublicationController extends ChangeNotifier {
       } else {
         _publications = results;
       }
-      
-      if (!loadMore && _publications.isEmpty) {
-        _errorMessage = 'Không tìm thấy bài báo nào của tác giả này.';
-      }
     } catch (e) {
-      _errorMessage = 'Lỗi khi tải bài báo của tác giả: ${e.toString()}';
+      _errorMessage = 'Lỗi: ${e.toString()}';
     } finally {
       _isLoading = false;
       _isLoadingMore = false;
       notifyListeners();
+    }
+  }
+
+  void _clearSpecificResults(String category) {
+    switch (category) {
+      case 'Works': _publications = []; break;
+      case 'Authors': _authors = []; break;
+      case 'Sources': _sources = []; break;
+      case 'Institutions': _institutions = []; break;
     }
   }
 
@@ -186,16 +190,10 @@ class PublicationController extends ChangeNotifier {
     }
   }
 
-  /// Xóa dữ liệu tìm kiếm
   void clearSearch() {
     _clearResults();
     _currentTopic = '';
     _errorMessage = '';
     notifyListeners();
-  }
-
-  /// Thực hiện tìm kiếm bài báo theo chủ đề (Legacy)
-  Future<void> searchByTopic(String topic) async {
-    await search(topic, 'Works');
   }
 }
