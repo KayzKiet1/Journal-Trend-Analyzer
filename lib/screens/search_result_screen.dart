@@ -11,6 +11,7 @@ import '../widgets/app_drawer.dart';
 import 'publication_detail_screen.dart';
 import 'trend_analysis_screen.dart';
 import 'home_screen.dart';
+import 'journal_detail_screen.dart';
 
 class SearchResultScreen extends StatefulWidget {
   final String topic;
@@ -57,7 +58,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       if (!controller.isLoadingMore && controller.hasMore) {
         if (widget.category == 'AuthorWorks' && widget.authorId != null) {
           controller.searchByAuthor(widget.authorId!, widget.topic, loadMore: true);
-        } else if (widget.category == 'Works' || widget.category == 'Authors') {
+        } else if (widget.category == 'Works' || widget.category == 'Authors' || widget.category == 'Sources') {
           controller.search(widget.topic, widget.category, loadMore: true);
         }
       }
@@ -71,6 +72,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
 
     if (widget.category == 'AuthorWorks') {
       displayTitle = 'Bài báo của ${widget.topic}';
+    } else if (widget.category == 'Sources') {
+      displayTitle = 'Journals: ${widget.topic}';
     } else {
       displayTitle = '${widget.category}: ${widget.topic}';
     }
@@ -94,11 +97,15 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => HomeScreen()),
-                (route) => false,
-              );
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  (route) => false,
+                );
+              }
             },
             tooltip: 'Tìm kiếm mới',
           ),
@@ -212,11 +219,19 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           },
         );
       case 'Sources':
-        if (controller.sources.isEmpty) return const EmptyStateWidget(message: 'Không tìm thấy nguồn nào.');
+        if (controller.sources.isEmpty && !controller.isLoading) return const EmptyStateWidget(message: 'Không tìm thấy nguồn nào.');
         return ListView.builder(
+          controller: _scrollController,
           padding: const EdgeInsets.all(AppSpacing.lg),
-          itemCount: controller.sources.length,
+          itemCount: controller.sources.length + (controller.hasMore ? 1 : 0),
           itemBuilder: (context, index) {
+            if (index == controller.sources.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
+              );
+            }
+
             final source = controller.sources[index];
             return _buildEntityCard(
               title: source.name,
@@ -224,6 +239,17 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
               trailing: '${source.worksCount} works',
               icon: Icons.book_outlined,
               meta: '${source.citedByCount} citations',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => JournalDetailScreen(
+                      journalId: source.id,
+                      journalName: source.name,
+                    ),
+                  ),
+                );
+              },
             );
           },
         );

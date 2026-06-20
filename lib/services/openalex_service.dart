@@ -111,16 +111,41 @@ class OpenAlexService {
     }
   }
 
-  /// Tìm kiếm nguồn xuất bản (Sources/Journals)
-  Future<List<Journal>> searchSources(String query) async {
+  /// Tìm kiếm nguồn xuất bản (Sources/Journals) với filter là journal
+  Future<Map<String, dynamic>> searchSources(String query, {int page = 1, int perPage = 10}) async {
+    final Map<String, String> params = {
+      'filter': 'type:journal',
+      'sort': 'works_count:desc',
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+      'mailto': _contactEmail,
+    };
+
+    if (query.isNotEmpty) {
+      params['search'] = query;
+    }
+
     final Uri url = Uri.parse('${ApiConstants.baseUrl}/sources').replace(
-      queryParameters: {
-        'search': query,
-        'sort': 'works_count:desc',
-        'mailto': _contactEmail,
-      },
+      queryParameters: params,
     );
-    return _fetchList(url, (json) => Journal.fromJson(json));
+    
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List results = data['results'] ?? [];
+        final int totalCount = data['meta']?['count'] ?? 0;
+        
+        return {
+          'results': results.map((json) => Journal.fromJson(json)).toList(),
+          'total_count': totalCount,
+        };
+      } else {
+        throw Exception('Lỗi API: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Lỗi kết nối: $e');
+    }
   }
 
   /// Tìm kiếm tổ chức/trường học (Institutions)
@@ -133,6 +158,173 @@ class OpenAlexService {
       },
     );
     return _fetchList(url, (json) => Institution.fromJson(json));
+  }
+
+  /// Lấy thông tin chi tiết của một Journal theo ID
+  Future<Journal> getJournalDetails(String journalId) async {
+    final Uri url = Uri.parse('${ApiConstants.baseUrl}/sources/$journalId').replace(
+      queryParameters: {'mailto': _contactEmail},
+    );
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        return Journal.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Lỗi khi tải chi tiết journal: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Lỗi kết nối: $e');
+    }
+  }
+
+  /// Lấy danh sách bài báo của một Journal
+  Future<Map<String, dynamic>> getWorksByJournal(
+    String journalId, {
+    int page = 1,
+    int perPage = 10,
+    String? search,
+    int? year,
+    int? minCitations,
+    String? sortField,
+    bool descending = true,
+  }) async {
+    String filter = 'primary_location.source.id:$journalId';
+    if (year != null) {
+      filter += ',publication_year:$year';
+    }
+    if (minCitations != null && minCitations > 0) {
+      filter += ',cited_by_count:>$minCitations';
+    }
+
+    String sort = 'publication_year:desc,cited_by_count:desc';
+    if (sortField != null) {
+      sort = '$sortField:${descending ? 'desc' : 'asc'}';
+    }
+
+    final Map<String, String> params = {
+      'filter': filter,
+      'sort': sort,
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+      'mailto': _contactEmail,
+    };
+
+    if (search != null && search.isNotEmpty) {
+      params['search'] = search;
+    }
+
+    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
+      queryParameters: params,
+    );
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List results = data['results'] ?? [];
+        final int totalCount = data['meta']?['count'] ?? 0;
+
+        return {
+          'results': results.map((json) => Publication.fromJson(json)).toList(),
+          'total_count': totalCount,
+        };
+      } else {
+        throw Exception('Lỗi API: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Lỗi kết nối: $e');
+    }
+  }
+
+  /// Lấy dữ liệu xu hướng của một Journal theo ID
+  Future<List<TrendData>> getJournalYearlyTrend(String journalId) async {
+    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
+      queryParameters: {
+        'filter': 'primary_location.source.id:$journalId',
+        'group_by': 'publication_year',
+        'mailto': _contactEmail,
+      },
+    );
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List groups = data['group_by'] ?? [];
+        
+        List<TrendData> trends = groups.map((json) => TrendData.fromJson(json)).toList();
+        trends.sort((a, b) => a.year.compareTo(b.year));
+        return trends;
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Lấy sự thay đổi của các chủ đề theo thời gian (Topic Evolution)
+  Future<Map<String, List<TrendData>>> getJournalTopicEvolution(String journalId) async {
+    try {
+      final topTopics = await getJournalTopTopics(journalId);
+      Map<String, List<TrendData>> evolution = {};
+      
+      // Lấy dữ liệu cho top 3 topics
+      for (var topic in topTopics.take(3)) {
+        final name = topic['name'] as String;
+        final id = topic['id'] as String;
+        if (id.isEmpty) continue;
+
+        final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
+          queryParameters: {
+            'filter': 'primary_location.source.id:$journalId,primary_topic.id:$id',
+            'group_by': 'publication_year',
+            'mailto': _contactEmail,
+          },
+        );
+
+        final response = await http.get(url);
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final List groups = data['group_by'] ?? [];
+          List<TrendData> trends = groups.map((json) => TrendData.fromJson(json)).toList();
+          trends.sort((a, b) => a.year.compareTo(b.year));
+          evolution[name] = trends;
+        }
+      }
+      return evolution;
+    } catch (e) {
+      return {};
+    }
+  }
+  Future<List<Map<String, dynamic>>> getJournalTopTopics(String journalId) async {
+    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
+      queryParameters: {
+        'filter': 'primary_location.source.id:$journalId',
+        'group_by': 'primary_topic.id',
+        'mailto': _contactEmail,
+      },
+    );
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List groups = data['group_by'] ?? [];
+        return groups
+            .where((json) => (json['key_display_name'] != null || json['display_name'] != null) && 
+                            json['key_display_name'] != 'Unknown' && json['display_name'] != 'Unknown')
+            .take(5)
+            .map((json) => {
+              'id': json['key']?.split('/').last ?? '',
+              'name': json['key_display_name'] ?? json['display_name'],
+              'count': json['count'] ?? 0,
+            }).toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
   }
 
   /// Tìm kiếm bài báo theo ID tác giả có hỗ trợ phân trang

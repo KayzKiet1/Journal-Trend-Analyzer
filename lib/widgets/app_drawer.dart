@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/user_controller.dart';
+import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
@@ -43,14 +44,10 @@ class AppDrawer extends StatelessWidget {
             label: 'JOURNAL',
             route: 'journal',
             onTap: () {
-              // Lấy từ khóa tìm kiếm gần nhất, nếu không có thì mặc định là 'AI'
-              final lastSearch = userController.recentSearches.isNotEmpty 
-                  ? userController.recentSearches.first 
-                  : 'AI';
-              
+              final controller = context.read<PublicationController>();
               _navigate(context, SearchResultScreen(
-                topic: lastSearch,
-                category: 'Works',
+                topic: controller.lastSearchCategory == 'Sources' ? controller.lastSearchText : '',
+                category: 'Sources',
               ));
             },
           ),
@@ -60,8 +57,12 @@ class AppDrawer extends StatelessWidget {
             label: 'KEYWORDS',
             route: 'keywords',
             onTap: () {
-              // Giữ Dashboard cho phần Keywords/Phân tích
-              _navigate(context, const DashboardScreen(route: 'keywords'));
+              final controller = context.read<PublicationController>();
+              _navigate(context, DashboardScreen(
+                route: 'keywords',
+                journal: controller.lastAnalyzedJournal,
+                trends: controller.lastTrends,
+              ));
             },
           ),
           const Spacer(),
