@@ -17,7 +17,8 @@ class Author {
   /// Chuyển đổi từ dữ liệu JSON của OpenAlex sang đối tượng Author
   factory Author.fromJson(Map<String, dynamic> json) {
     // Xử lý cả trường hợp author nằm trong authorship hoặc là entity độc lập
-    final Map<String, dynamic> authorData = json.containsKey('author') ? json['author'] : json;
+    final dynamic authorField = json['author'];
+    final Map<String, dynamic> authorData = (authorField is Map<String, dynamic>) ? authorField : json;
     
     return Author(
       id: authorData['id'] ?? '',

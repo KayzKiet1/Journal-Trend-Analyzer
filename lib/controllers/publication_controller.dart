@@ -132,15 +132,17 @@ class PublicationController extends ChangeNotifier {
           final List<Publication> results = data['results'];
           _totalResults = data['total_count'];
 
-          // Ước tính tổng trích dẫn dựa trên dữ liệu thực tế nếu là trang đầu
+          // Tính tổng trích dẫn từ các bài báo hiện có
           if (!loadMore) {
-            int currentBatchCitations = results.fold(
+            _totalCitationsGlobal = results.fold(
               0,
               (sum, item) => sum + item.citedByCount,
             );
-            // Một công thức ước tính chuyên nghiệp: Lấy trung bình top 10 và nhân với tỉ lệ suy giảm
-            _totalCitationsGlobal =
-                currentBatchCitations * 5; // Ước tính cho toàn bộ quy mô
+          } else {
+            _totalCitationsGlobal += results.fold(
+              0,
+              (sum, item) => sum + item.citedByCount,
+            );
           }
 
           if (loadMore) {

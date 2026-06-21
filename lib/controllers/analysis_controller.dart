@@ -4,7 +4,9 @@ import '../services/openalex_service.dart';
 
 /// Bộ điều khiển quản lý trạng thái của phân tích xu hướng và biểu đồ
 class AnalysisController extends ChangeNotifier {
-  OpenAlexService _apiService = OpenAlexService();
+  OpenAlexService _apiService;
+  
+  AnalysisController({OpenAlexService? apiService}) : _apiService = apiService ?? OpenAlexService();
   
   /// Cập nhật email cho API service
   void updateApiService(String? email) {

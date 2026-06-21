@@ -10,8 +10,9 @@ import '../utils/api_constants.dart';
 /// Dịch vụ kết nối và lấy dữ liệu từ OpenAlex API
 class OpenAlexService {
   final String? userEmail;
+  final http.Client client;
 
-  OpenAlexService({this.userEmail});
+  OpenAlexService({this.userEmail, http.Client? client}) : client = client ?? http.Client();
 
   String get _contactEmail => userEmail ?? ApiConstants.contactEmail;
 
@@ -28,17 +29,11 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List results = data['results'] ?? [];
         final int totalCount = data['meta']?['count'] ?? 0;
-        
-        // Tính tổng trích dẫn từ meta groups (nếu có)
-        final List groups = data['group_by'] ?? [];
-        int totalCitations = 0;
-        // Nếu không có group_by, OpenAlex không trả về tổng citations trực tiếp trong meta
-        // Một cách khác là gọi API group_by riêng hoặc ước tính
         
         return {
           'results': results.map((json) => Publication.fromJson(json)).toList(),
@@ -49,34 +44,6 @@ class OpenAlexService {
       }
     } catch (e) {
       throw Exception('Lỗi kết nối: $e');
-    }
-  }
-
-  /// Lấy tổng số trích dẫn thực tế của một chủ đề từ API
-  Future<int> getTotalCitations(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'group_by': 'has_doi', // Group theo một field bất kỳ để lấy meta count tổng
-        'mailto': _contactEmail,
-      },
-    );
-
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List groups = data['group_by'] ?? [];
-        int total = 0;
-        // OpenAlex group_by trả về count của từng group. Ở đây ta cần tổng trích dẫn, 
-        // nhưng API không cho trực tiếp tổng cited_by_count qua group_by đơn giản.
-        // Giải pháp: Lấy từ danh sách 20 bài đầu và nhân tỉ lệ HOẶC gán giá trị tượng trưng chính xác hơn.
-        // Tuy nhiên, ta có thể dùng filter để lấy tổng số bài có trích dẫn.
-        return data['meta']?['count'] ?? 0; 
-      }
-      return 0;
-    } catch (e) {
-      return 0;
     }
   }
 
@@ -93,7 +60,7 @@ class OpenAlexService {
     );
     
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List results = data['results'] ?? [];
@@ -130,7 +97,7 @@ class OpenAlexService {
     );
     
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List results = data['results'] ?? [];
@@ -167,7 +134,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         return Journal.fromJson(json.decode(response.body));
       } else {
@@ -219,7 +186,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List results = data['results'] ?? [];
@@ -248,7 +215,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List groups = data['group_by'] ?? [];
@@ -283,7 +250,7 @@ class OpenAlexService {
           },
         );
 
-        final response = await http.get(url);
+        final response = await client.get(url);
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
           final List groups = data['group_by'] ?? [];
@@ -307,7 +274,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List groups = data['group_by'] ?? [];
@@ -340,7 +307,7 @@ class OpenAlexService {
     );
     
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List results = data['results'] ?? [];
@@ -361,7 +328,7 @@ class OpenAlexService {
   /// Hàm dùng chung để lấy danh sách từ API
   Future<List<T>> _fetchList<T>(Uri url, T Function(Map<String, dynamic>) mapper) async {
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List results = data['results'] ?? [];
@@ -385,7 +352,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List groups = data['group_by'] ?? [];
@@ -417,7 +384,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List groups = data['group_by'] ?? [];
@@ -451,7 +418,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List groups = data['group_by'] ?? [];
@@ -490,7 +457,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List groups = data['group_by'] ?? [];
@@ -524,7 +491,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List groups = data['group_by'] ?? [];
@@ -558,7 +525,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List results = data['results'] ?? [];
@@ -574,25 +541,51 @@ class OpenAlexService {
     }
   }
 
-  /// Lấy dữ liệu phân bổ Quartile (Q1 - Q4)
+  /// Lấy dữ liệu phân bổ chất lượng bài báo (Dựa trên Citation Percentile thực tế)
   Future<List<Map<String, dynamic>>> getQuartileDistribution(String query) async {
+    // Thay vì dùng group_by (vốn không hỗ trợ Quartile trực tiếp), 
+    // ta lấy top 50 bài báo và tính toán phân bổ dựa trên percentile thực tế từ OpenAlex.
     final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
       queryParameters: {
         'search': query,
-        'group_by': 'primary_location.source.quality_score',
+        'sort': 'cited_by_count:desc',
+        'per_page': '50',
+        'select': 'citation_normalized_percentile',
         'mailto': _contactEmail,
       },
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
-        // Logic giả lập Quartile dựa trên dữ liệu thật của OpenAlex
+        final data = json.decode(response.body);
+        final List results = data['results'] ?? [];
+        
+        int q1 = 0; // 75-100
+        int q2 = 0; // 50-75
+        int q3 = 0; // 25-50
+        int q4 = 0; // 0-25
+        
+        for (var work in results) {
+          final percentile = work['citation_normalized_percentile']?['value'];
+          if (percentile != null) {
+            double val = (percentile as num).toDouble();
+            if (val >= 75) q1++;
+            else if (val >= 50) q2++;
+            else if (val >= 25) q3++;
+            else q4++;
+          }
+        }
+        
+        // Nếu không có dữ liệu percentile (ví dụ bài báo quá mới), trả về rỗng để UI xử lý
+        int total = q1 + q2 + q3 + q4;
+        if (total == 0) return [];
+
         return [
-          {'name': 'Q1', 'count': 45, 'color': '#15803D'},
-          {'name': 'Q2', 'count': 30, 'color': '#B45309'},
-          {'name': 'Q3', 'count': 15, 'color': '#B8422E'},
-          {'name': 'Q4', 'count': 10, 'color': '#6C7278'},
+          {'name': 'Q1 (Top 25%)', 'count': q1, 'percentage': (q1 / total * 100).round(), 'color': '#15803D'},
+          {'name': 'Q2 (50-75%)', 'count': q2, 'percentage': (q2 / total * 100).round(), 'color': '#B45309'},
+          {'name': 'Q3 (25-50%)', 'count': q3, 'percentage': (q3 / total * 100).round(), 'color': '#B8422E'},
+          {'name': 'Q4 (Bottom 25%)', 'count': q4, 'percentage': (q4 / total * 100).round(), 'color': '#6C7278'},
         ];
       }
       return [];
@@ -612,7 +605,7 @@ class OpenAlexService {
     );
 
     try {
-      final response = await http.get(url);
+      final response = await client.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List groups = data['group_by'] ?? [];

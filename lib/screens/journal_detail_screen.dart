@@ -332,28 +332,61 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         children: [
           _buildStatItem('Works count', _journal?.worksCount.toString()),
           _buildStatItem('Citation count', _journal?.citedByCount.toString()),
-          _buildStatItem('H-index', _journal?.hIndex?.toString()),
-          _buildStatItem('I10-index', _journal?.i10Index?.toString()),
+          _buildStatItem(
+            'H-index', 
+            _journal?.hIndex?.toString(),
+            tooltip: 'Chỉ số đo lường năng suất và tác động trích dẫn. Chỉ số h là số h bài báo có ít nhất h lượt trích dẫn.',
+          ),
+          _buildStatItem(
+            'I10-index', 
+            _journal?.i10Index?.toString(),
+            tooltip: 'Số lượng bài báo có ít nhất 10 lượt trích dẫn.',
+          ),
           _buildStatItem(
             '2yr mean citedness',
             _journal?.twoYearMeanCitedness?.toStringAsFixed(3),
+            tooltip: 'Số lượng trích dẫn trung bình của các bài báo được xuất bản trong 2 năm gần nhất (Tương đương Impact Factor).',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String? value) {
+  Widget _buildStatItem(String label, String? value, {String? tooltip}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: AppTextStyles.bodyMedium.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Text(
+                label,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (tooltip != null) ...[
+                const SizedBox(width: 4),
+                Tooltip(
+                  message: tooltip,
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  showDuration: const Duration(seconds: 3),
+                  triggerMode: TooltipTriggerMode.tap,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                  textStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.background),
+                  child: const Icon(
+                    Icons.help_outline,
+                    size: 14,
+                    color: AppColors.secondary,
+                  ),
+                ),
+              ],
+            ],
           ),
           Text(value ?? '-', style: AppTextStyles.bodyMedium),
         ],

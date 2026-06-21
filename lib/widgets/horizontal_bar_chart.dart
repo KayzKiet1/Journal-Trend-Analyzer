@@ -28,7 +28,7 @@ class HorizontalBarChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppTextStyles.labelCaps),
+        Text(title.toUpperCase(), style: AppTextStyles.labelCaps),
         const SizedBox(height: AppSpacing.md),
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),

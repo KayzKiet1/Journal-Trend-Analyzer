@@ -78,16 +78,8 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
                     // 1. Publication Trend (Line Chart)
                     Text('1. XU HƯỚNG CÔNG BỐ THEO NĂM', style: AppTextStyles.labelCaps),
                     const SizedBox(height: AppSpacing.md),
-                    YearTrendChart(trends: controller.trends),
+                    YearTrendChart(trends: controller.trends, forceLineChart: true),
                     
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // Top Influential Publications
-                    HorizontalBarChart(
-                      data: controller.topInfluentialWorks, 
-                      title: 'ẤN PHẨM CÓ TẦM ẢNH HƯỞNG NHẤT',
-                    ),
-
                     const SizedBox(height: AppSpacing.xl),
 
                     // 3. Top Keywords (Horizontal Bar)
@@ -106,6 +98,11 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
                     
                     const SizedBox(height: AppSpacing.xl),
 
+                    // 12. Country Research Output (Map/List)
+                    CountryOutputList(countries: controller.countryData),
+
+                    const SizedBox(height: AppSpacing.xl),
+
                     // 14. Journal Ranking (Horizontal Bar)
                     HorizontalBarChart(
                       data: controller.topJournals, 
@@ -114,8 +111,11 @@ class _TrendAnalysisScreenState extends State<TrendAnalysisScreen> {
                     
                     const SizedBox(height: AppSpacing.xl),
 
-                    // 12. Country Research Output (Map/List)
-                    CountryOutputList(countries: controller.countryData),
+                    // Các biểu đồ bổ sung (nếu cần)
+                    HorizontalBarChart(
+                      data: controller.topInfluentialWorks, 
+                      title: 'ẤN PHẨM CÓ TẦM ẢNH HƯỞNG NHẤT',
+                    ),
 
                     const SizedBox(height: AppSpacing.xl),
 

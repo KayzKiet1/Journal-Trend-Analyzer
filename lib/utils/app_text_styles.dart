@@ -41,6 +41,12 @@ class AppTextStyles {
     letterSpacing: 0.5,
   );
 
+  /// Trả về labelCaps với hiệu ứng viết hoa hoàn toàn
+  static TextStyle get labelCapsUpper => labelCaps.copyWith(
+    // Flutter doesn't have a direct 'uppercase' text style property, 
+    // it's usually handled by .toUpperCase() on the string.
+  );
+
   /// Button Text - Public Sans, 16px, Semi-Bold, inverted
   static TextStyle buttonText = GoogleFonts.publicSans(
     fontSize: 16.0,

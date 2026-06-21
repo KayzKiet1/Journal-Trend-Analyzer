@@ -38,10 +38,11 @@ class DonutChart extends StatelessWidget {
                     centerSpaceRadius: 40,
                     sections: data.map((item) {
                       final color = _hexToColor(item['color'] ?? '#B8422E');
+                      final percentage = item['percentage'] ?? 0;
                       return PieChartSectionData(
                         color: color,
                         value: (item['count'] as num).toDouble(),
-                        title: '${item['count']}%',
+                        title: '$percentage%',
                         radius: 50,
                         titleStyle: AppTextStyles.labelCaps.copyWith(color: Colors.white, fontSize: 10),
                       );
