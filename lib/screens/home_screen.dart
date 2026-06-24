@@ -7,7 +7,6 @@ import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/app_button.dart';
-import '../widgets/app_drawer.dart';
 import 'search_result_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -84,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Journal Trend Analyzer'),
         elevation: 0,
       ),
-      drawer: const AppDrawer(currentRoute: 'home'),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),

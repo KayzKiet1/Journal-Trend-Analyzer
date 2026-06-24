@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/publication_controller.dart';
+import '../controllers/user_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
@@ -8,7 +9,6 @@ import '../utils/analysis_helper.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/horizontal_bar_chart.dart';
 import '../widgets/publication_card.dart';
-import '../widgets/app_drawer.dart';
 import '../widgets/year_trend_chart.dart';
 import '../widgets/topic_evolution_chart.dart';
 import '../widgets/author_topic_heatmap.dart';
@@ -39,14 +39,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isEvolutionLoading = false;
   List<Publication> _journalPublications = [];
   bool _isPublicationsLoading = false;
-  final OpenAlexService _apiService = OpenAlexService();
+  late OpenAlexService _apiService;
 
   @override
   void initState() {
     super.initState();
+    _apiService = OpenAlexService();
     if (widget.journal != null) {
       _loadEvolutionData();
       _loadJournalPublications();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userController = context.read<UserController>();
+    if (userController.hasEmail) {
+      _apiService = OpenAlexService(userEmail: userController.email);
+    }
+  }
+
+  @override
+  void didUpdateWidget(DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.journal?.id != oldWidget.journal?.id) {
+      if (widget.journal != null) {
+        _loadEvolutionData();
+        _loadJournalPublications();
+      } else {
+        setState(() {
+          _topicEvolution = {};
+          _journalPublications = [];
+          _isEvolutionLoading = false;
+          _isPublicationsLoading = false;
+        });
+      }
+    } else if (widget.journal != null) {
+      // Đảm bảo dữ liệu được tải nếu chưa có (ví dụ khi chuyển Tab)
+      if (_topicEvolution.isEmpty && !_isEvolutionLoading) {
+        _loadEvolutionData();
+      }
+      if (_journalPublications.isEmpty && !_isPublicationsLoading) {
+        _loadJournalPublications();
+      }
     }
   }
 
@@ -98,7 +134,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             )
           : null, // Let Scaffold handle drawer icon if null
       ),
-      drawer: (widget.journal != null && Navigator.canPop(context)) ? null : AppDrawer(currentRoute: widget.route),
       body: Consumer<PublicationController>(
         builder: (context, controller, child) {
           final publications = controller.publications;
