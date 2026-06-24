@@ -7,7 +7,6 @@ import '../utils/app_text_styles.dart';
 import '../widgets/publication_card.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/empty_state_widget.dart';
-import '../widgets/app_drawer.dart';
 import 'publication_detail_screen.dart';
 import 'trend_analysis_screen.dart';
 import 'home_screen.dart';
@@ -47,6 +46,18 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   }
 
   @override
+  void didUpdateWidget(SearchResultScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.topic != oldWidget.topic || widget.category != oldWidget.category) {
+      if (widget.category == 'AuthorWorks' && widget.authorId != null) {
+        context.read<PublicationController>().searchByAuthor(widget.authorId!, widget.topic);
+      } else {
+        context.read<PublicationController>().search(widget.topic, widget.category);
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
@@ -80,19 +91,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      drawer: isSubPage ? null : AppDrawer(
-        currentRoute: widget.category == 'Sources' ? 'journal' : '',
-      ),
       appBar: AppBar(
         title: Text(displayTitle),
-        leading: isSubPage 
-          ? null 
-          : Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),

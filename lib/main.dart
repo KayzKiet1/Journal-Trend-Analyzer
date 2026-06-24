@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'controllers/publication_controller.dart';
 import 'controllers/analysis_controller.dart';
 import 'controllers/user_controller.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_screen.dart';
 import 'utils/app_theme.dart';
 
 void main() {
@@ -27,7 +27,7 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
         title: 'Journal Trend Analyzer',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const HomeScreen(),
+        home: const MainScreen(),
       ),
     );
   }
