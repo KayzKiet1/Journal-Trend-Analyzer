@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:journal_trend_analyzer/controllers/publication_controller.dart';
 import 'package:journal_trend_analyzer/models/author_model.dart';
@@ -74,6 +76,58 @@ void main() {
       expect(controller.lastSearchText, isEmpty);
       expect(controller.errorMessage, isEmpty);
     });
+
+    test('search times out instead of leaving loading active', () async {
+      final controller = PublicationController.withTimeout(
+        apiService: _HangingOpenAlexService(),
+        searchTimeout: const Duration(milliseconds: 10),
+      );
+
+      await controller.search('slow network', 'Sources');
+
+      expect(controller.isLoading, isFalse);
+      expect(controller.sources, isEmpty);
+      expect(controller.errorMessage, contains('OpenAlex phản hồi quá lâu'));
+    });
+
+    test('cancelActiveSearch stops a hanging search immediately', () async {
+      final controller = PublicationController.withTimeout(
+        apiService: _HangingOpenAlexService(),
+        searchTimeout: const Duration(seconds: 5),
+      );
+
+      final searchFuture = controller.search('ai', 'Sources');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.isLoading, isTrue);
+
+      controller.cancelActiveSearch(message: 'Search cancelled');
+
+      expect(controller.isLoading, isFalse);
+      expect(controller.errorMessage, 'Search cancelled');
+
+      await searchFuture;
+      expect(controller.isLoading, isFalse);
+      expect(controller.sources, isEmpty);
+    });
+
+    test(
+      'search watchdog stops loading when request remains pending',
+      () async {
+        final controller = PublicationController.withTimeout(
+          apiService: _NeverCompletingOpenAlexService(),
+          searchTimeout: const Duration(seconds: 5),
+          searchWatchdogTimeout: const Duration(milliseconds: 10),
+        );
+
+        unawaited(controller.search('ai', 'Sources'));
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+
+        expect(controller.isLoading, isFalse);
+        expect(controller.sources, isEmpty);
+        expect(controller.errorMessage, contains('Không nhận được phản hồi'));
+      },
+    );
   });
 }
 
@@ -103,6 +157,31 @@ class _FakeOpenAlexService extends OpenAlexService {
       'results': [_publication('Author work $page')],
       'total_count': 2,
     };
+  }
+}
+
+class _HangingOpenAlexService extends OpenAlexService {
+  @override
+  Future<Map<String, dynamic>> searchSources(
+    String query, {
+    int page = 1,
+    int perPage = 10,
+  }) {
+    return Future<Map<String, dynamic>>.delayed(
+      const Duration(seconds: 1),
+      () => {'results': <Journal>[], 'total_count': 0},
+    );
+  }
+}
+
+class _NeverCompletingOpenAlexService extends OpenAlexService {
+  @override
+  Future<Map<String, dynamic>> searchSources(
+    String query, {
+    int page = 1,
+    int perPage = 10,
+  }) {
+    return Completer<Map<String, dynamic>>().future;
   }
 }
 

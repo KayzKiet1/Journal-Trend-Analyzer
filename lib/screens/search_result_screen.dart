@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/journal_library_controller.dart';
@@ -30,24 +32,17 @@ class SearchResultScreen extends StatefulWidget {
 }
 
 class _SearchResultScreenState extends State<SearchResultScreen> {
+  static const Duration _searchUiTimeout = Duration(seconds: 12);
+
   final ScrollController _scrollController = ScrollController();
   final List<Journal> _compareSelection = [];
+  Timer? _searchTimeoutTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.category == 'AuthorWorks' && widget.authorId != null) {
-        context.read<PublicationController>().searchByAuthor(
-          widget.authorId!,
-          widget.topic,
-        );
-      } else {
-        context.read<PublicationController>().search(
-          widget.topic,
-          widget.category,
-        );
-      }
+      _runSearchFromWidget();
     });
 
     _scrollController.addListener(_onScroll);
@@ -59,22 +54,13 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     if (widget.topic != oldWidget.topic ||
         widget.category != oldWidget.category) {
       _compareSelection.clear();
-      if (widget.category == 'AuthorWorks' && widget.authorId != null) {
-        context.read<PublicationController>().searchByAuthor(
-          widget.authorId!,
-          widget.topic,
-        );
-      } else {
-        context.read<PublicationController>().search(
-          widget.topic,
-          widget.category,
-        );
-      }
+      _runSearchFromWidget();
     }
   }
 
   @override
   void dispose() {
+    _searchTimeoutTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -104,7 +90,9 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     if (widget.category == 'AuthorWorks') {
       displayTitle = 'Bài báo của ${widget.topic}';
     } else if (widget.category == 'Sources') {
-      displayTitle = 'Journals: ${widget.topic}';
+      displayTitle = widget.topic.trim().isEmpty
+          ? 'Trending Journals'
+          : 'Journals: ${widget.topic}';
     } else {
       displayTitle = '${widget.category}: ${widget.topic}';
     }
@@ -138,7 +126,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           }
 
           if (controller.errorMessage.isNotEmpty && isCurrentResultEmpty) {
-            return Center(child: Text(controller.errorMessage));
+            return _buildSearchError(controller.errorMessage);
           }
 
           return Center(
@@ -270,6 +258,89 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       default:
         return const EmptyStateWidget(message: 'Category unknown');
     }
+  }
+
+  void _runSearchFromWidget() {
+    if (!mounted) return;
+
+    final topic = widget.topic.trim();
+    if (widget.category == 'Sources') return;
+
+    _searchTimeoutTimer?.cancel();
+    final controller = context.read<PublicationController>();
+    if (widget.category == 'AuthorWorks' && widget.authorId != null) {
+      controller.searchByAuthor(widget.authorId!, topic);
+    } else {
+      _searchTimeoutTimer = Timer(_searchUiTimeout, () {
+        if (!mounted) return;
+
+        final currentController = context.read<PublicationController>();
+        final stillWaitingForThisSearch =
+            widget.category == 'Sources' &&
+            widget.topic.trim() == topic &&
+            currentController.isLoading &&
+            currentController.sources.isEmpty;
+
+        if (stillWaitingForThisSearch) {
+          currentController.cancelActiveSearch(
+            message:
+                'OpenAlex phản hồi quá lâu cho "$topic". Vui lòng kiểm tra mạng hoặc thử lại.',
+          );
+        }
+      });
+      controller.search(topic, widget.category).whenComplete(() {
+        if (!mounted || widget.topic.trim() != topic) return;
+        _searchTimeoutTimer?.cancel();
+      });
+    }
+  }
+
+  void _retrySearch() {
+    _searchTimeoutTimer?.cancel();
+    final controller = context.read<PublicationController>();
+    controller.cancelActiveSearch();
+
+    final topic = widget.topic.trim();
+    if (widget.category == 'Sources' && topic.isNotEmpty) {
+      controller.search(topic, widget.category);
+    } else if (widget.category == 'Sources') {
+      controller.search('', widget.category);
+    } else {
+      _runSearchFromWidget();
+    }
+  }
+
+  Widget _buildSearchError(String message) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppSpacing.maxContentWidth),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 40,
+                color: AppColors.accent,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                message,
+                style: AppTextStyles.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              ElevatedButton.icon(
+                onPressed: _retrySearch,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Thử lại'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildLibraryPanel() {

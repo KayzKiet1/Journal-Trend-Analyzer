@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final controller = context.read<PublicationController>();
     controller.updateSearchText(searchQuery);
     controller.updateSearchCategory('Sources');
+    controller.search(searchQuery, 'Sources');
 
     // Chuyển sang Tab Journal (index 1) trong MainScreen
     controller.setSelectedIndex(1);

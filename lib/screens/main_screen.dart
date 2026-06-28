@@ -17,7 +17,13 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   void _onItemTapped(int index) {
-    context.read<PublicationController>().setSelectedIndex(index);
+    final controller = context.read<PublicationController>();
+
+    if (index == 1 && controller.sources.isEmpty && !controller.isLoading) {
+      controller.search(controller.lastSearchText, 'Sources');
+    }
+
+    controller.setSelectedIndex(index);
   }
 
   @override

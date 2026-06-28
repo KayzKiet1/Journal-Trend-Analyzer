@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/publication_model.dart';
 import '../models/journal_model.dart';
@@ -7,9 +9,19 @@ import '../services/openalex_service.dart';
 /// Bộ điều khiển quản lý trạng thái của danh sách bài báo và tìm kiếm đa thực thể
 class PublicationController extends ChangeNotifier {
   OpenAlexService _apiService;
+  final Duration searchTimeout;
+  final Duration searchWatchdogTimeout;
 
   PublicationController({OpenAlexService? apiService})
-    : _apiService = apiService ?? OpenAlexService();
+    : _apiService = apiService ?? OpenAlexService(),
+      searchTimeout = const Duration(seconds: 15),
+      searchWatchdogTimeout = const Duration(seconds: 12);
+
+  PublicationController.withTimeout({
+    OpenAlexService? apiService,
+    required this.searchTimeout,
+    this.searchWatchdogTimeout = const Duration(seconds: 12),
+  }) : _apiService = apiService ?? OpenAlexService();
 
   /// Cập nhật email và API Key cho API service
   void updateApiService(String? email, {String? apiKey}) {
@@ -32,6 +44,10 @@ class PublicationController extends ChangeNotifier {
 
   String? _lastFetchedQuery;
   String? _lastFetchedCategory;
+  String? _activeSearchQuery;
+  String? _activeSearchCategory;
+  int _searchRequestId = 0;
+  Timer? _searchWatchdogTimer;
 
   int _selectedTabIndex = 0;
   int get selectedTabIndex => _selectedTabIndex;
@@ -102,6 +118,13 @@ class PublicationController extends ChangeNotifier {
     String category, {
     bool loadMore = false,
   }) async {
+    if (!loadMore &&
+        _isLoading &&
+        _activeSearchQuery == query &&
+        _activeSearchCategory == category) {
+      return;
+    }
+
     // If query and category are same as last time and we have results, skip if not loading more
     if (!loadMore &&
         _lastFetchedQuery == query &&
@@ -127,6 +150,13 @@ class PublicationController extends ChangeNotifier {
       _currentPage = 1;
       _totalResults = 0;
       _sources = [];
+      _activeSearchQuery = query;
+      _activeSearchCategory = category;
+    }
+
+    final requestId = ++_searchRequestId;
+    if (!loadMore) {
+      _startSearchWatchdog(requestId, query);
     }
 
     notifyListeners();
@@ -134,13 +164,18 @@ class PublicationController extends ChangeNotifier {
     try {
       switch (category) {
         case 'Sources':
-          final data = await _apiService.searchSources(
-            query,
-            page: _currentPage,
-            perPage: _perPage,
-          );
+          final data = await _apiService
+              .searchSources(query, page: _currentPage, perPage: _perPage)
+              .timeout(
+                searchTimeout,
+                onTimeout: () => throw TimeoutException(
+                  'OpenAlex phản hồi quá lâu. Vui lòng kiểm tra mạng hoặc thử lại sau.',
+                ),
+              );
           final List<Journal> results = data['results'];
           _totalResults = data['total_count'];
+
+          if (requestId != _searchRequestId) return;
 
           if (loadMore) {
             _sources.addAll(results);
@@ -162,12 +197,33 @@ class PublicationController extends ChangeNotifier {
         _lastFetchedCategory = category;
       }
     } catch (e) {
-      _errorMessage = 'Đã xảy ra lỗi khi tìm kiếm: ${e.toString()}';
+      if (requestId != _searchRequestId) return;
+      _errorMessage = _formatSearchError(e);
     } finally {
-      _isLoading = false;
-      _isLoadingMore = false;
-      notifyListeners();
+      if (requestId == _searchRequestId) {
+        _searchWatchdogTimer?.cancel();
+        _isLoading = false;
+        _isLoadingMore = false;
+        if (!loadMore) {
+          _activeSearchQuery = null;
+          _activeSearchCategory = null;
+        }
+        notifyListeners();
+      }
     }
+  }
+
+  void cancelActiveSearch({String? message}) {
+    _searchWatchdogTimer?.cancel();
+    _searchRequestId++;
+    _isLoading = false;
+    _isLoadingMore = false;
+    _activeSearchQuery = null;
+    _activeSearchCategory = null;
+    if (message != null && message.isNotEmpty) {
+      _errorMessage = message;
+    }
+    notifyListeners();
   }
 
   /// Tìm kiếm bài báo theo tác giả
@@ -246,8 +302,32 @@ class PublicationController extends ChangeNotifier {
     }
   }
 
+  String _formatSearchError(Object error) {
+    if (error is TimeoutException) {
+      return error.message ??
+          'OpenAlex phản hồi quá lâu. Vui lòng kiểm tra mạng hoặc thử lại sau.';
+    }
+
+    return 'Đã xảy ra lỗi khi tìm kiếm: ${error.toString()}';
+  }
+
+  void _startSearchWatchdog(int requestId, String query) {
+    _searchWatchdogTimer?.cancel();
+    _searchWatchdogTimer = Timer(searchWatchdogTimeout, () {
+      if (requestId != _searchRequestId || !_isLoading || _sources.isNotEmpty) {
+        return;
+      }
+
+      cancelActiveSearch(
+        message:
+            'Không nhận được phản hồi từ OpenAlex cho "$query". Hãy kiểm tra Internet hoặc quyền mạng của ứng dụng rồi thử lại.',
+      );
+    });
+  }
+
   /// Xóa dữ liệu tìm kiếm
   void clearSearch() {
+    _searchWatchdogTimer?.cancel();
     _clearResults();
     _lastSearchText = '';
     _lastFetchedQuery = null;
