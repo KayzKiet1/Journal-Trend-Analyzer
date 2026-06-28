@@ -95,7 +95,7 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1000),
+        constraints: const BoxConstraints(maxWidth: AppSpacing.maxContentWidth),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(

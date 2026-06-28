@@ -54,7 +54,9 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(title: const Text('Journal Trend Analyzer'), elevation: 0),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: const BoxConstraints(
+            maxWidth: AppSpacing.maxContentWidth,
+          ),
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,

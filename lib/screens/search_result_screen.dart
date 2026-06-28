@@ -143,7 +143,9 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
 
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
+              constraints: const BoxConstraints(
+                maxWidth: AppSpacing.maxContentWidth,
+              ),
               child: _buildResultList(controller),
             ),
           );
@@ -569,14 +571,10 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(color: AppColors.secondary, width: 1.0),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.05),
-                  offset: const Offset(0, 2),
-                  blurRadius: 4,
-                ),
-              ],
+              border: Border.all(
+                color: AppColors.secondary,
+                width: AppSpacing.borderWidth,
+              ),
             ),
             child: isCompact
                 ? Column(

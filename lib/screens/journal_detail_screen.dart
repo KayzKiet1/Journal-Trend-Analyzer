@@ -176,7 +176,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
+            constraints: const BoxConstraints(
+              maxWidth: AppSpacing.maxContentWidth,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -332,7 +334,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
             child: Text(
               value,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: isLink ? Colors.blue : AppColors.primary,
+                color: isLink ? AppColors.accent : AppColors.primary,
                 decoration: isLink ? TextDecoration.underline : null,
               ),
             ),
@@ -568,13 +570,6 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

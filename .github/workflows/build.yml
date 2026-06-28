@@ -30,7 +30,6 @@ jobs:
 
       - name: Test with coverage
         run: flutter test --coverage
-        continue-on-error: true
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995

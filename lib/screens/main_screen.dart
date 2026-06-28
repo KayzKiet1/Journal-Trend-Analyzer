@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
 import 'home_screen.dart';
 import 'search_result_screen.dart';
 import 'dashboard_screen.dart';
@@ -26,10 +27,7 @@ class _MainScreenState extends State<MainScreen> {
 
     final List<Widget> screens = [
       const HomeScreen(),
-      SearchResultScreen(
-        topic: controller.lastSearchText,
-        category: 'Sources',
-      ),
+      SearchResultScreen(topic: controller.lastSearchText, category: 'Sources'),
       DashboardScreen(
         route: 'keywords',
         journal: controller.lastAnalyzedJournal,
@@ -39,19 +37,16 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
-      body: IndexedStack(
-        index: selectedIndex,
-        children: screens,
-      ),
+      body: IndexedStack(index: selectedIndex, children: screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+          color: AppColors.surface,
+          border: Border(
+            top: BorderSide(
+              color: AppColors.secondary.withValues(alpha: 0.3),
+              width: AppSpacing.borderWidth,
             ),
-          ],
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: selectedIndex,
@@ -60,7 +55,10 @@ class _MainScreenState extends State<MainScreen> {
           backgroundColor: AppColors.surface,
           selectedItemColor: AppColors.accent,
           unselectedItemColor: AppColors.primary.withValues(alpha: 0.5),
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
           unselectedLabelStyle: const TextStyle(fontSize: 12),
           items: const [
             BottomNavigationBarItem(
