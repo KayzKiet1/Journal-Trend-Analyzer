@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/user_controller.dart';
 import '../controllers/publication_controller.dart';
-import '../controllers/analysis_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
@@ -36,16 +35,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _saveSettings() {
     final email = _emailController.text.trim();
     final apiKey = _apiKeyController.text.trim();
-    
+
     if (email.isNotEmpty && email.contains('@')) {
       final userController = context.read<UserController>();
       userController.updateEmail(email);
       userController.updateApiKey(apiKey);
-      
+
       // Cập nhật email và API Key cho các API Service trong controllers
-      context.read<PublicationController>().updateApiService(email, apiKey: apiKey);
-      context.read<AnalysisController>().updateApiService(email, apiKey: apiKey);
-      
+      context.read<PublicationController>().updateApiService(
+        email,
+        apiKey: apiKey,
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Đã cập nhật thiết lập OpenAlex thành công!'),
@@ -66,9 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Hồ sơ người dùng'),
-      ),
+      appBar: AppBar(title: const Text('OpenAlex Settings')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
@@ -87,7 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Email giúp nhận diện "Polite Pool", API Key giúp tăng giới hạn truy vấn.',
+                    'Thiết lập email liên hệ và API key cho OpenAlex. Đây không phải tài khoản đăng nhập của ứng dụng.',
                     style: AppTextStyles.bodySmall,
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -95,7 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     controller: _emailController,
                     decoration: const InputDecoration(
                       labelText: 'Email liên hệ',
-                      hintText: 'example@domain.com',
+                      hintText: 'email dùng cho OpenAlex polite pool',
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                     keyboardType: TextInputType.emailAddress,
@@ -105,7 +104,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     controller: _apiKeyController,
                     decoration: const InputDecoration(
                       labelText: 'OpenAlex API Key (Tùy chọn)',
-                      hintText: 'Nhập API Key của bạn',
+                      hintText: 'API key OpenAlex nếu có',
                       prefixIcon: Icon(Icons.vpn_key_outlined),
                     ),
                   ),
@@ -114,7 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _saveSettings,
-                      child: const Text('LƯU THÔNG TIN'),
+                      child: const Text('LƯU THIẾT LẬP OPENALEX'),
                     ),
                   ),
                 ],
@@ -151,20 +150,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3), width: 1.0),
+        border: Border.all(
+          color: AppColors.secondary.withValues(alpha: 0.3),
+          width: 1.0,
+        ),
       ),
       child: Row(
         children: [
           Icon(icon, color: AppColors.secondary, size: 20),
           const SizedBox(width: AppSpacing.md),
-          Expanded( // Thêm Expanded để tránh lỗi overflow khi text quá dài
+          Expanded(
+            // Thêm Expanded để tránh lỗi overflow khi text quá dài
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTextStyles.labelCaps.copyWith(fontSize: 10)),
                 Text(
-                  value, 
-                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),
+                  title,
+                  style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
+                ),
+                Text(
+                  value,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.primary,
+                  ),
                   maxLines: 2, // Cho phép hiển thị tối đa 2 dòng
                   overflow: TextOverflow.ellipsis,
                 ),

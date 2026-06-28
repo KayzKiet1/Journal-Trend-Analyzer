@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/publication_controller.dart';
-import 'controllers/analysis_controller.dart';
+import 'controllers/journal_library_controller.dart';
 import 'controllers/user_controller.dart';
 import 'screens/main_screen.dart';
 import 'utils/app_theme.dart';
@@ -20,7 +20,7 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => PublicationController()),
-        ChangeNotifierProvider(create: (_) => AnalysisController()),
+        ChangeNotifierProvider(create: (_) => JournalLibraryController()),
         ChangeNotifierProvider(create: (_) => UserController()),
       ],
       child: MaterialApp(

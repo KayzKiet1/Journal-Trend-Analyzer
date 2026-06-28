@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/journal_model.dart';
 import '../models/publication_model.dart';
 import '../models/trend_data_model.dart';
+import '../controllers/journal_library_controller.dart';
 import '../services/openalex_service.dart';
 import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
@@ -84,6 +85,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         _topTopics = results[3] as List<Map<String, dynamic>>;
         _isLoading = false;
       });
+      if (mounted && _journal != null) {
+        context.read<JournalLibraryController>().addRecentViewed(_journal!);
+      }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -106,7 +110,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       final worksData = await _apiService.getWorksByJournal(
         widget.journalId,
         page: _currentPage,
-        search: _searchController.text.isNotEmpty ? _searchController.text : null,
+        search: _searchController.text.isNotEmpty
+            ? _searchController.text
+            : null,
         year: _selectedYear,
         minCitations: _minCitations,
         sortField: _sortField,
@@ -151,6 +157,19 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
           ],
         ),
         elevation: 0,
+        actions: [
+          if (_journal != null)
+            Consumer<JournalLibraryController>(
+              builder: (context, library, child) {
+                final isFavorite = library.isFavorite(_journal!.id);
+                return IconButton(
+                  tooltip: isFavorite ? 'Bỏ lưu journal' : 'Lưu journal',
+                  icon: Icon(isFavorite ? Icons.star : Icons.star_border),
+                  onPressed: () => library.toggleFavorite(_journal!),
+                );
+              },
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         controller: _scrollController,
@@ -172,7 +191,10 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      context.read<PublicationController>().setLastAnalysis(_journal, _trends);
+                      context.read<PublicationController>().setLastAnalysis(
+                        _journal,
+                        _trends,
+                      );
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -185,7 +207,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                       );
                     },
                     icon: const Icon(Icons.analytics_outlined),
-                    label: const Text('Go to Keywords Analysis'),
+                    label: const Text('Analyze Journal Trends'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accent,
                       foregroundColor: Colors.white,
@@ -333,19 +355,21 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
           _buildStatItem('Works count', _journal?.worksCount.toString()),
           _buildStatItem('Citation count', _journal?.citedByCount.toString()),
           _buildStatItem(
-            'H-index', 
+            'H-index',
             _journal?.hIndex?.toString(),
-            tooltip: 'Chỉ số đo lường năng suất và tác động trích dẫn. Chỉ số h là số h bài báo có ít nhất h lượt trích dẫn.',
+            tooltip:
+                'Chỉ số đo lường năng suất và tác động trích dẫn. Chỉ số h là số h bài báo có ít nhất h lượt trích dẫn.',
           ),
           _buildStatItem(
-            'I10-index', 
+            'I10-index',
             _journal?.i10Index?.toString(),
             tooltip: 'Số lượng bài báo có ít nhất 10 lượt trích dẫn.',
           ),
           _buildStatItem(
             '2yr mean citedness',
             _journal?.twoYearMeanCitedness?.toStringAsFixed(3),
-            tooltip: 'Số lượng trích dẫn trung bình của các bài báo được xuất bản trong 2 năm gần nhất (Tương đương Impact Factor).',
+            tooltip:
+                'Số lượng trích dẫn trung bình của các bài báo được xuất bản trong 2 năm gần nhất (Tương đương Impact Factor).',
           ),
         ],
       ),
@@ -378,7 +402,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                   ),
-                  textStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.background),
+                  textStyle: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.background,
+                  ),
                   child: const Icon(
                     Icons.help_outline,
                     size: 14,
@@ -451,7 +477,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       final worksData = await _apiService.getWorksByJournal(
         widget.journalId,
         page: _currentPage,
-        search: _searchController.text.isNotEmpty ? _searchController.text : null,
+        search: _searchController.text.isNotEmpty
+            ? _searchController.text
+            : null,
         year: _selectedYear,
         minCitations: _minCitations,
         sortField: _sortField,
@@ -551,15 +579,24 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('SEARCH & FILTER', style: AppTextStyles.labelCaps.copyWith(fontSize: 10)),
+          Text(
+            'SEARCH & FILTER',
+            style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
+          ),
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _searchController,
             style: AppTextStyles.bodySmall,
             decoration: InputDecoration(
               hintText: 'Tìm theo tên bài báo...',
-              hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
-              prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondary),
+              hintStyle: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.secondary,
+              ),
+              prefixIcon: const Icon(
+                Icons.search,
+                size: 18,
+                color: AppColors.secondary,
+              ),
               isDense: true,
               filled: true,
               fillColor: AppColors.background.withValues(alpha: 0.5),
@@ -579,8 +616,19 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   label: 'NĂM XUẤT BẢN',
                   value: _selectedYear,
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('Tất cả', style: TextStyle(fontSize: 12))),
-                    ...availableYears.map((y) => DropdownMenuItem(value: y, child: Text(y.toString(), style: TextStyle(fontSize: 12)))),
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('Tất cả', style: TextStyle(fontSize: 12)),
+                    ),
+                    ...availableYears.map(
+                      (y) => DropdownMenuItem(
+                        value: y,
+                        child: Text(
+                          y.toString(),
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
                   ],
                   onChanged: (val) {
                     setState(() => _selectedYear = val);
@@ -594,8 +642,21 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   label: 'LƯỢT TRÍCH DẪN',
                   value: _minCitations,
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('Tất cả', style: TextStyle(fontSize: 12))),
-                    ..._citationOptions.where((opt) => opt > 0).map((opt) => DropdownMenuItem(value: opt, child: Text('$opt+', style: TextStyle(fontSize: 12)))),
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('Tất cả', style: TextStyle(fontSize: 12)),
+                    ),
+                    ..._citationOptions
+                        .where((opt) => opt > 0)
+                        .map(
+                          (opt) => DropdownMenuItem(
+                            value: opt,
+                            child: Text(
+                              '$opt+',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ),
                   ],
                   onChanged: (val) {
                     setState(() => _minCitations = val);
@@ -613,8 +674,20 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   label: 'SẮP XẾP THEO',
                   value: _sortField,
                   items: const [
-                    DropdownMenuItem(value: 'publication_year', child: Text('Năm xuất bản', style: TextStyle(fontSize: 12))),
-                    DropdownMenuItem(value: 'cited_by_count', child: Text('Lượt trích dẫn', style: TextStyle(fontSize: 12))),
+                    DropdownMenuItem(
+                      value: 'publication_year',
+                      child: Text(
+                        'Năm xuất bản',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'cited_by_count',
+                      child: Text(
+                        'Lượt trích dẫn',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
                   ],
                   onChanged: (val) {
                     if (val != null) {
@@ -630,8 +703,14 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   label: 'THỨ TỰ',
                   value: _isDescending,
                   items: const [
-                    DropdownMenuItem(value: true, child: Text('Giảm dần', style: TextStyle(fontSize: 12))),
-                    DropdownMenuItem(value: false, child: Text('Tăng dần', style: TextStyle(fontSize: 12))),
+                    DropdownMenuItem(
+                      value: true,
+                      child: Text('Giảm dần', style: TextStyle(fontSize: 12)),
+                    ),
+                    DropdownMenuItem(
+                      value: false,
+                      child: Text('Tăng dần', style: TextStyle(fontSize: 12)),
+                    ),
                   ],
                   onChanged: (val) {
                     if (val != null) {
@@ -657,7 +736,13 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.labelCaps.copyWith(fontSize: 9, color: AppColors.secondary)),
+        Text(
+          label,
+          style: AppTextStyles.labelCaps.copyWith(
+            fontSize: 9,
+            color: AppColors.secondary,
+          ),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -669,7 +754,11 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
             child: DropdownButton<T>(
               value: value,
               isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.secondary),
+              icon: const Icon(
+                Icons.keyboard_arrow_down,
+                size: 16,
+                color: AppColors.secondary,
+              ),
               items: items,
               onChanged: onChanged,
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),

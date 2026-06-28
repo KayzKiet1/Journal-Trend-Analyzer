@@ -24,7 +24,7 @@ class DashboardScreen extends StatefulWidget {
   final List<TrendData>? trends;
 
   const DashboardScreen({
-    super.key, 
+    super.key,
     this.route = 'journal',
     this.journal,
     this.trends,
@@ -89,7 +89,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadJournalPublications() async {
     setState(() => _isPublicationsLoading = true);
     try {
-      final data = await _apiService.getWorksByJournal(widget.journal!.id, perPage: 50);
+      final data = await _apiService.getWorksByJournal(
+        widget.journal!.id,
+        perPage: 50,
+        sortField: 'cited_by_count',
+      );
       final List<Publication> results = data['results'] ?? [];
       if (mounted) {
         setState(() {
@@ -107,7 +111,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadEvolutionData() async {
     setState(() => _isEvolutionLoading = true);
     try {
-      final data = await _apiService.getJournalTopicEvolution(widget.journal!.id);
+      final data = await _apiService.getJournalTopicEvolution(
+        widget.journal!.id,
+      );
       if (mounted) {
         setState(() {
           _topicEvolution = data;
@@ -128,19 +134,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('Research Dashboard'),
         leading: widget.journal != null && Navigator.canPop(context)
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
-            )
-          : null, // Let Scaffold handle drawer icon if null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null, // Let Scaffold handle drawer icon if null
       ),
       body: Consumer<PublicationController>(
         builder: (context, controller, child) {
           final publications = controller.publications;
 
-          if (publications.isEmpty && widget.journal == null && widget.trends == null) {
-            return const Center(
-              child: Text('Không có dữ liệu để phân tích.'),
+          if (publications.isEmpty &&
+              widget.journal == null &&
+              widget.trends == null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.analytics_outlined,
+                      size: 48,
+                      color: AppColors.secondary,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Chưa có journal để phân tích',
+                      style: AppTextStyles.h2,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Hãy chọn một journal trong tab JOURNAL rồi nhấn phân tích xu hướng để xem dashboard.',
+                      style: AppTextStyles.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
             );
           }
 
@@ -170,7 +202,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(height: AppSpacing.md),
                       _buildGeneralStatistics(controller, publications),
                       const SizedBox(height: AppSpacing.xl * 1.5),
-                      
+
                       Text(
                         'TOP 5 BÀI BÁO CÓ ẢNH HƯỞNG NHẤT',
                         style: AppTextStyles.labelCaps,
@@ -194,16 +226,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildJournalAnalysis(BuildContext context, Journal journal) {
     // Publication Trend from real API counts_by_year
-    final List<TrendData> pubTrends = journal.countsByYear
-        .map((e) => TrendData(year: e.year, count: e.worksCount))
-        .toList()
-      ..sort((a, b) => a.year.compareTo(b.year));
-      
+    final List<TrendData> pubTrends =
+        journal.countsByYear
+            .map((e) => TrendData(year: e.year, count: e.worksCount))
+            .toList()
+          ..sort((a, b) => a.year.compareTo(b.year));
+
     // Citation Trend from real API counts_by_year
-    final List<TrendData> citeTrends = journal.countsByYear
-        .map((e) => TrendData(year: e.year, count: e.citedByCount))
-        .toList()
-      ..sort((a, b) => a.year.compareTo(b.year));
+    final List<TrendData> citeTrends =
+        journal.countsByYear
+            .map((e) => TrendData(year: e.year, count: e.citedByCount))
+            .toList()
+          ..sort((a, b) => a.year.compareTo(b.year));
 
     // Calculate top authors for Author Impact from loaded publications
     final authorCounts = <String, int>{};
@@ -224,17 +258,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        YearTrendChart(trends: pubTrends, forceLineChart: true, title: 'Publication Trend'),
+        YearTrendChart(
+          trends: pubTrends,
+          forceLineChart: true,
+          title: 'Publication Trend',
+        ),
         const SizedBox(height: AppSpacing.xl),
-        YearTrendChart(trends: citeTrends, forceLineChart: true, title: 'Citation Trend'),
+        YearTrendChart(
+          trends: citeTrends,
+          forceLineChart: true,
+          title: 'Citation Trend',
+        ),
         const SizedBox(height: AppSpacing.xl),
         if (_isEvolutionLoading)
           const Center(child: CircularProgressIndicator())
         else if (_topicEvolution.isNotEmpty)
           TopicEvolutionChart(data: _topicEvolution)
         else
-          const Center(child: Text('No topic evolution data found for this journal.')),
-        
+          Center(
+            child: Text(
+              'Chưa có đủ dữ liệu topic evolution cho journal này.',
+              style: AppTextStyles.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ),
+
         const SizedBox(height: AppSpacing.xl),
         if (_isPublicationsLoading)
           const Center(child: CircularProgressIndicator())
@@ -243,6 +291,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             data: topAuthorsData,
             title: 'AUTHOR IMPACT: TÁC GIẢ CÓ NHIỀU CÔNG BỐ NHẤT',
           ),
+          const SizedBox(height: AppSpacing.xl),
+          Text(
+            'TOP CÔNG BỐ CÓ ẢNH HƯỞNG TRONG JOURNAL',
+            style: AppTextStyles.labelCaps,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _buildTopPapers(context, _journalPublications),
           const SizedBox(height: AppSpacing.xl),
           AuthorTopicHeatmap(
             publications: _journalPublications,
@@ -253,19 +308,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildGeneralStatistics(PublicationController controller, List<Publication> publications) {
-    final totalPublications = controller.totalResults > 0 
-        ? controller.totalResults.toString() 
+  Widget _buildGeneralStatistics(
+    PublicationController controller,
+    List<Publication> publications,
+  ) {
+    final totalPublications = controller.totalResults > 0
+        ? controller.totalResults.toString()
         : publications.length.toString();
-    
-    final totalCitations = controller.totalCitationsGlobal > 0
-        ? controller.totalCitationsGlobal.toString()
-        : AnalysisHelper.getTotalCitations(publications).toString();
-        
-    final avgCitations = (double.parse(totalCitations) / double.parse(totalPublications)).toStringAsFixed(1);
 
-    final mostActiveYear = 
-        AnalysisHelper.getMostActivePublicationYear(publications)?.toString() ?? 'N/A';
+    final totalCitations = AnalysisHelper.getTotalCitations(
+      publications,
+    ).toString();
+
+    final avgCitations =
+        (double.parse(totalCitations) / double.parse(totalPublications))
+            .toStringAsFixed(1);
+
+    final mostActiveYear =
+        AnalysisHelper.getMostActivePublicationYear(publications)?.toString() ??
+        'N/A';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -278,10 +339,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
           mainAxisSpacing: AppSpacing.md,
           childAspectRatio: constraints.maxWidth >= 600 ? 1.5 : 1.2,
           children: [
-            StatCard(title: 'Tổng bài báo', value: totalPublications, icon: Icons.article_outlined),
-            StatCard(title: 'Tổng trích dẫn', value: totalCitations, icon: Icons.format_quote),
-            StatCard(title: 'Trích dẫn TB', value: avgCitations, icon: Icons.analytics_outlined),
-            StatCard(title: 'Năm tích cực', value: mostActiveYear, icon: Icons.calendar_today_outlined),
+            StatCard(
+              title: 'Tổng bài báo',
+              value: totalPublications,
+              icon: Icons.article_outlined,
+            ),
+            StatCard(
+              title: 'Tổng trích dẫn',
+              value: totalCitations,
+              icon: Icons.format_quote,
+            ),
+            StatCard(
+              title: 'Trích dẫn TB',
+              value: avgCitations,
+              icon: Icons.analytics_outlined,
+            ),
+            StatCard(
+              title: 'Năm tích cực',
+              value: mostActiveYear,
+              icon: Icons.calendar_today_outlined,
+            ),
           ],
         );
       },
@@ -291,30 +368,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildTopPapers(BuildContext context, List<Publication> publications) {
     final topPapers = AnalysisHelper.getTopCitedPapers(publications, limit: 5);
     return Column(
-      children: topPapers.map((pub) => PublicationCard(
-        title: pub.title,
-        year: pub.publicationYear.toString(),
-        journal: pub.journalName,
-        authors: pub.authorsString,
-        citations: pub.citedByCount,
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PublicationDetailScreen(publication: pub),
+      children: topPapers
+          .map(
+            (pub) => PublicationCard(
+              title: pub.title,
+              year: pub.publicationYear.toString(),
+              journal: pub.journalName,
+              authors: pub.authorsString,
+              citations: pub.citedByCount,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        PublicationDetailScreen(publication: pub),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      )).toList(),
+          )
+          .toList(),
     );
   }
 
   Widget _buildCharts(List<Publication> publications) {
     final topJournals = AnalysisHelper.getTopJournals(publications);
     final topAuthors = AnalysisHelper.getTopAuthors(publications);
-    
-    final journalData = topJournals.entries.map((e) => {'name': e.key, 'count': e.value}).toList();
-    final authorData = topAuthors.entries.map((e) => {'name': e.key, 'count': e.value}).toList();
+
+    final journalData = topJournals.entries
+        .map((e) => {'name': e.key, 'count': e.value})
+        .toList();
+    final authorData = topAuthors.entries
+        .map((e) => {'name': e.key, 'count': e.value})
+        .toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -322,18 +408,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              HorizontalBarChart(data: journalData, title: 'TOP 5 TẠP CHÍ PHỔ BIẾN'),
+              HorizontalBarChart(
+                data: journalData,
+                title: 'TOP 5 TẠP CHÍ PHỔ BIẾN',
+              ),
               const SizedBox(height: AppSpacing.xl),
-              HorizontalBarChart(data: authorData, title: 'TOP 5 TÁC GIẢ ĐÓNG GÓP'),
+              HorizontalBarChart(
+                data: authorData,
+                title: 'TOP 5 TÁC GIẢ ĐÓNG GÓP',
+              ),
             ],
           );
         } else {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: HorizontalBarChart(data: journalData, title: 'TOP 5 TẠP CHÍ PHỔ BIẾN')),
+              Expanded(
+                child: HorizontalBarChart(
+                  data: journalData,
+                  title: 'TOP 5 TẠP CHÍ PHỔ BIẾN',
+                ),
+              ),
               const SizedBox(width: AppSpacing.xl),
-              Expanded(child: HorizontalBarChart(data: authorData, title: 'TOP 5 TÁC GIẢ ĐÓNG GÓP')),
+              Expanded(
+                child: HorizontalBarChart(
+                  data: authorData,
+                  title: 'TOP 5 TÁC GIẢ ĐÓNG GÓP',
+                ),
+              ),
             ],
           );
         }

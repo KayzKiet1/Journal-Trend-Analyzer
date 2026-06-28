@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/publication_model.dart';
-import '../models/author_model.dart';
 import '../models/journal_model.dart';
-import '../models/institution_model.dart';
 import '../models/trend_data_model.dart';
 import '../services/openalex_service.dart';
 
@@ -20,9 +18,11 @@ class PublicationController extends ChangeNotifier {
   }
 
   List<Publication> _publications = [];
-  List<Author> _authors = [];
   List<Journal> _sources = [];
-  List<Institution> _institutions = [];
+
+  String? _lastAuthorId;
+  int _authorWorksPage = 1;
+  int _authorWorksTotal = 0;
 
   String _lastSearchText = '';
   String get lastSearchText => _lastSearchText;
@@ -69,28 +69,21 @@ class PublicationController extends ChangeNotifier {
 
   int _currentPage = 1;
   int _totalResults = 0;
-  int _totalCitationsGlobal = 0;
   final int _perPage = 10;
 
   List<Publication> get publications => _publications;
-  List<Author> get authors => _authors;
   List<Journal> get sources => _sources;
-  List<Institution> get institutions => _institutions;
 
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   String get errorMessage => _errorMessage;
   String get currentTopic => _currentTopic;
   int get totalResults => _totalResults;
-  int get totalCitationsGlobal => _totalCitationsGlobal;
 
-  bool get hasMore {
-    switch (_currentCategory) {
-      case 'Works':
+  bool hasMoreFor(String category) {
+    switch (category) {
       case 'AuthorWorks':
-        return _publications.length < _totalResults;
-      case 'Authors':
-        return _authors.length < _totalResults;
+        return _publications.length < _authorWorksTotal;
       case 'Sources':
         return _sources.length < _totalResults;
       default:
@@ -98,10 +91,12 @@ class PublicationController extends ChangeNotifier {
     }
   }
 
+  bool get hasMore => hasMoreFor(_currentCategory);
+
   String _currentCategory = 'Sources';
   String get currentCategory => _currentCategory;
 
-  /// Thực hiện tìm kiếm theo loại thực thể (Works, Authors, Sources, Institutions)
+  /// Thực hiện tìm kiếm journal sources.
   Future<void> search(
     String query,
     String category, {
@@ -120,7 +115,7 @@ class PublicationController extends ChangeNotifier {
     if (query.isEmpty && category != 'Sources') return;
 
     if (loadMore) {
-      if (_isLoadingMore || !hasMore) return;
+      if (_isLoadingMore || !hasMoreFor(category)) return;
       _isLoadingMore = true;
       _currentPage++;
     } else {
@@ -131,56 +126,13 @@ class PublicationController extends ChangeNotifier {
       _errorMessage = '';
       _currentPage = 1;
       _totalResults = 0;
-      _clearResults();
+      _sources = [];
     }
 
     notifyListeners();
 
     try {
       switch (category) {
-        case 'Works':
-          final data = await _apiService.searchWorks(
-            query,
-            page: _currentPage,
-            perPage: _perPage,
-          );
-          final List<Publication> results = data['results'];
-          _totalResults = data['total_count'];
-
-          // Tính tổng trích dẫn từ các bài báo hiện có
-          if (!loadMore) {
-            _totalCitationsGlobal = results.fold(
-              0,
-              (sum, item) => sum + item.citedByCount,
-            );
-          } else {
-            _totalCitationsGlobal += results.fold(
-              0,
-              (sum, item) => sum + item.citedByCount,
-            );
-          }
-
-          if (loadMore) {
-            _publications.addAll(results);
-          } else {
-            _publications = results;
-          }
-          break;
-        case 'Authors':
-          final data = await _apiService.searchAuthors(
-            query,
-            page: _currentPage,
-            perPage: _perPage,
-          );
-          final List<Author> results = data['results'];
-          _totalResults = data['total_count'];
-
-          if (loadMore) {
-            _authors.addAll(results);
-          } else {
-            _authors = results;
-          }
-          break;
         case 'Sources':
           final data = await _apiService.searchSources(
             query,
@@ -196,9 +148,8 @@ class PublicationController extends ChangeNotifier {
             _sources = results;
           }
           break;
-        case 'Institutions':
-          _institutions = await _apiService.searchInstitutions(query);
-          break;
+        default:
+          throw Exception('Danh mục tìm kiếm không được hỗ trợ: $category');
       }
 
       if (!loadMore && _isResultsEmpty(category)) {
@@ -225,29 +176,40 @@ class PublicationController extends ChangeNotifier {
     String authorName, {
     bool loadMore = false,
   }) async {
+    final isSameAuthor = _lastAuthorId == authorId;
+
+    if (!loadMore &&
+        isSameAuthor &&
+        _currentCategory == 'AuthorWorks' &&
+        _publications.isNotEmpty &&
+        _errorMessage.isEmpty) {
+      return;
+    }
+
     if (loadMore) {
-      if (_isLoadingMore || !hasMore) return;
+      if (_isLoadingMore || _publications.length >= _authorWorksTotal) return;
       _isLoadingMore = true;
-      _currentPage++;
+      _authorWorksPage++;
     } else {
       _currentTopic = 'Works by $authorName';
       _currentCategory = 'AuthorWorks';
       _isLoading = true;
       _errorMessage = '';
-      _currentPage = 1;
-      _totalResults = 0;
-      _clearResults();
+      _authorWorksPage = 1;
+      _authorWorksTotal = 0;
+      _lastAuthorId = authorId;
+      _publications = [];
     }
     notifyListeners();
 
     try {
       final data = await _apiService.getWorksByAuthor(
         authorId,
-        page: _currentPage,
+        page: _authorWorksPage,
         perPage: _perPage,
       );
       final List<Publication> results = data['results'];
-      _totalResults = data['total_count'];
+      _authorWorksTotal = data['total_count'];
 
       if (loadMore) {
         _publications.addAll(results);
@@ -269,21 +231,16 @@ class PublicationController extends ChangeNotifier {
 
   void _clearResults() {
     _publications = [];
-    _authors = [];
     _sources = [];
-    _institutions = [];
+    _lastAuthorId = null;
+    _authorWorksPage = 1;
+    _authorWorksTotal = 0;
   }
 
   bool _isResultsEmpty(String category) {
     switch (category) {
-      case 'Works':
-        return _publications.isEmpty;
-      case 'Authors':
-        return _authors.isEmpty;
       case 'Sources':
         return _sources.isEmpty;
-      case 'Institutions':
-        return _institutions.isEmpty;
       default:
         return true;
     }
@@ -298,10 +255,5 @@ class PublicationController extends ChangeNotifier {
     _currentTopic = '';
     _errorMessage = '';
     notifyListeners();
-  }
-
-  /// Thực hiện tìm kiếm bài báo theo chủ đề (Legacy)
-  Future<void> searchByTopic(String topic) async {
-    await search(topic, 'Works');
   }
 }

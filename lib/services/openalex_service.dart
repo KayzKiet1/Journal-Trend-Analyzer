@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../models/publication_model.dart';
 import '../models/trend_data_model.dart';
-import '../models/author_model.dart';
 import '../models/journal_model.dart';
-import '../models/institution_model.dart';
 import '../utils/api_constants.dart';
 
 /// Lớp hỗ trợ lưu trữ cache đơn giản
@@ -29,6 +27,10 @@ class _OpenAlexHttpException implements Exception {
 
 /// Dịch vụ kết nối và lấy dữ liệu từ OpenAlex API
 class OpenAlexService {
+  static const String _workSelectFields =
+      'id,display_name,title,publication_year,publication_date,cited_by_count,'
+      'authorships,primary_location,doi,abstract_inverted_index,topics,concepts';
+
   final String? userEmail;
   final String? apiKey;
   final http.Client client;
@@ -60,6 +62,14 @@ class OpenAlexService {
 
   String get _contactEmail => userEmail ?? ApiConstants.contactEmail;
   String get _apiKey => apiKey ?? ApiConstants.apiKey;
+
+  String _openAlexId(String idOrUrl) {
+    final parsed = Uri.tryParse(idOrUrl);
+    if (parsed != null && parsed.pathSegments.isNotEmpty) {
+      return parsed.pathSegments.last;
+    }
+    return idOrUrl.split('/').last;
+  }
 
   static void resetForTesting() {
     _cache.clear();
@@ -213,71 +223,6 @@ class OpenAlexService {
     }
   }
 
-  /// Tìm kiếm các bài báo theo từ khóa (topic) có hỗ trợ phân trang
-  Future<Map<String, dynamic>> searchWorks(
-    String query, {
-    int page = 1,
-    int perPage = 10,
-  }) async {
-    final Uri url =
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
-        ).replace(
-          queryParameters: {
-            'search': query,
-            'sort': 'cited_by_count:desc',
-            'page': page.toString(),
-            'per_page': perPage.toString(),
-            'select':
-                'id,display_name,title,publication_year,cited_by_count,authorships,primary_location',
-          },
-        );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List results = data['results'] ?? [];
-      final int totalCount = data['meta']?['count'] ?? 0;
-
-      return {
-        'results': results.map((json) => Publication.fromJson(json)).toList(),
-        'total_count': totalCount,
-      };
-    } catch (e) {
-      throw Exception('Lỗi khi tìm kiếm bài báo: $e');
-    }
-  }
-
-  /// Tìm kiếm tác giả (Authors) có hỗ trợ phân trang
-  Future<Map<String, dynamic>> searchAuthors(
-    String query, {
-    int page = 1,
-    int perPage = 10,
-  }) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}/authors').replace(
-      queryParameters: {
-        'search': query,
-        'sort': 'works_count:desc',
-        'page': page.toString(),
-        'per_page': perPage.toString(),
-        'select':
-            'id,display_name,last_known_institution,works_count,cited_by_count',
-      },
-    );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List results = data['results'] ?? [];
-      final int totalCount = data['meta']?['count'] ?? 0;
-
-      return {
-        'results': results.map((json) => Author.fromJson(json)).toList(),
-        'total_count': totalCount,
-      };
-    } catch (e) {
-      throw Exception('Lỗi khi tìm kiếm tác giả: $e');
-    }
-  }
-
   /// Tìm kiếm nguồn xuất bản (Sources/Journals) với filter là journal
   Future<Map<String, dynamic>> searchSources(
     String query, {
@@ -315,29 +260,10 @@ class OpenAlexService {
     }
   }
 
-  /// Tìm kiếm tổ chức/trường học (Institutions)
-  Future<List<Institution>> searchInstitutions(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}/institutions').replace(
-      queryParameters: {
-        'search': query,
-        'sort': 'works_count:desc',
-        'select':
-            'id,display_name,type,country_code,works_count,cited_by_count',
-      },
-    );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List results = data['results'] ?? [];
-      return results.map((json) => Institution.fromJson(json)).toList();
-    } catch (e) {
-      throw Exception('Lỗi khi tìm kiếm tổ chức: $e');
-    }
-  }
-
   /// Lấy thông tin chi tiết của một Journal theo ID
   Future<Journal> getJournalDetails(String journalId) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}/sources/$journalId');
+    final sourceId = _openAlexId(journalId);
+    final Uri url = Uri.parse('${ApiConstants.baseUrl}/sources/$sourceId');
 
     try {
       final data = await _getWithRetryAndCache(url);
@@ -358,7 +284,8 @@ class OpenAlexService {
     String? sortField,
     bool descending = true,
   }) async {
-    String filter = 'primary_location.source.id:$journalId';
+    final sourceId = _openAlexId(journalId);
+    String filter = 'primary_location.source.id:$sourceId';
     if (year != null) {
       filter += ',publication_year:$year';
     }
@@ -376,8 +303,7 @@ class OpenAlexService {
       'sort': sort,
       'page': page.toString(),
       'per_page': perPage.toString(),
-      'select':
-          'id,display_name,title,publication_year,cited_by_count,authorships,primary_location',
+      'select': _workSelectFields,
     };
 
     if (search != null && search.isNotEmpty) {
@@ -404,12 +330,13 @@ class OpenAlexService {
 
   /// Lấy dữ liệu xu hướng của một Journal theo ID
   Future<List<TrendData>> getJournalYearlyTrend(String journalId) async {
+    final sourceId = _openAlexId(journalId);
     final Uri url =
         Uri.parse(
           '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
         ).replace(
           queryParameters: {
-            'filter': 'primary_location.source.id:$journalId',
+            'filter': 'primary_location.source.id:$sourceId',
             'group_by': 'publication_year',
           },
         );
@@ -433,6 +360,7 @@ class OpenAlexService {
     String journalId,
   ) async {
     try {
+      final sourceId = _openAlexId(journalId);
       final topTopics = await getJournalTopTopics(journalId);
       Map<String, List<TrendData>> evolution = {};
 
@@ -442,13 +370,15 @@ class OpenAlexService {
         final id = topic['id'] as String;
         if (id.isEmpty) continue;
 
+        final filterField =
+            topic['filter_field'] as String? ?? 'primary_topic.id';
         final Uri url =
             Uri.parse(
               '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
             ).replace(
               queryParameters: {
                 'filter':
-                    'primary_location.source.id:$journalId,primary_topic.id:$id',
+                    'primary_location.source.id:$sourceId,$filterField:$id',
                 'group_by': 'publication_year',
               },
             );
@@ -470,39 +400,66 @@ class OpenAlexService {
   Future<List<Map<String, dynamic>>> getJournalTopTopics(
     String journalId,
   ) async {
+    final sourceId = _openAlexId(journalId);
     final Uri url =
         Uri.parse(
           '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
         ).replace(
           queryParameters: {
-            'filter': 'primary_location.source.id:$journalId',
+            'filter': 'primary_location.source.id:$sourceId',
             'group_by': 'primary_topic.id',
           },
         );
 
     try {
       final data = await _getWithRetryAndCache(url);
-      final List groups = data['group_by'] ?? [];
-      return groups
-          .where(
-            (json) =>
-                (json['key_display_name'] != null ||
-                    json['display_name'] != null) &&
-                json['key_display_name'] != 'Unknown' &&
-                json['display_name'] != 'Unknown',
-          )
-          .take(5)
-          .map(
-            (json) => {
-              'id': json['key']?.split('/').last ?? '',
-              'name': json['key_display_name'] ?? json['display_name'],
-              'count': json['count'] ?? 0,
+      final topics = _mapTopicGroups(
+        data['group_by'] ?? [],
+        filterField: 'primary_topic.id',
+      );
+      if (topics.isNotEmpty) return topics;
+
+      final fallbackUrl =
+          Uri.parse(
+            '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+          ).replace(
+            queryParameters: {
+              'filter': 'primary_location.source.id:$sourceId',
+              'group_by': 'concepts.id',
             },
-          )
-          .toList();
+          );
+      final fallbackData = await _getWithRetryAndCache(fallbackUrl);
+      return _mapTopicGroups(
+        fallbackData['group_by'] ?? [],
+        filterField: 'concepts.id',
+      );
     } catch (e) {
       return [];
     }
+  }
+
+  List<Map<String, dynamic>> _mapTopicGroups(
+    List groups, {
+    required String filterField,
+  }) {
+    return groups
+        .where(
+          (json) =>
+              (json['key_display_name'] != null ||
+                  json['display_name'] != null) &&
+              json['key_display_name'] != 'Unknown' &&
+              json['display_name'] != 'Unknown',
+        )
+        .take(5)
+        .map(
+          (json) => {
+            'id': json['key']?.split('/').last ?? '',
+            'name': json['key_display_name'] ?? json['display_name'],
+            'count': json['count'] ?? 0,
+            'filter_field': filterField,
+          },
+        )
+        .toList();
   }
 
   /// Tìm kiếm bài báo theo ID tác giả có hỗ trợ phân trang
@@ -511,17 +468,17 @@ class OpenAlexService {
     int page = 1,
     int perPage = 10,
   }) async {
+    final normalizedAuthorId = _openAlexId(authorId);
     final Uri url =
         Uri.parse(
           '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
         ).replace(
           queryParameters: {
-            'filter': 'author.id:$authorId',
+            'filter': 'author.id:$normalizedAuthorId',
             'sort': 'cited_by_count:desc',
             'page': page.toString(),
             'per_page': perPage.toString(),
-            'select':
-                'id,display_name,title,publication_year,cited_by_count,authorships,primary_location',
+            'select': _workSelectFields,
           },
         );
 
@@ -536,312 +493,6 @@ class OpenAlexService {
       };
     } catch (e) {
       throw Exception('Lỗi khi tải bài báo theo tác giả: $e');
-    }
-  }
-
-  /// Lấy dữ liệu xu hướng số lượng bài báo theo năm của một chủ đề
-  Future<List<TrendData>> getYearlyTrend(String query) async {
-    final Uri url =
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
-        ).replace(
-          queryParameters: {'search': query, 'group_by': 'publication_year'},
-        );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List groups = data['group_by'] ?? [];
-
-      List<TrendData> trends = groups
-          .map((json) => TrendData.fromJson(json))
-          .toList();
-      trends.sort((a, b) => a.year.compareTo(b.year));
-
-      if (trends.length > 10) {
-        trends = trends.sublist(trends.length - 10);
-      }
-
-      return trends;
-    } catch (e) {
-      throw Exception('Lỗi khi tải dữ liệu xu hướng: $e');
-    }
-  }
-
-  /// Lấy danh sách các từ khóa phổ biến (Concepts) của một chủ đề
-  Future<List<Map<String, dynamic>>> getTopKeywords(String query) async {
-    final Uri url = Uri.parse(
-      '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
-    ).replace(queryParameters: {'search': query, 'group_by': 'concepts.id'});
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List groups = data['group_by'] ?? [];
-
-      return groups
-          .where(
-            (json) =>
-                json['display_name'] != null &&
-                json['display_name'].toString().isNotEmpty &&
-                json['display_name'] != 'Unknown',
-          )
-          .take(10)
-          .map(
-            (json) => {
-              'name': json['display_name'],
-              'count': json['count'] ?? 0,
-            },
-          )
-          .toList();
-    } catch (e) {
-      throw Exception('Lỗi khi tải dữ liệu từ khóa: $e');
-    }
-  }
-
-  /// Lấy dữ liệu bài báo theo quốc gia
-  Future<List<Map<String, dynamic>>> getCountryOutput(String query) async {
-    final Uri url =
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
-        ).replace(
-          queryParameters: {
-            'search': query,
-            'group_by': 'institutions.country_code',
-          },
-        );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List groups = data['group_by'] ?? [];
-
-      return groups
-          .where((json) => json['key'] != null && json['key'] != 'Unknown')
-          .map((json) {
-            String rawName = json['display_name'] ?? '';
-            if (rawName.startsWith('http')) {
-              final uri = Uri.parse(rawName);
-              rawName = uri.pathSegments.last;
-            }
-
-            return {
-              'country_code': json['key'],
-              'name': rawName.isNotEmpty ? rawName : json['key'],
-              'count': json['count'] ?? 0,
-            };
-          })
-          .toList();
-    } catch (e) {
-      throw Exception('Lỗi khi tải dữ liệu quốc gia: $e');
-    }
-  }
-
-  /// Lấy danh sách các tạp chí phổ biến nhất cho chủ đề
-  Future<List<Map<String, dynamic>>> getTopJournals(String query) async {
-    final Uri url =
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
-        ).replace(
-          queryParameters: {
-            'search': query,
-            'group_by': 'primary_location.source.id',
-          },
-        );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List groups = data['group_by'] ?? [];
-
-      return groups
-          .where(
-            (json) =>
-                json['display_name'] != null &&
-                json['display_name'].toString().isNotEmpty &&
-                json['display_name'] != 'Unknown Journal' &&
-                json['key'] != 'null',
-          )
-          .take(10)
-          .map(
-            (json) => {
-              'name': json['display_name'],
-              'count': json['count'] ?? 0,
-            },
-          )
-          .toList();
-    } catch (e) {
-      throw Exception('Lỗi khi tải dữ liệu tạp chí: $e');
-    }
-  }
-
-  /// Lấy danh sách tác giả hàng đầu cho chủ đề
-  Future<List<Map<String, dynamic>>> getTopAuthorsByTopic(String query) async {
-    final Uri url =
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
-        ).replace(
-          queryParameters: {
-            'search': query,
-            'group_by': 'authorships.author.id',
-          },
-        );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List groups = data['group_by'] ?? [];
-
-      return groups
-          .where(
-            (json) =>
-                json['display_name'] != null &&
-                json['display_name'].toString().isNotEmpty &&
-                json['key'] != 'null',
-          )
-          .take(10)
-          .map(
-            (json) => {
-              'name': json['display_name'],
-              'count': json['count'] ?? 0,
-            },
-          )
-          .toList();
-    } catch (e) {
-      throw Exception('Lỗi khi tải dữ liệu tác giả theo chủ đề: $e');
-    }
-  }
-
-  /// Lấy danh sách các bài báo có ảnh hưởng nhất (tên thật)
-  Future<List<Map<String, dynamic>>> getTopInfluentialWorks(
-    String query,
-  ) async {
-    final Uri url =
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
-        ).replace(
-          queryParameters: {
-            'search': query,
-            'sort': 'cited_by_count:desc',
-            'per_page': '5',
-            'select': 'id,display_name,cited_by_count',
-          },
-        );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List results = data['results'] ?? [];
-
-      return results
-          .map(
-            (json) => {
-              'name': json['display_name'] ?? 'Ấn phẩm chưa xác định',
-              'count': json['cited_by_count'] ?? 0,
-            },
-          )
-          .toList();
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /// Lấy dữ liệu phân bổ chất lượng bài báo (Dựa trên Citation Percentile thực tế)
-  Future<List<Map<String, dynamic>>> getQuartileDistribution(
-    String query,
-  ) async {
-    final Uri url =
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
-        ).replace(
-          queryParameters: {
-            'search': query,
-            'sort': 'cited_by_count:desc',
-            'per_page': '50',
-            'select': 'citation_normalized_percentile',
-          },
-        );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List results = data['results'] ?? [];
-
-      int q1 = 0; // 75-100
-      int q2 = 0; // 50-75
-      int q3 = 0; // 25-50
-      int q4 = 0; // 0-25
-
-      for (var work in results) {
-        final percentile = work['citation_normalized_percentile']?['value'];
-        if (percentile != null) {
-          double val = (percentile as num).toDouble();
-          if (val >= 75) {
-            q1++;
-          } else if (val >= 50) {
-            q2++;
-          } else if (val >= 25) {
-            q3++;
-          } else {
-            q4++;
-          }
-        }
-      }
-
-      int total = q1 + q2 + q3 + q4;
-      if (total == 0) return [];
-
-      return [
-        {
-          'name': 'Q1 (Top 25%)',
-          'count': q1,
-          'percentage': (q1 / total * 100).round(),
-          'color': '#15803D',
-        },
-        {
-          'name': 'Q2 (50-75%)',
-          'count': q2,
-          'percentage': (q2 / total * 100).round(),
-          'color': '#B45309',
-        },
-        {
-          'name': 'Q3 (25-50%)',
-          'count': q3,
-          'percentage': (q3 / total * 100).round(),
-          'color': '#B8422E',
-        },
-        {
-          'name': 'Q4 (Bottom 25%)',
-          'count': q4,
-          'percentage': (q4 / total * 100).round(),
-          'color': '#6C7278',
-        },
-      ];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /// Xếp hạng tổ chức (Institution Ranking)
-  Future<List<Map<String, dynamic>>> getInstitutionRanking(String query) async {
-    final Uri url =
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
-        ).replace(
-          queryParameters: {
-            'search': query,
-            'group_by': 'authorships.institutions.id',
-          },
-        );
-
-    try {
-      final data = await _getWithRetryAndCache(url);
-      final List groups = data['group_by'] ?? [];
-
-      return groups
-          .take(10)
-          .map(
-            (json) => {
-              'name': json['display_name'] ?? 'Tổ chức chưa xác định',
-              'count': json['count'] ?? 0,
-            },
-          )
-          .toList();
-    } catch (e) {
-      return [];
     }
   }
 }
