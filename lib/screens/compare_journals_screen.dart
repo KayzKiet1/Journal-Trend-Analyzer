@@ -21,7 +21,10 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
   final List<Journal> _details = [];
   final Map<String, List<Map<String, dynamic>>> _topicsByJournal = {};
   bool _isLoading = true;
+  bool _excludeFutureYears = true;
   String _errorMessage = '';
+
+  int get _currentYear => DateTime.now().year;
 
   @override
   void initState() {
@@ -105,6 +108,8 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
               const SizedBox(height: AppSpacing.md),
               _buildSummaryTable(),
               const SizedBox(height: AppSpacing.xl),
+              _buildYearFilterToggle(),
+              const SizedBox(height: AppSpacing.xl),
               _buildTrendSection(
                 title: 'PUBLICATION TREND',
                 trendsBuilder: _publicationTrends,
@@ -143,11 +148,15 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
             left.publisher ?? '-',
             right.publisher ?? '-',
           ),
-          _buildMetricRow('Works', '${left.worksCount}', '${right.worksCount}'),
           _buildMetricRow(
-            'Citations',
-            '${left.citedByCount}',
-            '${right.citedByCount}',
+            _excludeFutureYears ? 'Works (<= $_currentYear)' : 'Works',
+            '${_worksCountForCompare(left)}',
+            '${_worksCountForCompare(right)}',
+          ),
+          _buildMetricRow(
+            _excludeFutureYears ? 'Citations (<= $_currentYear)' : 'Citations',
+            '${_citationsForCompare(left)}',
+            '${_citationsForCompare(right)}',
           ),
           _buildMetricRow(
             'Avg citations/work',
@@ -219,6 +228,32 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
           const SizedBox(width: AppSpacing.md),
           Expanded(flex: 4, child: Text(right, style: textStyle)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildYearFilterToggle() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.35)),
+      ),
+      child: SwitchListTile(
+        value: _excludeFutureYears,
+        onChanged: (value) => setState(() => _excludeFutureYears = value),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        activeThumbColor: AppColors.accent,
+        title: Text(
+          'Chỉ tính đến năm hiện tại ($_currentYear)',
+          style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          'Bật để bỏ qua các năm bất thường trong tương lai như 8121 hoặc 9999 khi so sánh.',
+          style: AppTextStyles.bodySmall,
+        ),
       ),
     );
   }
@@ -345,14 +380,15 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
   }
 
   String _avgCitations(Journal journal) {
-    if (journal.worksCount <= 0) return '-';
-    return (journal.citedByCount / journal.worksCount).toStringAsFixed(2);
+    final worksCount = _worksCountForCompare(journal);
+    if (worksCount <= 0) return '-';
+    return (_citationsForCompare(journal) / worksCount).toStringAsFixed(2);
   }
 
   List<TrendData> _publicationTrends(Journal journal) {
     final trends =
         journal.countsByYear
-            .where((e) => e.year > 0)
+            .where(_isUsableYear)
             .map((e) => TrendData(year: e.year, count: e.worksCount))
             .toList()
           ..sort((a, b) => a.year.compareTo(b.year));
@@ -362,11 +398,36 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
   List<TrendData> _citationTrends(Journal journal) {
     final trends =
         journal.countsByYear
-            .where((e) => e.year > 0)
+            .where(_isUsableYear)
             .map((e) => TrendData(year: e.year, count: e.citedByCount))
             .toList()
           ..sort((a, b) => a.year.compareTo(b.year));
     return _takeRecent(trends);
+  }
+
+  bool _isUsableYear(JournalYearlyData data) {
+    if (data.year <= 0) return false;
+    return !_excludeFutureYears || data.year <= _currentYear;
+  }
+
+  int _worksCountForCompare(Journal journal) {
+    if (!_excludeFutureYears || journal.countsByYear.isEmpty) {
+      return journal.worksCount;
+    }
+
+    return journal.countsByYear
+        .where(_isUsableYear)
+        .fold(0, (sum, data) => sum + data.worksCount);
+  }
+
+  int _citationsForCompare(Journal journal) {
+    if (!_excludeFutureYears || journal.countsByYear.isEmpty) {
+      return journal.citedByCount;
+    }
+
+    return journal.countsByYear
+        .where(_isUsableYear)
+        .fold(0, (sum, data) => sum + data.citedByCount);
   }
 
   List<TrendData> _takeRecent(List<TrendData> trends) {

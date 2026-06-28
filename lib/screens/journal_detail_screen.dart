@@ -14,7 +14,6 @@ import '../widgets/publication_card.dart';
 import '../widgets/year_trend_chart.dart';
 import '../widgets/loading_widget.dart';
 import 'publication_detail_screen.dart';
-import 'dashboard_screen.dart';
 
 class JournalDetailScreen extends StatefulWidget {
   final String journalId;
@@ -192,22 +191,15 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.read<PublicationController>().setLastAnalysis(
-                        _journal,
-                        _trends,
-                      );
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DashboardScreen(
-                            route: 'keywords',
-                            journal: _journal,
-                            trends: _trends,
-                          ),
-                        ),
-                      );
-                    },
+                    onPressed: _journal == null
+                        ? null
+                        : () {
+                            final controller = context
+                                .read<PublicationController>();
+                            controller.setLastAnalysis(_journal, _trends);
+                            controller.setSelectedIndex(2);
+                            Navigator.pop(context);
+                          },
                     icon: const Icon(Icons.analytics_outlined),
                     label: const Text('Analyze Journal Trends'),
                     style: ElevatedButton.styleFrom(
