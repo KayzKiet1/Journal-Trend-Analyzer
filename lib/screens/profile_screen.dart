@@ -16,31 +16,39 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _apiKeyController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _emailController.text = context.read<UserController>().email;
+    final userController = context.read<UserController>();
+    _emailController.text = userController.email;
+    _apiKeyController.text = userController.apiKey;
   }
 
   @override
   void dispose() {
     _emailController.dispose();
+    _apiKeyController.dispose();
     super.dispose();
   }
 
-  void _saveEmail() {
+  void _saveSettings() {
     final email = _emailController.text.trim();
+    final apiKey = _apiKeyController.text.trim();
+    
     if (email.isNotEmpty && email.contains('@')) {
-      context.read<UserController>().updateEmail(email);
+      final userController = context.read<UserController>();
+      userController.updateEmail(email);
+      userController.updateApiKey(apiKey);
       
-      // Cập nhật email cho các API Service trong controllers
-      context.read<PublicationController>().updateApiService(email);
-      context.read<AnalysisController>().updateApiService(email);
+      // Cập nhật email và API Key cho các API Service trong controllers
+      context.read<PublicationController>().updateApiService(email, apiKey: apiKey);
+      context.read<AnalysisController>().updateApiService(email, apiKey: apiKey);
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đã cập nhật email. Bạn đã tham gia Polite Pool của OpenAlex!'),
+          content: Text('Đã cập nhật thiết lập OpenAlex thành công!'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -79,7 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Email của bạn giúp OpenAlex nhận diện người dùng và đưa bạn vào "Polite Pool", giúp truy vấn nhanh và ổn định hơn.',
+                    'Email giúp nhận diện "Polite Pool", API Key giúp tăng giới hạn truy vấn.',
                     style: AppTextStyles.bodySmall,
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -92,11 +100,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     keyboardType: TextInputType.emailAddress,
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextField(
+                    controller: _apiKeyController,
+                    decoration: const InputDecoration(
+                      labelText: 'OpenAlex API Key (Tùy chọn)',
+                      hintText: 'Nhập API Key của bạn',
+                      prefixIcon: Icon(Icons.vpn_key_outlined),
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _saveEmail,
+                      onPressed: _saveSettings,
                       child: const Text('LƯU THÔNG TIN'),
                     ),
                   ),

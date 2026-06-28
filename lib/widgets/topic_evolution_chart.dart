@@ -101,7 +101,6 @@ class TopicEvolutionChart extends StatelessWidget {
                   entry,
                 ) {
                   int idx = entry.key;
-                  String topicName = entry.value.key;
                   List<TrendData> trends = entry.value.value;
 
                   return LineChartBarData(

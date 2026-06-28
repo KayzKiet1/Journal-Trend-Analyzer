@@ -18,8 +18,8 @@ class SearchResultScreen extends StatefulWidget {
   final String? authorId;
 
   const SearchResultScreen({
-    super.key, 
-    required this.topic, 
+    super.key,
+    required this.topic,
     this.category = 'Works',
     this.authorId,
   });
@@ -36,23 +36,36 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.category == 'AuthorWorks' && widget.authorId != null) {
-        context.read<PublicationController>().searchByAuthor(widget.authorId!, widget.topic);
+        context.read<PublicationController>().searchByAuthor(
+          widget.authorId!,
+          widget.topic,
+        );
       } else {
-        context.read<PublicationController>().search(widget.topic, widget.category);
+        context.read<PublicationController>().search(
+          widget.topic,
+          widget.category,
+        );
       }
     });
-    
+
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void didUpdateWidget(SearchResultScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.topic != oldWidget.topic || widget.category != oldWidget.category) {
+    if (widget.topic != oldWidget.topic ||
+        widget.category != oldWidget.category) {
       if (widget.category == 'AuthorWorks' && widget.authorId != null) {
-        context.read<PublicationController>().searchByAuthor(widget.authorId!, widget.topic);
+        context.read<PublicationController>().searchByAuthor(
+          widget.authorId!,
+          widget.topic,
+        );
       } else {
-        context.read<PublicationController>().search(widget.topic, widget.category);
+        context.read<PublicationController>().search(
+          widget.topic,
+          widget.category,
+        );
       }
     }
   }
@@ -64,12 +77,19 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       final controller = context.read<PublicationController>();
       if (!controller.isLoadingMore && controller.hasMore) {
         if (widget.category == 'AuthorWorks' && widget.authorId != null) {
-          controller.searchByAuthor(widget.authorId!, widget.topic, loadMore: true);
-        } else if (widget.category == 'Works' || widget.category == 'Authors' || widget.category == 'Sources') {
+          controller.searchByAuthor(
+            widget.authorId!,
+            widget.topic,
+            loadMore: true,
+          );
+        } else if (widget.category == 'Works' ||
+            widget.category == 'Authors' ||
+            widget.category == 'Sources') {
           controller.search(widget.topic, widget.category, loadMore: true);
         }
       }
@@ -79,7 +99,6 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   @override
   Widget build(BuildContext context) {
     String displayTitle = widget.topic;
-    bool isSubPage = widget.category == 'AuthorWorks';
 
     if (widget.category == 'AuthorWorks') {
       displayTitle = 'Bài báo của ${widget.topic}';
@@ -116,7 +135,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => TrendAnalysisScreen(topic: widget.topic),
+                    builder: (context) =>
+                        TrendAnalysisScreen(topic: widget.topic),
                   ),
                 );
               },
@@ -126,11 +146,16 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       ),
       body: Consumer<PublicationController>(
         builder: (context, controller, child) {
-          if (controller.isLoading && controller.publications.isEmpty && controller.authors.isEmpty && controller.sources.isEmpty && controller.institutions.isEmpty) {
+          if (controller.isLoading &&
+              controller.publications.isEmpty &&
+              controller.authors.isEmpty &&
+              controller.sources.isEmpty &&
+              controller.institutions.isEmpty) {
             return const LoadingWidget();
           }
 
-          if (controller.errorMessage.isNotEmpty && controller.publications.isEmpty) {
+          if (controller.errorMessage.isNotEmpty &&
+              controller.publications.isEmpty) {
             return Center(child: Text(controller.errorMessage));
           }
 
@@ -155,12 +180,18 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
         return ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.all(AppSpacing.lg),
-          itemCount: controller.publications.length + (controller.hasMore ? 1 : 0),
+          itemCount:
+              controller.publications.length + (controller.hasMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index == controller.publications.length) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                child: Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.accent,
+                    strokeWidth: 2,
+                  ),
+                ),
               );
             }
 
@@ -175,7 +206,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PublicationDetailScreen(publication: pub),
+                    builder: (context) =>
+                        PublicationDetailScreen(publication: pub),
                   ),
                 );
               },
@@ -183,7 +215,9 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           },
         );
       case 'Authors':
-        if (controller.authors.isEmpty && !controller.isLoading) return const EmptyStateWidget(message: 'Không tìm thấy tác giả nào.');
+        if (controller.authors.isEmpty && !controller.isLoading) {
+          return const EmptyStateWidget(message: 'Không tìm thấy tác giả nào.');
+        }
         return ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -192,7 +226,12 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             if (index == controller.authors.length) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                child: Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.accent,
+                    strokeWidth: 2,
+                  ),
+                ),
               );
             }
 
@@ -219,7 +258,9 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           },
         );
       case 'Sources':
-        if (controller.sources.isEmpty && !controller.isLoading) return const EmptyStateWidget(message: 'Không tìm thấy nguồn nào.');
+        if (controller.sources.isEmpty && !controller.isLoading) {
+          return const EmptyStateWidget(message: 'Không tìm thấy nguồn nào.');
+        }
         return ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -228,7 +269,12 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             if (index == controller.sources.length) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                child: Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.accent,
+                    strokeWidth: 2,
+                  ),
+                ),
               );
             }
 
@@ -254,7 +300,9 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           },
         );
       case 'Institutions':
-        if (controller.institutions.isEmpty) return const EmptyStateWidget(message: 'Không tìm thấy tổ chức nào.');
+        if (controller.institutions.isEmpty) {
+          return const EmptyStateWidget(message: 'Không tìm thấy tổ chức nào.');
+        }
         return ListView.builder(
           padding: const EdgeInsets.all(AppSpacing.lg),
           itemCount: controller.institutions.length,
@@ -262,7 +310,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             final inst = controller.institutions[index];
             return _buildEntityCard(
               title: inst.name,
-              subtitle: '${inst.type ?? 'Institution'} • ${inst.countryCode ?? ''}',
+              subtitle:
+                  '${inst.type ?? 'Institution'} • ${inst.countryCode ?? ''}',
               trailing: '${inst.worksCount} works',
               icon: Icons.account_balance_outlined,
               meta: '${inst.citedByCount} citations',
@@ -314,15 +363,35 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTextStyles.h2, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    title,
+                    style: AppTextStyles.h2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: AppTextStyles.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(Icons.format_quote, size: 12, color: AppColors.accent),
+                      const Icon(
+                        Icons.format_quote,
+                        size: 12,
+                        color: AppColors.accent,
+                      ),
                       const SizedBox(width: 4),
-                      Text(meta, style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent, fontSize: 10)),
+                      Text(
+                        meta,
+                        style: AppTextStyles.labelCaps.copyWith(
+                          color: AppColors.accent,
+                          fontSize: 10,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -334,9 +403,14 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
               decoration: BoxDecoration(
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.secondary.withValues(alpha: 0.3),
+                ),
               ),
-              child: Text(trailing, style: AppTextStyles.labelCaps.copyWith(fontSize: 10)),
+              child: Text(
+                trailing,
+                style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
+              ),
             ),
           ],
         ),

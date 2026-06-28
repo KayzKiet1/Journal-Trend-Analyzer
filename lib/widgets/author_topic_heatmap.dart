@@ -30,7 +30,10 @@ class AuthorTopicHeatmap extends StatelessWidget {
     }
     final topAuthors = authorCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final List<String> targetAuthors = topAuthors.take(5).map((e) => e.key).toList();
+    final List<String> targetAuthors = topAuthors
+        .take(5)
+        .map((e) => e.key)
+        .toList();
 
     // 2. Find top 5 topics (excluding 'Unknown' and empty)
     final topicCounts = <String, int>{};
@@ -43,7 +46,10 @@ class AuthorTopicHeatmap extends StatelessWidget {
     }
     final topTopics = topicCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final List<String> targetTopics = topTopics.take(5).map((e) => e.key).toList();
+    final List<String> targetTopics = topTopics
+        .take(5)
+        .map((e) => e.key)
+        .toList();
 
     if (targetAuthors.isEmpty || targetTopics.isEmpty) {
       return const SizedBox.shrink();
@@ -63,7 +69,8 @@ class AuthorTopicHeatmap extends StatelessWidget {
         if (targetAuthors.contains(author.name)) {
           for (var topic in pub.topics) {
             if (targetTopics.contains(topic)) {
-              matrix[author.name]![topic] = (matrix[author.name]![topic] ?? 0) + 1;
+              matrix[author.name]![topic] =
+                  (matrix[author.name]![topic] ?? 0) + 1;
             }
           }
         }
@@ -89,7 +96,10 @@ class AuthorTopicHeatmap extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            border: Border.all(color: AppColors.secondary.withOpacity(0.3), width: 1.0),
+            border: Border.all(
+              color: AppColors.secondary.withValues(alpha: 0.3),
+              width: 1.0,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,7 +151,7 @@ class AuthorTopicHeatmap extends StatelessWidget {
                       }),
                     ],
                   ),
-                  
+
                   // Data Rows
                   ...targetAuthors.map((author) {
                     return TableRow(
@@ -149,7 +159,10 @@ class AuthorTopicHeatmap extends StatelessWidget {
                         // Author Name
                         TableCell(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 6.0,
+                              horizontal: 4.0,
+                            ),
                             child: Text(
                               author,
                               style: const TextStyle(
@@ -165,16 +178,16 @@ class AuthorTopicHeatmap extends StatelessWidget {
                         // Topic cells
                         ...targetTopics.map((topic) {
                           final count = matrix[author]![topic] ?? 0;
-                          
+
                           // Scale color based on count
                           double opacity = 0.05;
                           if (count > 0) {
                             opacity = 0.15 + (count / maxVal) * 0.85;
                             if (opacity > 1.0) opacity = 1.0;
                           }
-                          final cellColor = count > 0 
-                              ? AppColors.accent.withOpacity(opacity)
-                              : Colors.grey.withOpacity(0.05);
+                          final cellColor = count > 0
+                              ? AppColors.accent.withValues(alpha: opacity)
+                              : Colors.grey.withValues(alpha: 0.05);
 
                           return TableCell(
                             child: Container(
@@ -189,9 +202,11 @@ class AuthorTopicHeatmap extends StatelessWidget {
                                   count > 0 ? count.toString() : '-',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    fontWeight: count > 0 ? FontWeight.bold : FontWeight.normal,
-                                    color: count > 0 && opacity > 0.5 
-                                        ? Colors.white 
+                                    fontWeight: count > 0
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: count > 0 && opacity > 0.5
+                                        ? Colors.white
                                         : AppColors.textPrimary,
                                   ),
                                 ),
@@ -205,7 +220,7 @@ class AuthorTopicHeatmap extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
-              
+
               // Legend list
               const Divider(color: AppColors.secondary, thickness: 0.3),
               const SizedBox(height: AppSpacing.xs),

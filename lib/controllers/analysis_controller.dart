@@ -8,9 +8,9 @@ class AnalysisController extends ChangeNotifier {
   
   AnalysisController({OpenAlexService? apiService}) : _apiService = apiService ?? OpenAlexService();
   
-  /// Cập nhật email cho API service
-  void updateApiService(String? email) {
-    _apiService = OpenAlexService(userEmail: email);
+  /// Cập nhật email và API Key cho API service
+  void updateApiService(String? email, {String? apiKey}) {
+    _apiService = OpenAlexService(userEmail: email, apiKey: apiKey);
     notifyListeners();
   }
 

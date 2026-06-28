@@ -4,11 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Bộ điều khiển quản lý thông tin người dùng (Profile) và lịch sử tìm kiếm
 class UserController extends ChangeNotifier {
   String _email = '';
+  String _apiKey = '';
   List<String> _recentSearches = [];
   static const String _recentSearchesKey = 'recent_searches';
   static const String _emailKey = 'user_email';
+  static const String _apiKeyKey = 'openalex_api_key';
   
   String get email => _email;
+  String get apiKey => _apiKey;
   List<String> get recentSearches => _recentSearches;
   
   UserController() {
@@ -18,6 +21,7 @@ class UserController extends ChangeNotifier {
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     _email = prefs.getString(_emailKey) ?? '';
+    _apiKey = prefs.getString(_apiKeyKey) ?? '';
     _recentSearches = prefs.getStringList(_recentSearchesKey) ?? [];
     notifyListeners();
   }
@@ -27,6 +31,14 @@ class UserController extends ChangeNotifier {
     _email = newEmail;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_emailKey, newEmail);
+    notifyListeners();
+  }
+
+  /// Cập nhật API Key người dùng
+  Future<void> updateApiKey(String newKey) async {
+    _apiKey = newKey;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_apiKeyKey, newKey);
     notifyListeners();
   }
   

@@ -15,22 +15,19 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
-
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    context.read<PublicationController>().setSelectedIndex(index);
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<PublicationController>();
+    final int selectedIndex = controller.selectedTabIndex;
 
     final List<Widget> screens = [
       const HomeScreen(),
       SearchResultScreen(
-        topic: controller.lastSearchCategory == 'Sources' ? controller.lastSearchText : '',
+        topic: controller.lastSearchText,
         category: 'Sources',
       ),
       DashboardScreen(
@@ -43,7 +40,7 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       body: IndexedStack(
-        index: _selectedIndex,
+        index: selectedIndex,
         children: screens,
       ),
       bottomNavigationBar: Container(
@@ -57,7 +54,7 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
+          currentIndex: selectedIndex,
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
           backgroundColor: AppColors.surface,

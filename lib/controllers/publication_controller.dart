@@ -8,11 +8,14 @@ import '../services/openalex_service.dart';
 
 /// Bộ điều khiển quản lý trạng thái của danh sách bài báo và tìm kiếm đa thực thể
 class PublicationController extends ChangeNotifier {
-  OpenAlexService _apiService = OpenAlexService();
+  OpenAlexService _apiService;
 
-  /// Cập nhật email cho API service
-  void updateApiService(String? email) {
-    _apiService = OpenAlexService(userEmail: email);
+  PublicationController({OpenAlexService? apiService})
+    : _apiService = apiService ?? OpenAlexService();
+
+  /// Cập nhật email và API Key cho API service
+  void updateApiService(String? email, {String? apiKey}) {
+    _apiService = OpenAlexService(userEmail: email, apiKey: apiKey);
     notifyListeners();
   }
 
@@ -23,9 +26,20 @@ class PublicationController extends ChangeNotifier {
 
   String _lastSearchText = '';
   String get lastSearchText => _lastSearchText;
-  
+
   String _lastSearchCategory = 'Sources';
   String get lastSearchCategory => _lastSearchCategory;
+
+  String? _lastFetchedQuery;
+  String? _lastFetchedCategory;
+
+  int _selectedTabIndex = 0;
+  int get selectedTabIndex => _selectedTabIndex;
+
+  void setSelectedIndex(int index) {
+    _selectedTabIndex = index;
+    notifyListeners();
+  }
 
   // Analysis persistence
   Journal? _lastAnalyzedJournal;
@@ -84,7 +98,7 @@ class PublicationController extends ChangeNotifier {
     }
   }
 
-  String _currentCategory = 'Works';
+  String _currentCategory = 'Sources';
   String get currentCategory => _currentCategory;
 
   /// Thực hiện tìm kiếm theo loại thực thể (Works, Authors, Sources, Institutions)
@@ -94,11 +108,12 @@ class PublicationController extends ChangeNotifier {
     bool loadMore = false,
   }) async {
     // If query and category are same as last time and we have results, skip if not loading more
-    if (!loadMore && 
-        _lastSearchText == query && 
-        _currentCategory == category && 
-        !_isResultsEmpty(category)) {
-      return; 
+    if (!loadMore &&
+        _lastFetchedQuery == query &&
+        _lastFetchedCategory == category &&
+        !_isResultsEmpty(category) &&
+        _errorMessage.isEmpty) {
+      return;
     }
 
     // query can be empty for Sources to show default list
@@ -190,6 +205,11 @@ class PublicationController extends ChangeNotifier {
         _errorMessage =
             'Không tìm thấy kết quả nào cho "$query" trong mục $category.';
       }
+
+      if (!loadMore) {
+        _lastFetchedQuery = query;
+        _lastFetchedCategory = category;
+      }
     } catch (e) {
       _errorMessage = 'Đã xảy ra lỗi khi tìm kiếm: ${e.toString()}';
     } finally {
@@ -272,6 +292,9 @@ class PublicationController extends ChangeNotifier {
   /// Xóa dữ liệu tìm kiếm
   void clearSearch() {
     _clearResults();
+    _lastSearchText = '';
+    _lastFetchedQuery = null;
+    _lastFetchedCategory = null;
     _currentTopic = '';
     _errorMessage = '';
     notifyListeners();
