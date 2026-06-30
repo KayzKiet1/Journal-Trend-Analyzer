@@ -1,29 +1,18 @@
-import 'dart:async';
-
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/publication_controller.dart';
 import 'controllers/journal_library_controller.dart';
 import 'controllers/firebase_demo_controller.dart';
+import 'controllers/notification_controller.dart';
 import 'controllers/user_controller.dart';
+import 'firebase/firebase_initializer.dart';
 import 'screens/main_screen.dart';
 import 'utils/app_theme.dart';
 
 Future<void> main() async {
-  await runZonedGuarded<Future<void>>(
-    () async {
-      WidgetsFlutterBinding.ensureInitialized();
-      await Firebase.initializeApp();
-      FlutterError.onError =
-          FirebaseCrashlytics.instance.recordFlutterFatalError;
-      runApp(const JournalTrendAnalyzerApp());
-    },
-    (error, stackTrace) {
-      FirebaseCrashlytics.instance.recordError(error, stackTrace, fatal: true);
-    },
-  );
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeFirebase();
+  runApp(const JournalTrendAnalyzerApp());
 }
 
 /// Lớp gốc của ứng dụng, thiết lập quản lý trạng thái và giao diện chính.
@@ -39,6 +28,7 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => JournalLibraryController()),
         ChangeNotifierProvider(create: (_) => UserController()),
         ChangeNotifierProvider(create: (_) => FirebaseDemoController()),
+        ChangeNotifierProvider(create: (_) => NotificationController()),
       ],
       child: MaterialApp(
         title: 'Journal Trend Analyzer',

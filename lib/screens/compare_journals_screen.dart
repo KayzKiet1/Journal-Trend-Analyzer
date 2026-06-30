@@ -149,7 +149,9 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
             right.publisher ?? '-',
           ),
           _buildMetricRow(
-            _excludeFutureYears ? 'Works (<= $_currentYear)' : 'Works',
+            _excludeFutureYears
+                ? 'Publications (<= $_currentYear)'
+                : 'Publications',
             '${_worksCountForCompare(left)}',
             '${_worksCountForCompare(right)}',
           ),
@@ -159,7 +161,7 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
             '${_citationsForCompare(right)}',
           ),
           _buildMetricRow(
-            'Avg citations/work',
+            'Avg citations/publication',
             _avgCitations(left),
             _avgCitations(right),
           ),

@@ -10,6 +10,8 @@ import '../utils/app_text_styles.dart';
 import '../widgets/publication_card.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/empty_state_widget.dart';
+import '../widgets/donut_chart.dart';
+import '../widgets/horizontal_bar_chart.dart';
 import '../models/journal_model.dart';
 import 'compare_journals_screen.dart';
 import 'publication_detail_screen.dart';
@@ -91,7 +93,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       displayTitle = 'Bài báo của ${widget.topic}';
     } else if (widget.category == 'Sources') {
       displayTitle = widget.topic.trim().isEmpty
-          ? 'Trending Journals'
+          ? 'Top Journals'
           : 'Journals: ${widget.topic}';
     } else {
       displayTitle = '${widget.category}: ${widget.topic}';
@@ -218,7 +220,13 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                     (controller.hasMoreFor(widget.category) ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index == 0) {
-                    return _buildLibraryPanel();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildJournalAnalysisPanel(controller),
+                        _buildLibraryPanel(),
+                      ],
+                    );
                   }
 
                   final sourceIndex = index - 1;
@@ -240,10 +248,10 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                   final isFavorite = library.isFavorite(source.id);
                   return _buildEntityCard(
                     title: source.name,
-                    subtitle: source.publisher ?? source.type ?? 'Source',
-                    trailing: '${source.worksCount} works',
+                    subtitle: source.publisher ?? 'Journal',
+                    trailing: '${source.worksCount} publications',
                     icon: Icons.book_outlined,
-                    meta: '${source.citedByCount} citations',
+                    meta: '',
                     isSelectedForCompare: isSelected,
                     isFavorite: isFavorite,
                     onCompareToggle: () => _toggleCompareSelection(source),
@@ -256,7 +264,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           ],
         );
       default:
-        return const EmptyStateWidget(message: 'Category unknown');
+        return const EmptyStateWidget(message: 'Không có dữ liệu phù hợp.');
     }
   }
 
@@ -379,6 +387,104 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     );
   }
 
+  Widget _buildJournalAnalysisPanel(PublicationController controller) {
+    if (widget.category != 'Sources' ||
+        controller.currentTopicIds.isEmpty ||
+        controller.sources.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final publicationData = controller.sources
+        .take(8)
+        .map((journal) => {'name': journal.name, 'count': journal.worksCount})
+        .toList();
+    final contributionData = _journalContributionData(controller.sources);
+    final citationData = _journalCitationData(controller);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('JOURNAL ANALYSIS', style: AppTextStyles.labelCaps),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            controller.currentTopic,
+            style: AppTextStyles.h2,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          HorizontalBarChart(
+            data: publicationData,
+            title: 'Top journals by publications',
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          DonutChart(data: contributionData, title: 'Journal contribution'),
+          if (citationData.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            HorizontalBarChart(
+              data: citationData,
+              title: 'Citations by journal',
+              valueKey: 'citations',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Citation totals are based on the influential publications found for the selected research topics.',
+              style: AppTextStyles.bodySmall,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _journalContributionData(List<Journal> journals) {
+    final topJournals = journals.take(5).toList();
+    final total = topJournals.fold<int>(
+      0,
+      (sum, journal) => sum + journal.worksCount,
+    );
+    if (total <= 0) return [];
+
+    const colors = ['#B8422E', '#1A1C1E', '#6C7278', '#15803D', '#B45309'];
+    return topJournals.asMap().entries.map((entry) {
+      final journal = entry.value;
+      return {
+        'name': journal.name,
+        'count': journal.worksCount,
+        'percentage': ((journal.worksCount / total) * 100).round(),
+        'color': colors[entry.key % colors.length],
+      };
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _journalCitationData(
+    PublicationController controller,
+  ) {
+    final citationsByJournal = <String, int>{};
+    for (final publication in controller.topicDashboardPublications) {
+      final journal = publication.journalName.trim();
+      if (journal.isEmpty || journal.toLowerCase().contains('unknown')) {
+        continue;
+      }
+      citationsByJournal[journal] =
+          (citationsByJournal[journal] ?? 0) + publication.citedByCount;
+    }
+
+    final entries = citationsByJournal.entries.toList()
+      ..sort((a, b) {
+        final byCitations = b.value.compareTo(a.value);
+        if (byCitations != 0) return byCitations;
+        return a.key.toLowerCase().compareTo(b.key.toLowerCase());
+      });
+
+    return entries
+        .take(8)
+        .map((entry) => {'name': entry.key, 'citations': entry.value})
+        .toList();
+  }
+
   Widget _buildJournalStrip({
     required String title,
     required List<Journal> journals,
@@ -438,7 +544,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             ),
             const Spacer(),
             Text(
-              '${journal.worksCount} works • ${journal.citedByCount} citations',
+              '${journal.worksCount} publications • ${journal.citedByCount} citations',
               style: AppTextStyles.labelCaps.copyWith(fontSize: 9),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -561,28 +667,30 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.format_quote,
-                  size: 12,
-                  color: AppColors.accent,
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    meta,
-                    style: AppTextStyles.labelCaps.copyWith(
-                      color: AppColors.accent,
-                      fontSize: 10,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+            if (meta.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.format_quote,
+                    size: 12,
+                    color: AppColors.accent,
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      meta,
+                      style: AppTextStyles.labelCaps.copyWith(
+                        color: AppColors.accent,
+                        fontSize: 10,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         );
         final actions = Wrap(
@@ -717,12 +825,22 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   }
 
   void _openJournal(Journal journal) {
+    final controller = context.read<PublicationController>();
+    final topicIds = widget.category == 'Sources'
+        ? controller.currentTopicIds
+        : const <String>[];
+    final topicLabel = widget.category == 'Sources'
+        ? controller.currentTopic
+        : null;
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => JournalDetailScreen(
           journalId: journal.id,
           journalName: journal.name,
+          topicIds: topicIds,
+          topicLabel: topicLabel,
         ),
       ),
     );
