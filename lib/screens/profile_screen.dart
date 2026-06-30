@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../controllers/firebase_demo_controller.dart';
 import '../controllers/user_controller.dart';
 import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
@@ -120,6 +121,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
+            Text('REMOTE CONFIG', style: AppTextStyles.labelCaps),
+            const SizedBox(height: AppSpacing.md),
+            _buildRemoteConfigDemo(),
+            const SizedBox(height: AppSpacing.xl),
+            Text('CRASHLYTICS DEMO', style: AppTextStyles.labelCaps),
+            const SizedBox(height: AppSpacing.md),
+            _buildCrashlyticsDemo(),
+            const SizedBox(height: AppSpacing.xl),
             Text('VỀ ỨNG DỤNG', style: AppTextStyles.labelCaps),
             const SizedBox(height: AppSpacing.md),
             _buildInfoCard(
@@ -140,6 +149,221 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRemoteConfigDemo() {
+    return Consumer<FirebaseDemoController>(
+      builder: (context, controller, _) {
+        final values = controller.remoteConfigValues;
+        return Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: _cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.tune_outlined, color: AppColors.accent),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Firebase Remote Config',
+                      style: AppTextStyles.h2,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Các giá trị này có thể được thay đổi từ Firebase Console mà không cần rebuild app.',
+                style: AppTextStyles.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _buildConfigRow(
+                'Max journals displayed',
+                values.maxJournalsDisplay.toString(),
+                Icons.book_outlined,
+              ),
+              _buildConfigRow(
+                'Max keywords displayed',
+                values.maxKeywordsDisplay.toString(),
+                Icons.analytics_outlined,
+              ),
+              _buildConfigRow(
+                'Report export enabled',
+                values.enableReportExport ? 'true' : 'false',
+                Icons.picture_as_pdf_outlined,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Status: ${controller.remoteConfigStatus}',
+                style: AppTextStyles.bodySmall,
+              ),
+              if (controller.remoteConfigError != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  controller.remoteConfigError!,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.error,
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: controller.isRemoteConfigLoading
+                      ? null
+                      : controller.fetchRemoteConfig,
+                  icon: controller.isRemoteConfigLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.cloud_download_outlined),
+                  label: Text(
+                    controller.isRemoteConfigLoading
+                        ? 'ĐANG TẢI CONFIG...'
+                        : 'FETCH CONFIG',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCrashlyticsDemo() {
+    return Consumer<FirebaseDemoController>(
+      builder: (context, controller, _) {
+        return Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: _cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.bug_report_outlined,
+                    color: AppColors.accent,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Firebase Crashlytics',
+                      style: AppTextStyles.h2,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Dùng các nút này để demo crash monitoring. Test crash sẽ làm app crash thật sau khi xác nhận.',
+                style: AppTextStyles.bodySmall,
+              ),
+              if (controller.crashlyticsMessage != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  controller.crashlyticsMessage!,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.success,
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: controller.isCrashlyticsLoading
+                      ? null
+                      : controller.recordHandledException,
+                  icon: controller.isCrashlyticsLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.report_gmailerrorred_outlined),
+                  label: Text(
+                    controller.isCrashlyticsLoading
+                        ? 'ĐANG GỬI...'
+                        : 'RECORD HANDLED EXCEPTION',
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _confirmTestCrash(controller),
+                  icon: const Icon(Icons.warning_amber_outlined),
+                  label: const Text('TRIGGER TEST CRASH'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildConfigRow(String title, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.secondary, size: 18),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(title, style: AppTextStyles.bodySmall)),
+          Text(
+            value,
+            style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmTestCrash(FirebaseDemoController controller) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Trigger test crash?'),
+        content: const Text(
+          'App sẽ crash có chủ đích để gửi báo cáo lên Firebase Crashlytics. Chỉ dùng khi demo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('CRASH APP'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await controller.triggerTestCrash();
+    }
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      border: Border.all(color: AppColors.secondary, width: 1.0),
     );
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -166,6 +167,98 @@ void main() {
 
       expect(result['total_count'], 1);
       expect(requestedUrl!.queryParameters['filter'], 'author.id:A1');
+    });
+
+    test('adds API key to requests when configured', () async {
+      Uri? requestedUrl;
+      final service = OpenAlexService(
+        apiKey: 'demo-key',
+        minRequestInterval: Duration.zero,
+        client: MockClient((request) async {
+          requestedUrl = request.url;
+          return _jsonResponse({
+            'id': 'S1',
+            'display_name': 'API Key Journal',
+          });
+        }),
+      );
+
+      await service.getJournalDetails('S1');
+
+      expect(requestedUrl!.queryParameters['api_key'], 'demo-key');
+      expect(requestedUrl!.queryParameters.containsKey('mailto'), isFalse);
+    });
+
+    test('reuses cached responses for repeated identical requests', () async {
+      var calls = 0;
+      final service = OpenAlexService(
+        minRequestInterval: Duration.zero,
+        client: MockClient((request) async {
+          calls++;
+          return _jsonResponse({
+            'id': 'S1',
+            'display_name': 'Cached Journal',
+          });
+        }),
+      );
+
+      await service.getJournalDetails('S1');
+      await service.getJournalDetails('S1');
+
+      expect(calls, 1);
+    });
+
+    test('deduplicates identical in-flight requests', () async {
+      var calls = 0;
+      final completer = Completer<http.Response>();
+      final service = OpenAlexService(
+        minRequestInterval: Duration.zero,
+        client: MockClient((request) {
+          calls++;
+          return completer.future;
+        }),
+      );
+
+      final first = service.getJournalDetails('S1');
+      final second = service.getJournalDetails('S1');
+      completer.complete(
+        _jsonResponse({'id': 'S1', 'display_name': 'In Flight Journal'}),
+      );
+
+      final journals = await Future.wait([first, second]);
+
+      expect(calls, 1);
+      expect(journals.map((journal) => journal.name), [
+        'In Flight Journal',
+        'In Flight Journal',
+      ]);
+    });
+
+    test('retries once after API 429 and then succeeds', () async {
+      var calls = 0;
+      final service = OpenAlexService(
+        minRequestInterval: Duration.zero,
+        requestTimeout: const Duration(seconds: 1),
+        client: MockClient((request) async {
+          calls++;
+          if (calls == 1) {
+            return http.Response(
+              '{"error":"too many requests"}',
+              429,
+              headers: {'retry-after': '0'},
+            );
+          }
+          return _jsonResponse({
+            'id': 'S1',
+            'display_name': 'Recovered Journal',
+          });
+        }),
+      );
+
+      final journal = await service.getJournalDetails('S1');
+
+      expect(calls, 2);
+      expect(journal.name, 'Recovered Journal');
     });
   });
 }
