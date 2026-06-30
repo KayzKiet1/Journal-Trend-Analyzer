@@ -5,8 +5,8 @@ import '../models/journal_model.dart';
 import '../models/publication_model.dart';
 import '../models/trend_data_model.dart';
 import '../controllers/journal_library_controller.dart';
+import '../firebase/firebase_analytics_service.dart';
 import '../services/openalex_service.dart';
-import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
@@ -18,11 +18,15 @@ import 'publication_detail_screen.dart';
 class JournalDetailScreen extends StatefulWidget {
   final String journalId;
   final String journalName;
+  final List<String> topicIds;
+  final String? topicLabel;
 
   const JournalDetailScreen({
     super.key,
     required this.journalId,
     required this.journalName,
+    this.topicIds = const [],
+    this.topicLabel,
   });
 
   @override
@@ -41,6 +45,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   final int _perPage = 10;
   final ScrollController _scrollController = ScrollController();
   final OpenAlexService _apiService = OpenAlexService();
+  final FirebaseAnalyticsService _analyticsService = FirebaseAnalyticsService();
 
   // Filter and Search states
   final TextEditingController _searchController = TextEditingController();
@@ -55,6 +60,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _analyticsService.logViewJournal(journalName: widget.journalName);
     _loadInitialData();
   }
 
@@ -70,8 +76,15 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
     try {
       final results = await Future.wait([
         _apiService.getJournalDetails(widget.journalId),
-        _apiService.getWorksByJournal(widget.journalId, page: 1),
-        _apiService.getJournalYearlyTrend(widget.journalId),
+        _apiService.getWorksByJournal(
+          widget.journalId,
+          page: 1,
+          topicIds: widget.topicIds,
+        ),
+        _apiService.getJournalYearlyTrend(
+          widget.journalId,
+          topicIds: widget.topicIds,
+        ),
         _apiService.getJournalTopTopics(widget.journalId),
       ]);
 
@@ -109,6 +122,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       final worksData = await _apiService.getWorksByJournal(
         widget.journalId,
         page: _currentPage,
+        topicIds: widget.topicIds,
         search: _searchController.text.isNotEmpty
             ? _searchController.text
             : null,
@@ -152,7 +166,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
           children: [
             const Icon(Icons.book_outlined, size: 20),
             const SizedBox(width: 8),
-            const Text('Source', style: TextStyle(fontSize: 16)),
+            const Text('Journal Detail', style: TextStyle(fontSize: 16)),
           ],
         ),
         elevation: 0,
@@ -185,35 +199,11 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   _journal?.name ?? widget.journalName,
                   style: AppTextStyles.h1,
                 ),
-                const SizedBox(height: AppSpacing.md),
-
-                // Analysis Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _journal == null
-                        ? null
-                        : () {
-                            final controller = context
-                                .read<PublicationController>();
-                            controller.setLastAnalysis(_journal, _trends);
-                            controller.setSelectedIndex(2);
-                            Navigator.pop(context);
-                          },
-                    icon: const Icon(Icons.analytics_outlined),
-                    label: const Text('Analyze Journal Trends'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppSpacing.radiusMd,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                if (widget.topicLabel != null &&
+                    widget.topicLabel!.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildHomeTopicScope(),
+                ],
                 const SizedBox(height: AppSpacing.lg),
 
                 // Top section: Re-integrating layout to match screenshot
@@ -288,7 +278,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         children: [
           _buildInfoRow('Homepage', _journal?.homepageUrl, isLink: true),
           _buildInfoRow('ISSNs', _journal?.issns.join(', ')),
-          _buildInfoRow('Source type', _journal?.type),
+          _buildInfoRow('Journal type', _journal?.type),
           _buildInfoRow('Publisher', _journal?.publisher),
           _buildInfoRow('Alternate names', _journal?.alternateNames.join(', ')),
           const Divider(height: 32),
@@ -346,7 +336,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       ),
       child: Column(
         children: [
-          _buildStatItem('Works count', _journal?.worksCount.toString()),
+          _buildStatItem('Publications', _journal?.worksCount.toString()),
           _buildStatItem('Citation count', _journal?.citedByCount.toString()),
           _buildStatItem(
             'H-index',
@@ -471,6 +461,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       final worksData = await _apiService.getWorksByJournal(
         widget.journalId,
         page: _currentPage,
+        topicIds: widget.topicIds,
         search: _searchController.text.isNotEmpty
             ? _searchController.text
             : null,
@@ -489,6 +480,24 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
     }
   }
 
+  Widget _buildHomeTopicScope() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.secondary, width: 1),
+      ),
+      child: Text(
+        'Research scope: ${widget.topicLabel}',
+        style: AppTextStyles.bodySmall,
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
   Widget _buildWorksList() {
     int totalPages = (_totalWorks / _perPage).ceil();
     if (totalPages == 0 && _totalWorks > 0) totalPages = 1;
@@ -499,10 +508,10 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('RECENT WORKS', style: AppTextStyles.labelCaps),
+            Text('RECENT PUBLICATIONS', style: AppTextStyles.labelCaps),
             if (_totalWorks > 0)
               Text(
-                '$_totalWorks works',
+                '$_totalWorks publications',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.secondary,
                 ),

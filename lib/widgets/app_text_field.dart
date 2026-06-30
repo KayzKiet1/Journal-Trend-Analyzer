@@ -8,13 +8,15 @@ class AppTextField extends StatelessWidget {
   final String hintText;
   final IconData? prefixIcon;
   final VoidCallback? onSubmitted;
+  final ValueChanged<String>? onChanged;
 
   const AppTextField({
-    super.key, 
-    required this.controller, 
+    super.key,
+    required this.controller,
     required this.hintText,
     this.prefixIcon,
     this.onSubmitted,
+    this.onChanged,
   });
 
   @override
@@ -23,21 +25,22 @@ class AppTextField extends StatelessWidget {
       controller: controller,
       style: AppTextStyles.bodyLarge,
       cursorColor: AppColors.accent,
+      onChanged: onChanged,
       onSubmitted: (_) => onSubmitted?.call(),
       decoration: InputDecoration(
         hintText: hintText,
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.secondary, size: 20) : null,
-        hintStyle: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.secondary,
-        ),
-// ...
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, color: AppColors.secondary, size: 20)
+            : null,
+        hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
+        // ...
         fillColor: AppColors.surface,
         filled: true,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: 14.0,
         ),
-        
+
         // Border: 1px secondary
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -47,13 +50,13 @@ class AppTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
         ),
-        
+
         // Active state: accent (Boston Clay)
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.accent, width: 2.0),
         ),
-        
+
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.error, width: 1.0),
