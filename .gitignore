@@ -4,6 +4,9 @@
 *.pyc
 *.swp
 .DS_Store
+.env
+.env.*
+.packages
 .atom/
 .build/
 .buildlog/
@@ -32,6 +35,11 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+
+# Android/Gradle local state
+**/.gradle/
+**/.kotlin/
+**/local.properties
 
 # Symbolication related
 app.*.symbols

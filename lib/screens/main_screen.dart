@@ -34,11 +34,7 @@ class _MainScreenState extends State<MainScreen> {
     final List<Widget> screens = [
       const HomeScreen(),
       SearchResultScreen(topic: controller.lastSearchText, category: 'Sources'),
-      DashboardScreen(
-        route: 'keywords',
-        journal: controller.lastAnalyzedJournal,
-        trends: controller.lastTrends,
-      ),
+      const DashboardScreen(route: 'keywords'),
       const ProfileScreen(),
     ];
 
@@ -75,7 +71,7 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.book_outlined),
               activeIcon: Icon(Icons.book),
-              label: 'JOURNAL',
+              label: 'JOURNALS',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.analytics_outlined),

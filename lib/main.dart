@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/publication_controller.dart';
 import 'controllers/journal_library_controller.dart';
+import 'controllers/notification_controller.dart';
 import 'controllers/user_controller.dart';
+import 'firebase/firebase_initializer.dart';
 import 'screens/main_screen.dart';
 import 'utils/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeFirebase();
   runApp(const JournalTrendAnalyzerApp());
 }
 
@@ -22,6 +26,7 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PublicationController()),
         ChangeNotifierProvider(create: (_) => JournalLibraryController()),
         ChangeNotifierProvider(create: (_) => UserController()),
+        ChangeNotifierProvider(create: (_) => NotificationController()),
       ],
       child: MaterialApp(
         title: 'Journal Trend Analyzer',

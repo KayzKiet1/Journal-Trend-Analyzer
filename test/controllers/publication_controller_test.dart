@@ -5,6 +5,8 @@ import 'package:journal_trend_analyzer/controllers/publication_controller.dart';
 import 'package:journal_trend_analyzer/models/author_model.dart';
 import 'package:journal_trend_analyzer/models/journal_model.dart';
 import 'package:journal_trend_analyzer/models/publication_model.dart';
+import 'package:journal_trend_analyzer/models/research_topic_model.dart';
+import 'package:journal_trend_analyzer/models/trend_data_model.dart';
 import 'package:journal_trend_analyzer/services/openalex_service.dart';
 
 void main() {
@@ -128,6 +130,27 @@ void main() {
         expect(controller.errorMessage, contains('Không nhận được phản hồi'));
       },
     );
+
+    test('loadTopicDashboard builds overview from selected topics', () async {
+      final controller = PublicationController(
+        apiService: _FakeOpenAlexService(),
+      );
+
+      controller.selectTopic(
+        const ResearchTopic(
+          id: 'https://openalex.org/T1',
+          name: 'Artificial Intelligence',
+        ),
+      );
+      await controller.loadTopicDashboard();
+
+      expect(controller.topicDashboardTotalWorks, 1);
+      expect(controller.topicDashboardTrends.single.year, 2025);
+      expect(controller.topicDashboardTopAuthors, {'Ada': 1});
+      expect(controller.topicDashboardTopJournals, {'Journal': 1});
+      expect(controller.topicDashboardTopPublication?.title, 'Topic work');
+      expect(controller.topicDashboardAverageCitations, 5);
+    });
   });
 }
 
@@ -139,6 +162,8 @@ class _FakeOpenAlexService extends OpenAlexService {
     String query, {
     int page = 1,
     int perPage = 10,
+    String? topicId,
+    List<String>? topicIds,
   }) async {
     sourceSearchCalls++;
     return {
@@ -158,6 +183,40 @@ class _FakeOpenAlexService extends OpenAlexService {
       'total_count': 2,
     };
   }
+
+  @override
+  Future<List<ResearchTopic>> searchTopics(String query, {int perPage = 5}) {
+    return Future.value([
+      const ResearchTopic(id: 'https://openalex.org/T1', name: 'Science'),
+    ]);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getWorksByTopics(
+    List<String> topicIds, {
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    return {
+      'results': [_publication('Topic work')],
+      'total_count': 1,
+    };
+  }
+
+  @override
+  Future<List<TrendData>> getTopicPublicationTrend(List<String> topicIds) {
+    return Future.value([TrendData(year: 2025, count: 1)]);
+  }
+
+  @override
+  Future<Map<String, int>> getTopicTopAuthors(List<String> topicIds) {
+    return Future.value({'Ada': 1});
+  }
+
+  @override
+  Future<Map<String, int>> getTopicTopJournals(List<String> topicIds) {
+    return Future.value({'Journal': 1});
+  }
 }
 
 class _HangingOpenAlexService extends OpenAlexService {
@@ -166,6 +225,8 @@ class _HangingOpenAlexService extends OpenAlexService {
     String query, {
     int page = 1,
     int perPage = 10,
+    String? topicId,
+    List<String>? topicIds,
   }) {
     return Future<Map<String, dynamic>>.delayed(
       const Duration(seconds: 1),
@@ -180,6 +241,8 @@ class _NeverCompletingOpenAlexService extends OpenAlexService {
     String query, {
     int page = 1,
     int perPage = 10,
+    String? topicId,
+    List<String>? topicIds,
   }) {
     return Completer<Map<String, dynamic>>().future;
   }

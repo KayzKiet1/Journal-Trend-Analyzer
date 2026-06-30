@@ -19,7 +19,7 @@ class ApiConstants {
 
   /// Khoảng cách tối thiểu giữa 2 request OpenAlex trong toàn app.
   /// OpenAlex dễ trả 429 nếu nhiều màn hình cùng gọi API một lúc.
-  static const int minRequestIntervalMs = 350;
+  static const int minRequestIntervalMs = 800;
 
   /// Timeout cho mỗi request để app không treo quá lâu khi mạng yếu.
   static const int requestTimeoutSeconds = 20;

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/publication_model.dart';
 import '../models/journal_model.dart';
+import '../models/research_topic_model.dart';
 import '../models/trend_data_model.dart';
 import '../services/openalex_service.dart';
 
@@ -44,9 +45,12 @@ class PublicationController extends ChangeNotifier {
 
   String? _lastFetchedQuery;
   String? _lastFetchedCategory;
+  String? _lastFetchedTopicKey;
   String? _activeSearchQuery;
   String? _activeSearchCategory;
+  String? _activeSearchTopicKey;
   int _searchRequestId = 0;
+  int _topicSuggestionRequestId = 0;
   Timer? _searchWatchdogTimer;
 
   int _selectedTabIndex = 0;
@@ -54,18 +58,6 @@ class PublicationController extends ChangeNotifier {
 
   void setSelectedIndex(int index) {
     _selectedTabIndex = index;
-    notifyListeners();
-  }
-
-  // Analysis persistence
-  Journal? _lastAnalyzedJournal;
-  Journal? get lastAnalyzedJournal => _lastAnalyzedJournal;
-  List<TrendData>? _lastTrends;
-  List<TrendData>? get lastTrends => _lastTrends;
-
-  void setLastAnalysis(Journal? journal, List<TrendData>? trends) {
-    _lastAnalyzedJournal = journal;
-    _lastTrends = trends;
     notifyListeners();
   }
 
@@ -80,8 +72,23 @@ class PublicationController extends ChangeNotifier {
 
   bool _isLoading = false;
   bool _isLoadingMore = false;
+  bool _isLoadingTopicSuggestions = false;
   String _errorMessage = '';
+  String _topicSuggestionError = '';
   String _currentTopic = '';
+  List<String> _currentTopicIds = [];
+  List<ResearchTopic> _selectedTopics = [];
+  List<ResearchTopic> _topicSuggestions = [];
+  List<Publication> _topicDashboardPublications = [];
+  List<TrendData> _topicDashboardTrends = [];
+  Map<String, int> _topicDashboardTopAuthors = {};
+  Map<String, int> _topicDashboardTopJournals = {};
+  bool _isLoadingTopicDashboard = false;
+  String _topicDashboardError = '';
+  String? _topicDashboardTopicKey;
+  int _topicDashboardTotalWorks = 0;
+  double _topicDashboardAverageCitations = 0;
+  int? _topicDashboardPeakYear;
 
   int _currentPage = 1;
   int _totalResults = 0;
@@ -92,8 +99,29 @@ class PublicationController extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
+  bool get isLoadingTopicSuggestions => _isLoadingTopicSuggestions;
   String get errorMessage => _errorMessage;
+  String get topicSuggestionError => _topicSuggestionError;
   String get currentTopic => _currentTopic;
+  List<String> get currentTopicIds => List.unmodifiable(_currentTopicIds);
+  ResearchTopic? get selectedTopic =>
+      _selectedTopics.isEmpty ? null : _selectedTopics.first;
+  List<ResearchTopic> get selectedTopics => List.unmodifiable(_selectedTopics);
+  List<ResearchTopic> get topicSuggestions => _topicSuggestions;
+  List<Publication> get topicDashboardPublications =>
+      _topicDashboardPublications;
+  List<TrendData> get topicDashboardTrends => _topicDashboardTrends;
+  Map<String, int> get topicDashboardTopAuthors => _topicDashboardTopAuthors;
+  Map<String, int> get topicDashboardTopJournals => _topicDashboardTopJournals;
+  bool get isLoadingTopicDashboard => _isLoadingTopicDashboard;
+  String get topicDashboardError => _topicDashboardError;
+  int get topicDashboardTotalWorks => _topicDashboardTotalWorks;
+  double get topicDashboardAverageCitations => _topicDashboardAverageCitations;
+  int? get topicDashboardPeakYear => _topicDashboardPeakYear;
+  Publication? get topicDashboardTopPublication =>
+      _topicDashboardPublications.isEmpty
+      ? null
+      : _topicDashboardPublications.first;
   int get totalResults => _totalResults;
 
   bool hasMoreFor(String category) {
@@ -117,11 +145,19 @@ class PublicationController extends ChangeNotifier {
     String query,
     String category, {
     bool loadMore = false,
+    String? topicId,
+    List<String>? topicIds,
   }) async {
+    final effectiveTopicIds = _effectiveTopicIds(
+      topicId: topicId,
+      topicIds: topicIds,
+    );
+    final effectiveTopicKey = _topicKey(effectiveTopicIds);
     if (!loadMore &&
         _isLoading &&
         _activeSearchQuery == query &&
-        _activeSearchCategory == category) {
+        _activeSearchCategory == category &&
+        _activeSearchTopicKey == effectiveTopicKey) {
       return;
     }
 
@@ -129,6 +165,7 @@ class PublicationController extends ChangeNotifier {
     if (!loadMore &&
         _lastFetchedQuery == query &&
         _lastFetchedCategory == category &&
+        _lastFetchedTopicKey == effectiveTopicKey &&
         !_isResultsEmpty(category) &&
         _errorMessage.isEmpty) {
       return;
@@ -144,6 +181,7 @@ class PublicationController extends ChangeNotifier {
     } else {
       _lastSearchText = query;
       _currentTopic = query.isEmpty ? 'Trending Journals' : query;
+      _currentTopicIds = effectiveTopicIds;
       _currentCategory = category;
       _isLoading = true;
       _errorMessage = '';
@@ -152,6 +190,7 @@ class PublicationController extends ChangeNotifier {
       _sources = [];
       _activeSearchQuery = query;
       _activeSearchCategory = category;
+      _activeSearchTopicKey = effectiveTopicKey;
     }
 
     final requestId = ++_searchRequestId;
@@ -165,7 +204,12 @@ class PublicationController extends ChangeNotifier {
       switch (category) {
         case 'Sources':
           final data = await _apiService
-              .searchSources(query, page: _currentPage, perPage: _perPage)
+              .searchSources(
+                query,
+                page: _currentPage,
+                perPage: _perPage,
+                topicIds: effectiveTopicIds,
+              )
               .timeout(
                 searchTimeout,
                 onTimeout: () => throw TimeoutException(
@@ -195,6 +239,7 @@ class PublicationController extends ChangeNotifier {
       if (!loadMore) {
         _lastFetchedQuery = query;
         _lastFetchedCategory = category;
+        _lastFetchedTopicKey = effectiveTopicKey;
       }
     } catch (e) {
       if (requestId != _searchRequestId) return;
@@ -207,6 +252,7 @@ class PublicationController extends ChangeNotifier {
         if (!loadMore) {
           _activeSearchQuery = null;
           _activeSearchCategory = null;
+          _activeSearchTopicKey = null;
         }
         notifyListeners();
       }
@@ -220,10 +266,162 @@ class PublicationController extends ChangeNotifier {
     _isLoadingMore = false;
     _activeSearchQuery = null;
     _activeSearchCategory = null;
+    _activeSearchTopicKey = null;
     if (message != null && message.isNotEmpty) {
       _errorMessage = message;
     }
     notifyListeners();
+  }
+
+  Future<void> loadTopicSuggestions(String query) async {
+    final trimmedQuery = query.trim();
+    _selectedTopics = [];
+
+    if (trimmedQuery.length < 2) {
+      _topicSuggestionRequestId++;
+      _topicSuggestions = [];
+      _topicSuggestionError = '';
+      _isLoadingTopicSuggestions = false;
+      notifyListeners();
+      return;
+    }
+
+    final requestId = ++_topicSuggestionRequestId;
+    _isLoadingTopicSuggestions = true;
+    _topicSuggestionError = '';
+    notifyListeners();
+
+    try {
+      final topics = await _apiService
+          .searchTopics(trimmedQuery, perPage: 10)
+          .timeout(const Duration(seconds: 8));
+      if (requestId != _topicSuggestionRequestId) return;
+      _topicSuggestions = topics;
+      if (topics.isEmpty) {
+        _topicSuggestionError = 'Không tìm thấy topic phù hợp.';
+      }
+    } catch (e) {
+      if (requestId != _topicSuggestionRequestId) return;
+      _topicSuggestions = [];
+      _topicSuggestionError = _formatSearchError(e);
+    } finally {
+      if (requestId == _topicSuggestionRequestId) {
+        _isLoadingTopicSuggestions = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  void toggleTopic(ResearchTopic topic) {
+    final exists = _selectedTopics.any((item) => item.id == topic.id);
+    if (exists) {
+      _selectedTopics.removeWhere((item) => item.id == topic.id);
+    } else {
+      _selectedTopics = [..._selectedTopics, topic];
+    }
+    _lastSearchText = _selectedTopics.isEmpty
+        ? _lastSearchText
+        : _selectedTopics.map((item) => item.name).join(', ');
+    notifyListeners();
+  }
+
+  void selectTopic(ResearchTopic topic) {
+    _selectedTopics = [topic];
+    _lastSearchText = topic.name;
+    notifyListeners();
+  }
+
+  void setSelectedTopics(List<ResearchTopic> topics) {
+    _selectedTopics = [...topics];
+    _lastSearchText = topics.map((topic) => topic.name).join(', ');
+    notifyListeners();
+  }
+
+  void clearTopicSelection() {
+    _topicSuggestionRequestId++;
+    _selectedTopics = [];
+    _topicSuggestions = [];
+    _topicSuggestionError = '';
+    _isLoadingTopicSuggestions = false;
+    notifyListeners();
+  }
+
+  void clearSelectedTopics() {
+    _selectedTopics = [];
+    notifyListeners();
+  }
+
+  Future<void> loadTopicDashboard() async {
+    if (_selectedTopics.isEmpty) return;
+
+    final topicIds = _selectedTopics.map((topic) => topic.id).toList();
+    final topicKey = _topicKey(topicIds);
+    if (_isLoadingTopicDashboard) return;
+    if (_topicDashboardTopicKey == topicKey &&
+        _topicDashboardError.isEmpty &&
+        (_topicDashboardTotalWorks > 0 ||
+            _topicDashboardPublications.isNotEmpty ||
+            _topicDashboardTrends.isNotEmpty)) {
+      return;
+    }
+
+    final requestId = ++_searchRequestId;
+    final topicLabel = _selectedTopics.map((topic) => topic.name).join(', ');
+
+    _lastSearchText = topicLabel;
+    _currentTopic = topicLabel;
+    _currentTopicIds = topicIds;
+    _isLoadingTopicDashboard = true;
+    _topicDashboardError = '';
+    _topicDashboardPublications = [];
+    _topicDashboardTrends = [];
+    _topicDashboardTopAuthors = {};
+    _topicDashboardTopJournals = {};
+    _topicDashboardTopicKey = topicKey;
+    _topicDashboardTotalWorks = 0;
+    _topicDashboardAverageCitations = 0;
+    _topicDashboardPeakYear = null;
+    notifyListeners();
+
+    try {
+      final results = await Future.wait([
+        _apiService.getWorksByTopics(topicIds, perPage: 20),
+        _apiService.getTopicPublicationTrend(topicIds),
+        _apiService.getTopicTopAuthors(topicIds),
+        _apiService.getTopicTopJournals(topicIds),
+        _apiService.searchSources(topicLabel, topicIds: topicIds, perPage: 10),
+      ]).timeout(searchTimeout);
+
+      if (requestId != _searchRequestId) return;
+
+      final worksData = results[0] as Map<String, dynamic>;
+      final publications = worksData['results'] as List<Publication>;
+      final trends = results[1] as List<TrendData>;
+
+      _topicDashboardPublications = publications;
+      _topicDashboardTrends = trends;
+      _topicDashboardTopAuthors = results[2] as Map<String, int>;
+      _topicDashboardTopJournals = results[3] as Map<String, int>;
+      final journalData = results[4] as Map<String, dynamic>;
+      _sources = journalData['results'] as List<Journal>;
+      _totalResults = journalData['total_count'] as int? ?? _sources.length;
+      _currentCategory = 'Sources';
+      _topicDashboardTotalWorks = worksData['total_count'] as int? ?? 0;
+      _topicDashboardAverageCitations = _averageCitations(publications);
+      _topicDashboardPeakYear = _peakYear(trends);
+
+      if (_topicDashboardTotalWorks == 0) {
+        _topicDashboardError = 'Không tìm thấy công bố cho topic đã chọn.';
+      }
+    } catch (e) {
+      if (requestId != _searchRequestId) return;
+      _topicDashboardError = _formatSearchError(e);
+    } finally {
+      if (requestId == _searchRequestId) {
+        _isLoadingTopicDashboard = false;
+        notifyListeners();
+      }
+    }
   }
 
   /// Tìm kiếm bài báo theo tác giả
@@ -302,6 +500,41 @@ class PublicationController extends ChangeNotifier {
     }
   }
 
+  List<String> _effectiveTopicIds({String? topicId, List<String>? topicIds}) {
+    final ids = [
+      ...?topicIds,
+      ?topicId,
+      if (topicIds == null && topicId == null) ..._currentTopicIds,
+    ].map((id) => id.trim()).where((id) => id.isNotEmpty).toSet().toList();
+    return ids;
+  }
+
+  String? _topicKey(List<String> topicIds) {
+    if (topicIds.isEmpty) return null;
+    final sortedIds = [...topicIds]..sort();
+    return sortedIds.join('|');
+  }
+
+  double _averageCitations(List<Publication> publications) {
+    if (publications.isEmpty) return 0;
+    final total = publications.fold<int>(
+      0,
+      (sum, publication) => sum + publication.citedByCount,
+    );
+    return total / publications.length;
+  }
+
+  int? _peakYear(List<TrendData> trends) {
+    if (trends.isEmpty) return null;
+    final sorted = [...trends]
+      ..sort((a, b) {
+        final byCount = b.count.compareTo(a.count);
+        if (byCount != 0) return byCount;
+        return b.year.compareTo(a.year);
+      });
+    return sorted.first.year;
+  }
+
   String _formatSearchError(Object error) {
     if (error is TimeoutException) {
       return error.message ??
@@ -332,7 +565,23 @@ class PublicationController extends ChangeNotifier {
     _lastSearchText = '';
     _lastFetchedQuery = null;
     _lastFetchedCategory = null;
+    _lastFetchedTopicKey = null;
     _currentTopic = '';
+    _currentTopicIds = [];
+    _selectedTopics = [];
+    _topicSuggestions = [];
+    _topicSuggestionError = '';
+    _isLoadingTopicSuggestions = false;
+    _topicDashboardPublications = [];
+    _topicDashboardTrends = [];
+    _topicDashboardTopAuthors = {};
+    _topicDashboardTopJournals = {};
+    _isLoadingTopicDashboard = false;
+    _topicDashboardError = '';
+    _topicDashboardTopicKey = null;
+    _topicDashboardTotalWorks = 0;
+    _topicDashboardAverageCitations = 0;
+    _topicDashboardPeakYear = null;
     _errorMessage = '';
     notifyListeners();
   }

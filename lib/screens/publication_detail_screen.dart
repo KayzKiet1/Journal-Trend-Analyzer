@@ -1,15 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../firebase/firebase_analytics_service.dart';
 import '../models/publication_model.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
 import 'search_result_screen.dart';
 
-class PublicationDetailScreen extends StatelessWidget {
+class PublicationDetailScreen extends StatefulWidget {
   final Publication publication;
 
   const PublicationDetailScreen({super.key, required this.publication});
+
+  @override
+  State<PublicationDetailScreen> createState() =>
+      _PublicationDetailScreenState();
+}
+
+class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
+  final FirebaseAnalyticsService _analyticsService = FirebaseAnalyticsService();
+
+  Publication get publication => widget.publication;
+
+  @override
+  void initState() {
+    super.initState();
+    _analyticsService.logViewPublication(
+      publicationTitle: publication.title,
+      publicationYear: publication.publicationYear,
+    );
+  }
 
   Future<void> _launchURL(BuildContext context, String? urlString) async {
     if (urlString == null || urlString.isEmpty) return;

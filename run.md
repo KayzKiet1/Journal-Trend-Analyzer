@@ -9,7 +9,9 @@ Tài liệu này hướng dẫn cách cài đặt, cấu hình và chạy ứng 
 Để đảm bảo dự án chạy ổn định và không bị lỗi xung đột, các thành viên nên cài đặt môi trường theo thông số sau:
 - **Flutter SDK:** `3.41.9` (Stable channel)
 - **Dart SDK:** `3.11.5`
+- **JDK:** `21`
 - **Android Studio:** Phiên bản mới nhất (đã cài Android SDK và Platform-tools)
+- **Firebase Android config:** cần có file `android/app/google-services.json`
 
 ---
 
@@ -27,6 +29,14 @@ Nếu bạn gặp lỗi liên quan đến **Android SDK** hoặc **local.propert
 flutter clean
 flutter pub get
 ```
+
+### Bước 3: Kiểm tra Firebase
+Ứng dụng đang gọi `Firebase.initializeApp()` và Android build đang bật plugin `com.google.gms.google-services`, vì vậy khi chạy Android phải có:
+```text
+android/app/google-services.json
+```
+
+Nếu repo nội bộ của nhóm có thể chia sẻ Firebase project chung, hãy commit file này. Nếu repo public, không nên đưa file cấu hình Firebase của project thật lên GitHub; thay vào đó mỗi thành viên tải file từ Firebase Console và đặt đúng đường dẫn trên.
 
 ---
 
@@ -52,7 +62,7 @@ flutter pub get
    ```
 
 ### Lựa chọn C: Chạy trên Web (Dành cho máy cấu hình yếu)
-Ứng dụng đã được cấu hình khung điện thoại khi chạy trên trình duyệt:
+Lưu ý: Firebase hiện mới thấy cấu hình Android qua `google-services.json`. Nếu chạy Web mà gặp lỗi Firebase options, cần cấu hình FlutterFire cho Web trước.
 ```powershell
 flutter run -d chrome
 ```
@@ -82,7 +92,7 @@ Nếu bạn Pull code về mà thấy báo lỗi đỏ hoặc không biên dịc
 
 - **KHÔNG** đẩy các file cá nhân lên GitHub: Những file như `local.properties` hay thư mục `.idea/` đã được chặn bởi `.gitignore`, đừng cố tình xóa chặn để đẩy lên.
 - **Luôn Clean trước khi Build:** Nếu bạn thấy giao diện không cập nhật đúng như người khác đã làm, hãy dùng `flutter clean` trước khi chạy lại.
-- **Thống nhất phiên bản:** Khuyến nghị cả nhóm dùng chung phiên bản Flutter (ví dụ: 3.22.x) để tránh xung đột file `.metadata`.
+- **Thống nhất phiên bản:** Khuyến nghị cả nhóm dùng chung Flutter `3.41.9`, Dart `3.11.5` và JDK `21` để tránh xung đột file `.metadata` hoặc lỗi Gradle.
 
 ---
 
