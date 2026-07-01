@@ -22,8 +22,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _apiKeyController = TextEditingController();
   final FirebaseAnalyticsService _analyticsService = FirebaseAnalyticsService();
   final DashboardReportService _reportService = DashboardReportService();
   final FirebaseStorageService _storageService = FirebaseStorageService();
@@ -33,52 +31,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final userController = context.read<UserController>();
-    _emailController.text = userController.email;
-    _apiKeyController.text = userController.apiKey;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<NotificationController>().initialize();
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _apiKeyController.dispose();
-    super.dispose();
-  }
-
-  void _saveSettings() {
-    final email = _emailController.text.trim();
-    final apiKey = _apiKeyController.text.trim();
-
-    if (email.isNotEmpty && email.contains('@')) {
-      final userController = context.read<UserController>();
-      userController.updateEmail(email);
-      userController.updateApiKey(apiKey);
-
-      // Cập nhật email và API Key cho các API Service trong controllers
-      context.read<PublicationController>().updateApiService(
-        email,
-        apiKey: apiKey,
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã cập nhật thiết lập OpenAlex thành công!'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng nhập email hợp lệ.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
   }
 
   Future<void> _signInWithGoogle() async {
@@ -289,7 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
-                        'Firebase Authentication quản lý phiên đăng nhập Google và thông tin tài khoản người dùng.',
+                        'Firebase Authentication quản lý phiên đăng nhập Google. Email đăng nhập cũng được dùng làm email liên hệ khi gọi OpenAlex.',
                         style: AppTextStyles.bodySmall,
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -346,53 +303,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text('REPORT EXPORT', style: AppTextStyles.labelCaps),
             const SizedBox(height: AppSpacing.md),
             _buildReportExport(),
-            const SizedBox(height: AppSpacing.xl),
-            Text('THIẾT LẬP OPENALEX', style: AppTextStyles.labelCaps),
-            const SizedBox(height: AppSpacing.md),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(color: AppColors.secondary, width: 1.0),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Thiết lập email liên hệ và API key cho OpenAlex. Đây không phải tài khoản đăng nhập của ứng dụng.',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  TextField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email liên hệ',
-                      hintText: 'email dùng cho OpenAlex polite pool',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  TextField(
-                    controller: _apiKeyController,
-                    decoration: const InputDecoration(
-                      labelText: 'OpenAlex API Key (Tùy chọn)',
-                      hintText: 'API key OpenAlex nếu có',
-                      prefixIcon: Icon(Icons.vpn_key_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _saveSettings,
-                      child: const Text('LƯU THIẾT LẬP OPENALEX'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: AppSpacing.xl),
             Text('REMOTE CONFIG', style: AppTextStyles.labelCaps),
             const SizedBox(height: AppSpacing.md),

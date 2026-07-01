@@ -10,6 +10,8 @@ import '../services/openalex_service.dart';
 /// Bộ điều khiển quản lý trạng thái của danh sách bài báo và tìm kiếm đa thực thể
 class PublicationController extends ChangeNotifier {
   OpenAlexService _apiService;
+  String? _apiEmail;
+  String? _apiKeyValue;
   final Duration searchTimeout;
   final Duration searchWatchdogTimeout;
 
@@ -26,8 +28,23 @@ class PublicationController extends ChangeNotifier {
 
   /// Cập nhật email và API Key cho API service
   void updateApiService(String? email, {String? apiKey}) {
-    _apiService = OpenAlexService(userEmail: email, apiKey: apiKey);
+    syncApiService(email, apiKey: apiKey);
     notifyListeners();
+  }
+
+  void syncApiService(String? email, {String? apiKey}) {
+    final normalizedEmail = email?.trim();
+    final normalizedApiKey = apiKey?.trim();
+    if (_apiEmail == normalizedEmail && _apiKeyValue == normalizedApiKey) {
+      return;
+    }
+
+    _apiEmail = normalizedEmail;
+    _apiKeyValue = normalizedApiKey;
+    _apiService = OpenAlexService(
+      userEmail: normalizedEmail?.isEmpty == true ? null : normalizedEmail,
+      apiKey: normalizedApiKey?.isEmpty == true ? null : normalizedApiKey,
+    );
   }
 
   List<Publication> _publications = [];
@@ -384,30 +401,47 @@ class PublicationController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final results = await Future.wait([
-        _apiService.getWorksByTopics(topicIds, perPage: 20),
-        _apiService.getTopicPublicationTrend(topicIds),
-        _apiService.getTopicTopAuthors(topicIds),
-        _apiService.getTopicTopJournals(topicIds),
-        _apiService.searchSources(topicLabel, topicIds: topicIds, perPage: 10),
-      ]).timeout(searchTimeout);
+      final worksData = await _apiService
+          .getWorksByTopics(topicIds, perPage: 20)
+          .timeout(
+            searchTimeout,
+            onTimeout: () => throw TimeoutException(
+              'OpenAlex phản hồi quá lâu khi tải công bố theo topic. Vui lòng thử lại sau.',
+            ),
+          );
 
       if (requestId != _searchRequestId) return;
 
-      final worksData = results[0] as Map<String, dynamic>;
       final publications = worksData['results'] as List<Publication>;
-      final trends = results[1] as List<TrendData>;
-
       _topicDashboardPublications = publications;
+      _topicDashboardTotalWorks = worksData['total_count'] as int? ?? 0;
+      _topicDashboardAverageCitations = _averageCitations(publications);
+      _topicDashboardTopAuthors = _rankAuthorsFromPublications(publications);
+      _topicDashboardTopJournals = _rankJournalsFromPublications(publications);
+
+      final trends = await _loadOptionalDashboardPart<List<TrendData>>(
+        () => _apiService.getTopicPublicationTrend(topicIds),
+        fallback: const [],
+      );
+      if (requestId != _searchRequestId) return;
       _topicDashboardTrends = trends;
-      _topicDashboardTopAuthors = results[2] as Map<String, int>;
-      _topicDashboardTopJournals = results[3] as Map<String, int>;
-      final journalData = results[4] as Map<String, dynamic>;
+
+      final journalData =
+          await _loadOptionalDashboardPart<Map<String, dynamic>>(
+        () => _apiService.searchSources(
+          topicLabel,
+          topicIds: topicIds,
+          perPage: 10,
+        ),
+        fallback: {
+          'results': _journalsFromPublications(publications),
+          'total_count': _rankJournalsFromPublications(publications).length,
+        },
+      );
+      if (requestId != _searchRequestId) return;
       _sources = journalData['results'] as List<Journal>;
       _totalResults = journalData['total_count'] as int? ?? _sources.length;
       _currentCategory = 'Sources';
-      _topicDashboardTotalWorks = worksData['total_count'] as int? ?? 0;
-      _topicDashboardAverageCitations = _averageCitations(publications);
       _topicDashboardPeakYear = _peakYear(trends);
 
       if (_topicDashboardTotalWorks == 0) {
@@ -535,10 +569,95 @@ class PublicationController extends ChangeNotifier {
     return sorted.first.year;
   }
 
+  Future<T> _loadOptionalDashboardPart<T>(
+    Future<T> Function() loader, {
+    required T fallback,
+  }) async {
+    try {
+      return await loader().timeout(searchTimeout);
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  Map<String, int> _rankAuthorsFromPublications(
+    List<Publication> publications,
+  ) {
+    final counts = <String, int>{};
+    for (final publication in publications) {
+      for (final author in publication.authors) {
+        final name = author.name.trim();
+        if (name.isEmpty || name.toLowerCase() == 'unknown author') continue;
+        counts[name] = (counts[name] ?? 0) + 1;
+      }
+    }
+    return _topEntries(counts, limit: 5);
+  }
+
+  Map<String, int> _rankJournalsFromPublications(
+    List<Publication> publications,
+  ) {
+    final counts = <String, int>{};
+    for (final publication in publications) {
+      final journal = publication.journalName.trim();
+      if (journal.isEmpty || journal.toLowerCase() == 'unknown journal') {
+        continue;
+      }
+      counts[journal] = (counts[journal] ?? 0) + 1;
+    }
+    return _topEntries(counts, limit: 5);
+  }
+
+  Map<String, int> _topEntries(Map<String, int> values, {required int limit}) {
+    final entries = values.entries.toList()
+      ..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        if (byCount != 0) return byCount;
+        return a.key.compareTo(b.key);
+      });
+    return Map.fromEntries(entries.take(limit));
+  }
+
+  List<Journal> _journalsFromPublications(List<Publication> publications) {
+    final journalsByName = <String, Journal>{};
+    final counts = <String, int>{};
+    for (final publication in publications) {
+      final name = publication.journalName.trim();
+      if (name.isEmpty || name.toLowerCase() == 'unknown journal') continue;
+      counts[name] = (counts[name] ?? 0) + 1;
+      journalsByName.putIfAbsent(
+        name,
+        () => Journal(
+          id: publication.journalId,
+          name: name,
+          type: 'journal',
+        ),
+      );
+    }
+
+    return _topEntries(counts, limit: 10).entries.map((entry) {
+      final journal = journalsByName[entry.key]!;
+      return Journal(
+        id: journal.id,
+        name: journal.name,
+        type: journal.type,
+        worksCount: entry.value,
+      );
+    }).toList();
+  }
+
   String _formatSearchError(Object error) {
     if (error is TimeoutException) {
       return error.message ??
           'OpenAlex phản hồi quá lâu. Vui lòng kiểm tra mạng hoặc thử lại sau.';
+    }
+
+    final message = error.toString();
+    if (message.contains('429') ||
+        message.toLowerCase().contains('too many requests') ||
+        message.toLowerCase().contains('rate limit') ||
+        message.toLowerCase().contains('giới hạn tốc độ')) {
+      return 'OpenAlex đang giới hạn số lần truy cập. Vui lòng đợi một chút rồi thử lại.';
     }
 
     return 'Đã xảy ra lỗi khi tìm kiếm: ${error.toString()}';

@@ -24,9 +24,23 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => PublicationController()),
-        ChangeNotifierProvider(create: (_) => JournalLibraryController()),
         ChangeNotifierProvider(create: (_) => UserController()),
+        ChangeNotifierProxyProvider<UserController, PublicationController>(
+          create: (_) => PublicationController(),
+          update: (_, userController, publicationController) {
+            final controller =
+                publicationController ?? PublicationController();
+            final contactEmail = userController.authEmail.isNotEmpty
+                ? userController.authEmail
+                : userController.email;
+            controller.syncApiService(
+              contactEmail,
+              apiKey: userController.apiKey,
+            );
+            return controller;
+          },
+        ),
+        ChangeNotifierProvider(create: (_) => JournalLibraryController()),
         ChangeNotifierProvider(create: (_) => FirebaseDemoController()),
         ChangeNotifierProvider(create: (_) => NotificationController()),
       ],

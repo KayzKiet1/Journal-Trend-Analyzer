@@ -92,6 +92,17 @@ void main() {
       expect(controller.errorMessage, contains('OpenAlex phản hồi quá lâu'));
     });
 
+    test('search shows friendly message when OpenAlex rate limits', () async {
+      final controller = PublicationController(
+        apiService: _RateLimitedOpenAlexService(),
+      );
+
+      await controller.search('military', 'Sources');
+
+      expect(controller.isLoading, isFalse);
+      expect(controller.errorMessage, contains('giới hạn số lần truy cập'));
+    });
+
     test('cancelActiveSearch stops a hanging search immediately', () async {
       final controller = PublicationController.withTimeout(
         apiService: _HangingOpenAlexService(),
@@ -245,6 +256,19 @@ class _NeverCompletingOpenAlexService extends OpenAlexService {
     List<String>? topicIds,
   }) {
     return Completer<Map<String, dynamic>>().future;
+  }
+}
+
+class _RateLimitedOpenAlexService extends OpenAlexService {
+  @override
+  Future<Map<String, dynamic>> searchSources(
+    String query, {
+    int page = 1,
+    int perPage = 10,
+    String? topicId,
+    List<String>? topicIds,
+  }) {
+    throw Exception('OpenAlex API 429 Too Many Requests');
   }
 }
 

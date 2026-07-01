@@ -8,6 +8,7 @@ class Publication {
   final int publicationYear;
   final String publicationDate;
   final int citedByCount;
+  final String journalId;
   final String journalName;
   final List<Author> authors;
   final String doi;
@@ -20,6 +21,7 @@ class Publication {
     required this.publicationYear,
     required this.publicationDate,
     required this.citedByCount,
+    this.journalId = '',
     required this.journalName,
     required this.authors,
     required this.doi,
@@ -36,7 +38,9 @@ class Publication {
         .toList();
 
     // Lấy tên tạp chí
-    String journal = json['primary_location']?['source']?['display_name'] ?? 'Unknown Source';
+    final source = json['primary_location']?['source'];
+    String journalId = source?['id'] ?? '';
+    String journal = source?['display_name'] ?? 'Unknown Source';
 
     // Xử lý abstract từ inverted index
     String parsedAbstract = AbstractParser.parseInvertedIndex(
@@ -63,6 +67,7 @@ class Publication {
       publicationYear: json['publication_year'] ?? 0,
       publicationDate: json['publication_date'] ?? '',
       citedByCount: json['cited_by_count'] ?? 0,
+      journalId: journalId,
       journalName: journal,
       authors: authorsList,
       doi: json['doi'] ?? '',

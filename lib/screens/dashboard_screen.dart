@@ -62,8 +62,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final userController = context.read<UserController>();
-    if (userController.hasEmail) {
-      _apiService = OpenAlexService(userEmail: userController.email);
+    final contactEmail = userController.authEmail.isNotEmpty
+        ? userController.authEmail
+        : userController.email;
+    if (contactEmail.isNotEmpty && contactEmail.contains('@')) {
+      _apiService = OpenAlexService(userEmail: contactEmail);
     }
   }
 

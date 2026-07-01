@@ -40,7 +40,10 @@ void main() {
         'cited_by_count': 99,
         'doi': 'https://doi.org/10.1000/test',
         'primary_location': {
-          'source': {'display_name': 'Journal Analytics'},
+          'source': {
+            'id': 'https://openalex.org/S1',
+            'display_name': 'Journal Analytics',
+          },
         },
         'authorships': [
           {
@@ -65,6 +68,7 @@ void main() {
       expect(publication.title, 'Trend Analysis for Journals');
       expect(publication.publicationYear, 2026);
       expect(publication.citedByCount, 99);
+      expect(publication.journalId, 'https://openalex.org/S1');
       expect(publication.journalName, 'Journal Analytics');
       expect(publication.authorsString, 'Ada, Grace');
       expect(publication.abstractText, 'Journal trend analysis');
