@@ -1,147 +1,783 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../models/publication_model.dart';
 import '../models/trend_data_model.dart';
-import '../models/author_model.dart';
 import '../models/journal_model.dart';
-import '../models/institution_model.dart';
+import '../models/research_topic_model.dart';
 import '../utils/api_constants.dart';
+
+/// Lớp hỗ trợ lưu trữ cache đơn giản
+class _CacheEntry {
+  final dynamic data;
+  final DateTime expiryTime;
+
+  _CacheEntry(this.data, this.expiryTime);
+
+  bool get isExpired => DateTime.now().isAfter(expiryTime);
+}
+
+class _OpenAlexHttpException implements Exception {
+  final int statusCode;
+  final String message;
+
+  _OpenAlexHttpException(this.statusCode, [this.message = '']);
+
+  @override
+  String toString() {
+    if (message.isEmpty) return 'Lỗi API: $statusCode';
+    return 'Lỗi API $statusCode: $message';
+  }
+}
 
 /// Dịch vụ kết nối và lấy dữ liệu từ OpenAlex API
 class OpenAlexService {
-  final String? userEmail;
-  final http.Client client;
+  static const String _workSelectFields =
+      'id,display_name,title,publication_year,publication_date,cited_by_count,'
+      'authorships,primary_location,doi,abstract_inverted_index,topics,concepts';
 
-  OpenAlexService({this.userEmail, http.Client? client}) : client = client ?? http.Client();
+  final String? userEmail;
+  final String? apiKey;
+  final http.Client client;
+  final Duration minRequestInterval;
+  final Duration requestTimeout;
+
+  // Bộ nhớ đệm trong RAM
+  static final Map<String, _CacheEntry> _cache = {};
+  static final Map<String, Future<dynamic>> _inFlightRequests = {};
+  static Future<void> _requestQueue = Future.value();
+  static DateTime _nextAllowedRequestTime = DateTime.fromMillisecondsSinceEpoch(
+    0,
+  );
+  static DateTime? _rateLimitedUntil;
+
+  OpenAlexService({
+    this.userEmail,
+    this.apiKey,
+    http.Client? client,
+    Duration? minRequestInterval,
+    Duration? requestTimeout,
+  }) : client = client ?? http.Client(),
+       minRequestInterval =
+           minRequestInterval ??
+           const Duration(milliseconds: ApiConstants.minRequestIntervalMs),
+       requestTimeout =
+           requestTimeout ??
+           const Duration(seconds: ApiConstants.requestTimeoutSeconds);
 
   String get _contactEmail => userEmail ?? ApiConstants.contactEmail;
+  String get _apiKey => apiKey ?? ApiConstants.apiKey;
 
-  /// Tìm kiếm các bài báo theo từ khóa (topic) có hỗ trợ phân trang
-  Future<Map<String, dynamic>> searchWorks(String query, {int page = 1, int perPage = 10}) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'sort': 'cited_by_count:desc',
-        'page': page.toString(),
-        'per_page': perPage.toString(),
-        'mailto': _contactEmail,
-      },
-    );
+  String _openAlexId(String idOrUrl) {
+    final parsed = Uri.tryParse(idOrUrl);
+    if (parsed != null && parsed.pathSegments.isNotEmpty) {
+      return parsed.pathSegments.last;
+    }
+    return idOrUrl.split('/').last;
+  }
+
+  static void resetForTesting() {
+    _cache.clear();
+    _inFlightRequests.clear();
+    _requestQueue = Future.value();
+    _nextAllowedRequestTime = DateTime.fromMillisecondsSinceEpoch(0);
+    _rateLimitedUntil = null;
+  }
+
+  /// Xếp hàng request để toàn app không bắn nhiều request OpenAlex cùng lúc.
+  Future<T> _runRateLimited<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+
+    _requestQueue = _requestQueue.catchError((_) {}).then((_) async {
+      final now = DateTime.now();
+      final blockedUntil = _rateLimitedUntil;
+      DateTime waitUntil = _nextAllowedRequestTime;
+
+      if (blockedUntil != null && blockedUntil.isAfter(waitUntil)) {
+        waitUntil = blockedUntil;
+      }
+
+      if (waitUntil.isAfter(now)) {
+        await Future.delayed(waitUntil.difference(now));
+      }
+
+      try {
+        final result = await action();
+        completer.complete(result);
+      } catch (e, stackTrace) {
+        completer.completeError(e, stackTrace);
+      } finally {
+        _nextAllowedRequestTime = DateTime.now().add(minRequestInterval);
+      }
+    });
+
+    return completer.future;
+  }
+
+  Duration? _retryAfterDelay(http.Response response) {
+    final retryAfter = response.headers['retry-after'];
+    if (retryAfter == null || retryAfter.isEmpty) return null;
+
+    final seconds = int.tryParse(retryAfter);
+    if (seconds == null) return null;
+
+    return Duration(seconds: seconds);
+  }
+
+  Duration _capRetryDelay(Duration delay) {
+    const maxDelay = Duration(seconds: ApiConstants.maxRetryDelaySeconds);
+    return delay > maxDelay ? maxDelay : delay;
+  }
+
+  void _rememberRateLimit(Duration delay) {
+    _rateLimitedUntil = DateTime.now().add(_capRetryDelay(delay));
+  }
+
+  bool _isTransientServerError(int statusCode) {
+    return statusCode == 502 || statusCode == 503 || statusCode == 504;
+  }
+
+  /// Hàm hỗ trợ thực hiện GET request với cơ chế Retry (Exponential Backoff) và Cache
+  Future<dynamic> _getWithRetryAndCache(Uri url, {bool useCache = true}) async {
+    // Tự động thêm API Key hoặc mailto vào URL nếu chưa có
+    Map<String, String> queryParams = Map.from(url.queryParameters);
+    if (_apiKey.isNotEmpty) {
+      queryParams['api_key'] = _apiKey;
+    } else if (!queryParams.containsKey('mailto')) {
+      queryParams['mailto'] = _contactEmail;
+    }
+
+    final Uri finalUrl = url.replace(queryParameters: queryParams);
+    final String cacheKey = finalUrl.toString();
+
+    // 1. Kiểm tra cache trước
+    if (useCache && _cache.containsKey(cacheKey)) {
+      final entry = _cache[cacheKey]!;
+      if (!entry.isExpired) {
+        return entry.data;
+      } else {
+        _cache.remove(cacheKey);
+      }
+    }
+
+    if (_inFlightRequests.containsKey(cacheKey)) {
+      return _inFlightRequests[cacheKey]!;
+    }
+
+    final requestFuture = _getWithRetry(finalUrl, cacheKey, useCache: useCache);
+    _inFlightRequests[cacheKey] = requestFuture;
 
     try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'] ?? [];
-        final int totalCount = data['meta']?['count'] ?? 0;
-        
-        return {
-          'results': results.map((json) => Publication.fromJson(json)).toList(),
-          'total_count': totalCount,
-        };
-      } else {
-        throw Exception('Lỗi API: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Lỗi kết nối: $e');
+      return await requestFuture;
+    } finally {
+      _inFlightRequests.remove(cacheKey);
     }
   }
 
-  /// Tìm kiếm tác giả (Authors) có hỗ trợ phân trang
-  Future<Map<String, dynamic>> searchAuthors(String query, {int page = 1, int perPage = 10}) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}/authors').replace(
-      queryParameters: {
-        'search': query,
-        'sort': 'works_count:desc',
-        'page': page.toString(),
-        'per_page': perPage.toString(),
-        'mailto': _contactEmail,
-      },
-    );
-    
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'] ?? [];
-        final int totalCount = data['meta']?['count'] ?? 0;
-        
-        return {
-          'results': results.map((json) => Author.fromJson(json)).toList(),
-          'total_count': totalCount,
-        };
-      } else {
-        throw Exception('Lỗi API: ${response.statusCode}');
+  Future<dynamic> _getWithRetry(
+    Uri finalUrl,
+    String cacheKey, {
+    required bool useCache,
+  }) async {
+    int retryCount = 0;
+    Duration waitTime = const Duration(seconds: 1);
+
+    while (retryCount <= ApiConstants.maxRetries) {
+      try {
+        final response = await _runRateLimited(
+          () => client.get(finalUrl).timeout(requestTimeout),
+        );
+
+        if (response.statusCode == 200) {
+          final decodedData = json.decode(response.body);
+
+          // 2. Lưu vào cache nếu thành công
+          if (useCache) {
+            _cache[cacheKey] = _CacheEntry(
+              decodedData,
+              DateTime.now().add(
+                const Duration(minutes: ApiConstants.defaultCacheMinutes),
+              ),
+            );
+          }
+          return decodedData;
+        } else if (response.statusCode == 429) {
+          // Gặp lỗi Too Many Requests - Đợi rồi thử lại
+          retryCount++;
+          if (retryCount > ApiConstants.maxRetries) {
+            throw Exception(
+              'OpenAlex đang giới hạn tốc độ truy cập (429). Vui lòng đợi một chút rồi thử lại.',
+            );
+          }
+
+          final retryDelay = _retryAfterDelay(response) ?? waitTime;
+          _rememberRateLimit(retryDelay);
+
+          await Future.delayed(_capRetryDelay(retryDelay));
+          waitTime = _capRetryDelay(waitTime * 2); // Gấp đôi thời gian chờ
+          continue;
+        } else if (_isTransientServerError(response.statusCode)) {
+          retryCount++;
+          if (retryCount > ApiConstants.maxRetries) {
+            throw _OpenAlexHttpException(
+              response.statusCode,
+              'OpenAlex đang xử lý quá tải hoặc timeout. Vui lòng thử lại sau.',
+            );
+          }
+
+          await Future.delayed(_capRetryDelay(waitTime));
+          waitTime = _capRetryDelay(waitTime * 2);
+          continue;
+        } else {
+          throw _OpenAlexHttpException(
+            response.statusCode,
+            _apiErrorMessage(response),
+          );
+        }
+      } catch (e) {
+        if (e is _OpenAlexHttpException) rethrow;
+        if (e is Exception && e.toString().contains('429')) rethrow;
+
+        // Các lỗi kết nối khác cũng có thể thử lại nhẹ nhàng
+        retryCount++;
+        if (retryCount > ApiConstants.maxRetries) rethrow;
+        await Future.delayed(_capRetryDelay(waitTime));
+        waitTime = _capRetryDelay(waitTime * 2);
       }
-    } catch (e) {
-      throw Exception('Lỗi kết nối: $e');
     }
   }
 
-  /// Tìm kiếm nguồn xuất bản (Sources/Journals) với filter là journal
-  Future<Map<String, dynamic>> searchSources(String query, {int page = 1, int perPage = 10}) async {
+  String _apiErrorMessage(http.Response response) {
+    try {
+      final decoded = json.decode(response.body);
+      final message = decoded['message']?.toString();
+      if (message != null && message.isNotEmpty) return message;
+      final error = decoded['error']?.toString();
+      if (error != null && error.isNotEmpty) return error;
+    } catch (_) {
+      // Body is not always JSON.
+    }
+    return response.reasonPhrase ?? 'Không rõ nguyên nhân';
+  }
+
+  /// Tìm kiếm nguồn xuất bản (Sources/Journals).
+  ///
+  /// Nếu có query, query được hiểu là topic nghiên cứu. Service sẽ resolve
+  /// topic qua OpenAlex rồi group works theo journal source.
+  Future<Map<String, dynamic>> searchSources(
+    String query, {
+    int page = 1,
+    int perPage = 10,
+    String? topicId,
+    List<String>? topicIds,
+  }) async {
+    if (query.trim().isNotEmpty) {
+      return _searchJournalSourcesByTopic(
+        query.trim(),
+        topicId: topicId,
+        topicIds: topicIds,
+        page: page,
+        perPage: perPage,
+      );
+    }
+
     final Map<String, String> params = {
       'filter': 'type:journal',
       'sort': 'works_count:desc',
       'page': page.toString(),
       'per_page': perPage.toString(),
-      'mailto': _contactEmail,
+      'select':
+          'id,display_name,host_organization_name,type,works_count,cited_by_count',
     };
 
     if (query.isNotEmpty) {
       params['search'] = query;
     }
 
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}/sources').replace(
-      queryParameters: params,
-    );
-    
+    final Uri url = Uri.parse(
+      '${ApiConstants.baseUrl}/sources',
+    ).replace(queryParameters: params);
+
     try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'] ?? [];
-        final int totalCount = data['meta']?['count'] ?? 0;
-        
-        return {
-          'results': results.map((json) => Journal.fromJson(json)).toList(),
-          'total_count': totalCount,
-        };
-      } else {
-        throw Exception('Lỗi API: ${response.statusCode}');
-      }
+      final data = await _getWithRetryAndCache(url);
+      final List results = data['results'] ?? [];
+      final int totalCount = data['meta']?['count'] ?? 0;
+
+      return {
+        'results': results.map((json) => Journal.fromJson(json)).toList(),
+        'total_count': totalCount,
+      };
     } catch (e) {
-      throw Exception('Lỗi kết nối: $e');
+      throw Exception('Lỗi khi tìm kiếm nguồn: $e');
     }
   }
 
-  /// Tìm kiếm tổ chức/trường học (Institutions)
-  Future<List<Institution>> searchInstitutions(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}/institutions').replace(
-      queryParameters: {
-        'search': query,
-        'sort': 'works_count:desc',
-        'mailto': _contactEmail,
-      },
+  Future<Map<String, dynamic>> _searchJournalSourcesByTopic(
+    String topicQuery, {
+    String? topicId,
+    List<String>? topicIds,
+    int page = 1,
+    int perPage = 10,
+  }) async {
+    final resolvedTopicFilter = _topicFilterValue(
+      topicId: topicId,
+      topicIds: topicIds,
     );
-    return _fetchList(url, (json) => Institution.fromJson(json));
+    final topicFilter = resolvedTopicFilter?.isNotEmpty == true
+        ? resolvedTopicFilter
+        : await _resolveTopicId(topicQuery);
+    if (topicFilter == null || topicFilter.isEmpty) {
+      return {'results': <Journal>[], 'total_count': 0};
+    }
+
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter':
+                'primary_topic.id:$topicFilter,primary_location.source.type:journal',
+            'group_by': 'primary_location.source.id',
+            'page': page.toString(),
+            'per_page': perPage.toString(),
+          },
+        );
+
+    try {
+      final data = await _getWithRetryAndCache(url);
+      final List groups = data['group_by'] ?? [];
+      final journals = groups
+          .where((group) {
+            final key = group['key']?.toString() ?? '';
+            return key.isNotEmpty && key != 'unknown';
+          })
+          .map(
+            (group) => Journal(
+              id: group['key']?.toString() ?? '',
+              name:
+                  group['key_display_name']?.toString() ??
+                  group['display_name']?.toString() ??
+                  'Unknown Journal',
+              type: 'journal',
+              worksCount: (group['count'] as num?)?.toInt() ?? 0,
+            ),
+          )
+          .toList();
+
+      return {'results': journals, 'total_count': journals.length};
+    } catch (e) {
+      throw Exception('Lỗi khi tìm kiếm journal theo topic: $e');
+    }
+  }
+
+  Future<List<ResearchTopic>> searchTopics(
+    String query, {
+    int perPage = 10,
+  }) async {
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) return [];
+
+    final Uri url = Uri.parse(
+      '${ApiConstants.baseUrl}/autocomplete/topics',
+    ).replace(queryParameters: {'q': trimmedQuery});
+
+    try {
+      final data = await _getWithRetryAndCache(url);
+      final List results = data['results'] ?? [];
+      final topics = results
+          .map((json) => ResearchTopic.fromJson(json))
+          .where((topic) => topic.id.isNotEmpty && topic.name.isNotEmpty)
+          .toList();
+      final nameMatches = _topicsMatchingQueryName(topics, trimmedQuery);
+      final suggestions = nameMatches.isNotEmpty ? nameMatches : topics;
+      suggestions.sort((a, b) => b.worksCount.compareTo(a.worksCount));
+      return suggestions.take(perPage).toList();
+    } catch (e) {
+      throw Exception('Lỗi khi tìm topic: $e');
+    }
+  }
+
+  Future<String?> _resolveTopicId(String topicQuery) async {
+    final topics = await searchTopics(topicQuery, perPage: 1);
+    if (topics.isEmpty) return null;
+    return _openAlexId(topics.first.id);
+  }
+
+  String? _topicFilterValue({String? topicId, List<String>? topicIds}) {
+    final ids =
+        <String>[...?topicIds, if (topicId != null) ...topicId.split('|')]
+            .map((id) => id.trim())
+            .where((id) => id.isNotEmpty)
+            .map(_openAlexId)
+            .toSet()
+            .toList();
+
+    if (ids.isEmpty) return null;
+    return ids.join('|');
+  }
+
+  String _openAlexKeywordId(String idOrUrl) {
+    final parsed = Uri.tryParse(idOrUrl);
+    if (parsed != null && parsed.pathSegments.isNotEmpty) {
+      return parsed.pathSegments.last;
+    }
+    return idOrUrl.split('/').last;
+  }
+
+  String? _topicWorksFilter(List<String> topicIds) {
+    final topicFilter = _topicFilterValue(topicIds: topicIds);
+    if (topicFilter == null || topicFilter.isEmpty) return null;
+    return 'primary_topic.id:$topicFilter,primary_location.source.type:journal';
+  }
+
+  Future<Map<String, dynamic>> getWorksByTopics(
+    List<String> topicIds, {
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final filter = _topicWorksFilter(topicIds);
+    if (filter == null) return {'results': <Publication>[], 'total_count': 0};
+
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter': filter,
+            'sort': 'cited_by_count:desc',
+            'page': page.toString(),
+            'per_page': perPage.toString(),
+            'select': _workSelectFields,
+          },
+        );
+
+    try {
+      final data = await _getWithRetryAndCache(url);
+      final List results = data['results'] ?? [];
+      final int totalCount = data['meta']?['count'] ?? 0;
+
+      return {
+        'results': results.map((json) => Publication.fromJson(json)).toList(),
+        'total_count': totalCount,
+      };
+    } catch (e) {
+      throw Exception('Lỗi khi tải công bố theo topic: $e');
+    }
+  }
+
+  Future<List<TrendData>> getTopicPublicationTrend(
+    List<String> topicIds,
+  ) async {
+    final filter = _topicWorksFilter(topicIds);
+    if (filter == null) return [];
+
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter': filter,
+            'group_by': 'publication_year',
+            'per_page': '200',
+          },
+        );
+
+    try {
+      final data = await _getWithRetryAndCache(url);
+      final List groups = data['group_by'] ?? [];
+      final trends = groups
+          .map((json) => TrendData.fromJson(json))
+          .where((trend) => trend.year > 0)
+          .toList();
+      trends.sort((a, b) => a.year.compareTo(b.year));
+      return trends;
+    } catch (e) {
+      throw Exception('Lỗi khi tải xu hướng công bố theo topic: $e');
+    }
+  }
+
+  Future<Map<String, int>> getTopicTopAuthors(List<String> topicIds) async {
+    return _getTopicGroupedCounts(topicIds, 'authorships.author.id');
+  }
+
+  Future<Map<String, int>> getTopicTopJournals(List<String> topicIds) async {
+    return _getTopicGroupedCounts(topicIds, 'primary_location.source.id');
+  }
+
+  Future<List<Map<String, dynamic>>> getTopicTopKeywords(
+    List<String> topicIds, {
+    int perPage = 10,
+  }) {
+    return _getTopicKeywordGroups(topicIds, perPage: perPage);
+  }
+
+  Future<List<Map<String, dynamic>>> getTopicTrendingKeywords(
+    List<String> topicIds, {
+    required int fromYear,
+    int perPage = 10,
+  }) {
+    return _getTopicKeywordGroups(
+      topicIds,
+      extraFilter: 'from_publication_date:$fromYear-01-01',
+      perPage: perPage,
+    );
+  }
+
+  Future<Map<String, List<TrendData>>> getTopicKeywordTrends(
+    List<String> topicIds,
+    List<String> keywordIds, {
+    int perKeyword = 3,
+  }) async {
+    final filter = _topicWorksFilter(topicIds);
+    if (filter == null) return {};
+
+    final trends = <String, List<TrendData>>{};
+    for (final rawKeywordId in keywordIds.take(perKeyword)) {
+      final keywordId = _openAlexKeywordId(rawKeywordId);
+      if (keywordId.isEmpty) continue;
+
+      final Uri url =
+          Uri.parse(
+            '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+          ).replace(
+            queryParameters: {
+              'filter': '$filter,keywords.id:$keywordId',
+              'group_by': 'publication_year',
+              'per_page': '200',
+            },
+          );
+
+      final data = await _getWithRetryAndCache(url);
+      final List groups = data['group_by'] ?? [];
+      final keywordTrends =
+          groups
+              .map((json) => TrendData.fromJson(json))
+              .where((trend) => trend.year > 0)
+              .toList()
+            ..sort((a, b) => a.year.compareTo(b.year));
+      trends[keywordId] = keywordTrends;
+    }
+
+    return trends;
+  }
+
+  Future<List<TrendData>> getKeywordPublicationTrend(
+    List<String> topicIds,
+    String keywordId,
+  ) async {
+    final trends = await getTopicKeywordTrends(topicIds, [
+      keywordId,
+    ], perKeyword: 1);
+    return trends[_openAlexKeywordId(keywordId)] ?? [];
+  }
+
+  Future<List<Map<String, dynamic>>> getKeywordTopJournals(
+    List<String> topicIds,
+    String keywordId, {
+    int perPage = 8,
+  }) {
+    return _getKeywordGroupedCounts(
+      topicIds,
+      keywordId,
+      'primary_location.source.id',
+      perPage: perPage,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getKeywordTopAuthors(
+    List<String> topicIds,
+    String keywordId, {
+    int perPage = 8,
+  }) {
+    return _getKeywordGroupedCounts(
+      topicIds,
+      keywordId,
+      'authorships.author.id',
+      perPage: perPage,
+    );
+  }
+
+  Future<Map<String, dynamic>> getWorksByKeyword(
+    List<String> topicIds,
+    String keywordId, {
+    int page = 1,
+    int perPage = 10,
+  }) async {
+    final filter = _keywordWorksFilter(topicIds, keywordId);
+    if (filter == null) return {'results': <Publication>[], 'total_count': 0};
+
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter': filter,
+            'sort': 'cited_by_count:desc',
+            'page': page.toString(),
+            'per_page': perPage.toString(),
+            'select': _workSelectFields,
+          },
+        );
+
+    final data = await _getWithRetryAndCache(url);
+    final List results = data['results'] ?? [];
+    final int totalCount = data['meta']?['count'] ?? 0;
+
+    return {
+      'results': results.map((json) => Publication.fromJson(json)).toList(),
+      'total_count': totalCount,
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> _getKeywordGroupedCounts(
+    List<String> topicIds,
+    String keywordId,
+    String groupBy, {
+    int perPage = 8,
+  }) async {
+    final filter = _keywordWorksFilter(topicIds, keywordId);
+    if (filter == null) return [];
+
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter': filter,
+            'group_by': groupBy,
+            'per_page': perPage.toString(),
+          },
+        );
+
+    final data = await _getWithRetryAndCache(url);
+    final List groups = data['group_by'] ?? [];
+    return groups
+        .where((group) {
+          final name = group['key_display_name']?.toString() ?? '';
+          return name.isNotEmpty && name.toLowerCase() != 'unknown';
+        })
+        .map(
+          (group) => {
+            'id': group['key']?.toString() ?? '',
+            'name': group['key_display_name']?.toString() ?? '',
+            'count': (group['count'] as num?)?.toInt() ?? 0,
+          },
+        )
+        .toList();
+  }
+
+  String? _keywordWorksFilter(List<String> topicIds, String keywordId) {
+    final baseFilter = _topicWorksFilter(topicIds);
+    final normalizedKeywordId = _openAlexKeywordId(keywordId);
+    if (baseFilter == null || normalizedKeywordId.isEmpty) return null;
+    return '$baseFilter,keywords.id:$normalizedKeywordId';
+  }
+
+  Future<List<Map<String, dynamic>>> _getTopicKeywordGroups(
+    List<String> topicIds, {
+    String? extraFilter,
+    int perPage = 10,
+  }) async {
+    final filter = _topicWorksFilter(topicIds);
+    if (filter == null) return [];
+
+    final combinedFilter = extraFilter == null
+        ? filter
+        : '$filter,$extraFilter';
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter': combinedFilter,
+            'group_by': 'keywords.id',
+            'per_page': perPage.toString(),
+          },
+        );
+
+    final data = await _getWithRetryAndCache(url);
+    final List groups = data['group_by'] ?? [];
+    return groups
+        .where((group) {
+          final name = group['key_display_name']?.toString() ?? '';
+          return name.isNotEmpty && name.toLowerCase() != 'unknown';
+        })
+        .map(
+          (group) => {
+            'id': group['key']?.toString() ?? '',
+            'name': group['key_display_name']?.toString() ?? '',
+            'count': (group['count'] as num?)?.toInt() ?? 0,
+          },
+        )
+        .toList();
+  }
+
+  Future<Map<String, int>> _getTopicGroupedCounts(
+    List<String> topicIds,
+    String groupBy,
+  ) async {
+    final filter = _topicWorksFilter(topicIds);
+    if (filter == null) return {};
+
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter': filter,
+            'group_by': groupBy,
+            'per_page': '5',
+          },
+        );
+
+    try {
+      final data = await _getWithRetryAndCache(url);
+      final List groups = data['group_by'] ?? [];
+      return Map.fromEntries(
+        groups
+            .where((group) {
+              final name = group['key_display_name']?.toString() ?? '';
+              return name.isNotEmpty && name.toLowerCase() != 'unknown';
+            })
+            .map(
+              (group) => MapEntry(
+                group['key_display_name'].toString(),
+                (group['count'] as num?)?.toInt() ?? 0,
+              ),
+            ),
+      );
+    } catch (e) {
+      throw Exception('Lỗi khi tải thống kê nhóm theo topic: $e');
+    }
+  }
+
+  List<ResearchTopic> _topicsMatchingQueryName(
+    List<ResearchTopic> topics,
+    String query,
+  ) {
+    final tokens = query
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((token) => token.length > 1)
+        .toList();
+    if (tokens.isEmpty) return topics;
+
+    return topics.where((topic) {
+      final name = topic.name.toLowerCase();
+      return tokens.every(name.contains);
+    }).toList();
   }
 
   /// Lấy thông tin chi tiết của một Journal theo ID
   Future<Journal> getJournalDetails(String journalId) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}/sources/$journalId').replace(
-      queryParameters: {'mailto': _contactEmail},
-    );
+    final sourceId = _openAlexId(journalId);
+    final Uri url = Uri.parse('${ApiConstants.baseUrl}/sources/$sourceId');
 
     try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        return Journal.fromJson(json.decode(response.body));
-      } else {
-        throw Exception('Lỗi khi tải chi tiết journal: ${response.statusCode}');
-      }
+      final data = await _getWithRetryAndCache(url);
+      return Journal.fromJson(data);
     } catch (e) {
-      throw Exception('Lỗi kết nối: $e');
+      throw Exception('Lỗi khi tải chi tiết journal: $e');
     }
   }
 
@@ -151,17 +787,23 @@ class OpenAlexService {
     int page = 1,
     int perPage = 10,
     String? search,
+    List<String>? topicIds,
     int? year,
     int? minCitations,
     String? sortField,
     bool descending = true,
   }) async {
-    String filter = 'primary_location.source.id:$journalId';
+    final sourceId = _openAlexId(journalId);
+    String filter = 'primary_location.source.id:$sourceId';
     if (year != null) {
       filter += ',publication_year:$year';
     }
     if (minCitations != null && minCitations > 0) {
       filter += ',cited_by_count:>$minCitations';
+    }
+    final topicFilter = _topicFilterValue(topicIds: topicIds);
+    if (topicFilter != null && topicFilter.isNotEmpty) {
+      filter += ',primary_topic.id:$topicFilter';
     }
 
     String sort = 'publication_year:desc,cited_by_count:desc';
@@ -174,450 +816,202 @@ class OpenAlexService {
       'sort': sort,
       'page': page.toString(),
       'per_page': perPage.toString(),
-      'mailto': _contactEmail,
+      'select': _workSelectFields,
     };
 
     if (search != null && search.isNotEmpty) {
       params['search'] = search;
     }
 
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: params,
-    );
+    final Uri url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+    ).replace(queryParameters: params);
 
     try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'] ?? [];
-        final int totalCount = data['meta']?['count'] ?? 0;
+      final data = await _getWithRetryAndCache(url);
+      final List results = data['results'] ?? [];
+      final int totalCount = data['meta']?['count'] ?? 0;
 
-        return {
-          'results': results.map((json) => Publication.fromJson(json)).toList(),
-          'total_count': totalCount,
-        };
-      } else {
-        throw Exception('Lỗi API: ${response.statusCode}');
-      }
+      return {
+        'results': results.map((json) => Publication.fromJson(json)).toList(),
+        'total_count': totalCount,
+      };
     } catch (e) {
-      throw Exception('Lỗi kết nối: $e');
+      throw Exception('Lỗi khi tải bài báo theo journal: $e');
     }
   }
 
   /// Lấy dữ liệu xu hướng của một Journal theo ID
-  Future<List<TrendData>> getJournalYearlyTrend(String journalId) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'filter': 'primary_location.source.id:$journalId',
-        'group_by': 'publication_year',
-        'mailto': _contactEmail,
-      },
-    );
+  Future<List<TrendData>> getJournalYearlyTrend(
+    String journalId, {
+    List<String>? topicIds,
+  }) async {
+    final sourceId = _openAlexId(journalId);
+    String filter = 'primary_location.source.id:$sourceId';
+    final topicFilter = _topicFilterValue(topicIds: topicIds);
+    if (topicFilter != null && topicFilter.isNotEmpty) {
+      filter += ',primary_topic.id:$topicFilter';
+    }
+
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {'filter': filter, 'group_by': 'publication_year'},
+        );
 
     try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List groups = data['group_by'] ?? [];
-        
-        List<TrendData> trends = groups.map((json) => TrendData.fromJson(json)).toList();
-        trends.sort((a, b) => a.year.compareTo(b.year));
-        return trends;
-      }
-      return [];
+      final data = await _getWithRetryAndCache(url);
+      final List groups = data['group_by'] ?? [];
+
+      List<TrendData> trends = groups
+          .map((json) => TrendData.fromJson(json))
+          .toList();
+      trends.sort((a, b) => a.year.compareTo(b.year));
+      return trends;
     } catch (e) {
       return [];
     }
   }
 
   /// Lấy sự thay đổi của các chủ đề theo thời gian (Topic Evolution)
-  Future<Map<String, List<TrendData>>> getJournalTopicEvolution(String journalId) async {
+  Future<Map<String, List<TrendData>>> getJournalTopicEvolution(
+    String journalId,
+  ) async {
     try {
+      final sourceId = _openAlexId(journalId);
       final topTopics = await getJournalTopTopics(journalId);
       Map<String, List<TrendData>> evolution = {};
-      
+
       // Lấy dữ liệu cho top 3 topics
       for (var topic in topTopics.take(3)) {
         final name = topic['name'] as String;
         final id = topic['id'] as String;
         if (id.isEmpty) continue;
 
-        final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-          queryParameters: {
-            'filter': 'primary_location.source.id:$journalId,primary_topic.id:$id',
-            'group_by': 'publication_year',
-            'mailto': _contactEmail,
-          },
-        );
+        final filterField =
+            topic['filter_field'] as String? ?? 'primary_topic.id';
+        final Uri url =
+            Uri.parse(
+              '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+            ).replace(
+              queryParameters: {
+                'filter':
+                    'primary_location.source.id:$sourceId,$filterField:$id',
+                'group_by': 'publication_year',
+              },
+            );
 
-        final response = await client.get(url);
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          final List groups = data['group_by'] ?? [];
-          List<TrendData> trends = groups.map((json) => TrendData.fromJson(json)).toList();
-          trends.sort((a, b) => a.year.compareTo(b.year));
-          evolution[name] = trends;
-        }
+        final data = await _getWithRetryAndCache(url);
+        final List groups = data['group_by'] ?? [];
+        List<TrendData> trends = groups
+            .map((json) => TrendData.fromJson(json))
+            .toList();
+        trends.sort((a, b) => a.year.compareTo(b.year));
+        evolution[name] = trends;
       }
       return evolution;
     } catch (e) {
       return {};
     }
   }
-  Future<List<Map<String, dynamic>>> getJournalTopTopics(String journalId) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'filter': 'primary_location.source.id:$journalId',
-        'group_by': 'primary_topic.id',
-        'mailto': _contactEmail,
-      },
-    );
+
+  Future<List<Map<String, dynamic>>> getJournalTopTopics(
+    String journalId,
+  ) async {
+    final sourceId = _openAlexId(journalId);
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter': 'primary_location.source.id:$sourceId',
+            'group_by': 'primary_topic.id',
+          },
+        );
 
     try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List groups = data['group_by'] ?? [];
-        return groups
-            .where((json) => (json['key_display_name'] != null || json['display_name'] != null) && 
-                            json['key_display_name'] != 'Unknown' && json['display_name'] != 'Unknown')
-            .take(5)
-            .map((json) => {
-              'id': json['key']?.split('/').last ?? '',
-              'name': json['key_display_name'] ?? json['display_name'],
-              'count': json['count'] ?? 0,
-            }).toList();
-      }
-      return [];
+      final data = await _getWithRetryAndCache(url);
+      final topics = _mapTopicGroups(
+        data['group_by'] ?? [],
+        filterField: 'primary_topic.id',
+      );
+      if (topics.isNotEmpty) return topics;
+
+      final fallbackUrl =
+          Uri.parse(
+            '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+          ).replace(
+            queryParameters: {
+              'filter': 'primary_location.source.id:$sourceId',
+              'group_by': 'concepts.id',
+            },
+          );
+      final fallbackData = await _getWithRetryAndCache(fallbackUrl);
+      return _mapTopicGroups(
+        fallbackData['group_by'] ?? [],
+        filterField: 'concepts.id',
+      );
     } catch (e) {
       return [];
     }
+  }
+
+  List<Map<String, dynamic>> _mapTopicGroups(
+    List groups, {
+    required String filterField,
+  }) {
+    return groups
+        .where(
+          (json) =>
+              (json['key_display_name'] != null ||
+                  json['display_name'] != null) &&
+              json['key_display_name'] != 'Unknown' &&
+              json['display_name'] != 'Unknown',
+        )
+        .take(5)
+        .map(
+          (json) => {
+            'id': json['key']?.split('/').last ?? '',
+            'name': json['key_display_name'] ?? json['display_name'],
+            'count': json['count'] ?? 0,
+            'filter_field': filterField,
+          },
+        )
+        .toList();
   }
 
   /// Tìm kiếm bài báo theo ID tác giả có hỗ trợ phân trang
-  Future<Map<String, dynamic>> getWorksByAuthor(String authorId, {int page = 1, int perPage = 10}) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'filter': 'author.id:$authorId',
-        'sort': 'cited_by_count:desc',
-        'page': page.toString(),
-        'per_page': perPage.toString(),
-        'mailto': _contactEmail,
-      },
-    );
-    
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'] ?? [];
-        final int totalCount = data['meta']?['count'] ?? 0;
-        
-        return {
-          'results': results.map((json) => Publication.fromJson(json)).toList(),
-          'total_count': totalCount,
-        };
-      } else {
-        throw Exception('Lỗi API: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Lỗi kết nối: $e');
-    }
-  }
-
-  /// Hàm dùng chung để lấy danh sách từ API
-  Future<List<T>> _fetchList<T>(Uri url, T Function(Map<String, dynamic>) mapper) async {
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'] ?? [];
-        return results.map((json) => mapper(json)).toList();
-      } else {
-        throw Exception('Lỗi API: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Lỗi kết nối: $e');
-    }
-  }
-
-  /// Lấy dữ liệu xu hướng số lượng bài báo theo năm của một chủ đề
-  Future<List<TrendData>> getYearlyTrend(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'group_by': 'publication_year',
-        'mailto': _contactEmail,
-      },
-    );
+  Future<Map<String, dynamic>> getWorksByAuthor(
+    String authorId, {
+    int page = 1,
+    int perPage = 10,
+  }) async {
+    final normalizedAuthorId = _openAlexId(authorId);
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter': 'author.id:$normalizedAuthorId',
+            'sort': 'cited_by_count:desc',
+            'page': page.toString(),
+            'per_page': perPage.toString(),
+            'select': _workSelectFields,
+          },
+        );
 
     try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List groups = data['group_by'] ?? [];
-        
-        List<TrendData> trends = groups.map((json) => TrendData.fromJson(json)).toList();
-        trends.sort((a, b) => a.year.compareTo(b.year));
-        
-        if (trends.length > 10) {
-          trends = trends.sublist(trends.length - 10);
-        }
-        
-        return trends;
-      } else {
-        throw Exception('Lỗi khi tải dữ liệu xu hướng: ${response.statusCode}');
-      }
+      final data = await _getWithRetryAndCache(url);
+      final List results = data['results'] ?? [];
+      final int totalCount = data['meta']?['count'] ?? 0;
+
+      return {
+        'results': results.map((json) => Publication.fromJson(json)).toList(),
+        'total_count': totalCount,
+      };
     } catch (e) {
-      throw Exception('Lỗi kết nối API: $e');
-    }
-  }
-
-  /// Lấy danh sách các từ khóa phổ biến (Concepts) của một chủ đề
-  Future<List<Map<String, dynamic>>> getTopKeywords(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'group_by': 'concepts.id',
-        'mailto': ApiConstants.contactEmail,
-      },
-    );
-
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List groups = data['group_by'] ?? [];
-        
-        // Lọc bỏ các mục không có tên hoặc là "Unknown"
-        return groups
-            .where((json) => json['display_name'] != null && 
-                            json['display_name'].toString().isNotEmpty &&
-                            json['display_name'] != 'Unknown')
-            .take(10)
-            .map((json) => {
-              'name': json['display_name'],
-              'count': json['count'] ?? 0,
-            }).toList();
-      } else {
-        throw Exception('Lỗi khi tải dữ liệu từ khóa: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Lỗi kết nối API: $e');
-    }
-  }
-
-  /// Lấy dữ liệu bài báo theo quốc gia
-  Future<List<Map<String, dynamic>>> getCountryOutput(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'group_by': 'institutions.country_code',
-        'mailto': _contactEmail,
-      },
-    );
-
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List groups = data['group_by'] ?? [];
-        
-        return groups
-            .where((json) => json['key'] != null && json['key'] != 'Unknown')
-            .map((json) {
-              String rawName = json['display_name'] ?? '';
-              if (rawName.startsWith('http')) {
-                final uri = Uri.parse(rawName);
-                rawName = uri.pathSegments.last;
-              }
-              
-              return {
-                'country_code': json['key'],
-                'name': rawName.isNotEmpty ? rawName : json['key'],
-                'count': json['count'] ?? 0,
-              };
-            }).toList();
-      } else {
-        throw Exception('Lỗi khi tải dữ liệu quốc gia: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Lỗi kết nối API: $e');
-    }
-  }
-
-  /// Lấy danh sách các tạp chí phổ biến nhất cho chủ đề
-  Future<List<Map<String, dynamic>>> getTopJournals(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'group_by': 'primary_location.source.id',
-        'mailto': _contactEmail,
-      },
-    );
-
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List groups = data['group_by'] ?? [];
-        
-        return groups
-            .where((json) => json['display_name'] != null && 
-                            json['display_name'].toString().isNotEmpty &&
-                            json['display_name'] != 'Unknown Journal' &&
-                            json['key'] != 'null')
-            .take(10)
-            .map((json) => {
-              'name': json['display_name'],
-              'count': json['count'] ?? 0,
-            }).toList();
-      } else {
-        throw Exception('Lỗi khi tải dữ liệu tạp chí: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Lỗi kết nối API: $e');
-    }
-  }
-
-  /// Lấy danh sách tác giả hàng đầu cho chủ đề
-  Future<List<Map<String, dynamic>>> getTopAuthorsByTopic(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'group_by': 'authorships.author.id',
-        'mailto': _contactEmail,
-      },
-    );
-
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List groups = data['group_by'] ?? [];
-        
-        return groups
-            .where((json) => json['display_name'] != null && 
-                            json['display_name'].toString().isNotEmpty &&
-                            json['key'] != 'null')
-            .take(10)
-            .map((json) => {
-              'name': json['display_name'],
-              'count': json['count'] ?? 0,
-            }).toList();
-      } else {
-        throw Exception('Lỗi khi tải dữ liệu tác giả: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Lỗi kết nối API: $e');
-    }
-  }
-
-  /// Lấy danh sách các bài báo có ảnh hưởng nhất (tên thật)
-  Future<List<Map<String, dynamic>>> getTopInfluentialWorks(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'sort': 'cited_by_count:desc',
-        'per_page': '5',
-        'mailto': _contactEmail,
-      },
-    );
-
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'] ?? [];
-        
-        return results.map((json) => {
-          'name': json['display_name'] ?? 'Ấn phẩm chưa xác định',
-          'count': json['cited_by_count'] ?? 0,
-        }).toList();
-      }
-      return [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /// Lấy dữ liệu phân bổ chất lượng bài báo (Dựa trên Citation Percentile thực tế)
-  Future<List<Map<String, dynamic>>> getQuartileDistribution(String query) async {
-    // Thay vì dùng group_by (vốn không hỗ trợ Quartile trực tiếp), 
-    // ta lấy top 50 bài báo và tính toán phân bổ dựa trên percentile thực tế từ OpenAlex.
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'sort': 'cited_by_count:desc',
-        'per_page': '50',
-        'select': 'citation_normalized_percentile',
-        'mailto': _contactEmail,
-      },
-    );
-
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'] ?? [];
-        
-        int q1 = 0; // 75-100
-        int q2 = 0; // 50-75
-        int q3 = 0; // 25-50
-        int q4 = 0; // 0-25
-        
-        for (var work in results) {
-          final percentile = work['citation_normalized_percentile']?['value'];
-          if (percentile != null) {
-            double val = (percentile as num).toDouble();
-            if (val >= 75) q1++;
-            else if (val >= 50) q2++;
-            else if (val >= 25) q3++;
-            else q4++;
-          }
-        }
-        
-        // Nếu không có dữ liệu percentile (ví dụ bài báo quá mới), trả về rỗng để UI xử lý
-        int total = q1 + q2 + q3 + q4;
-        if (total == 0) return [];
-
-        return [
-          {'name': 'Q1 (Top 25%)', 'count': q1, 'percentage': (q1 / total * 100).round(), 'color': '#15803D'},
-          {'name': 'Q2 (50-75%)', 'count': q2, 'percentage': (q2 / total * 100).round(), 'color': '#B45309'},
-          {'name': 'Q3 (25-50%)', 'count': q3, 'percentage': (q3 / total * 100).round(), 'color': '#B8422E'},
-          {'name': 'Q4 (Bottom 25%)', 'count': q4, 'percentage': (q4 / total * 100).round(), 'color': '#6C7278'},
-        ];
-      }
-      return [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /// Xếp hạng tổ chức (Institution Ranking)
-  Future<List<Map<String, dynamic>>> getInstitutionRanking(String query) async {
-    final Uri url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}').replace(
-      queryParameters: {
-        'search': query,
-        'group_by': 'authorships.institutions.id',
-        'mailto': _contactEmail,
-      },
-    );
-
-    try {
-      final response = await client.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List groups = data['group_by'] ?? [];
-        
-        return groups.take(10).map((json) => {
-          'name': json['display_name'] ?? 'Tổ chức chưa xác định',
-          'count': json['count'] ?? 0,
-        }).toList();
-      }
-      return [];
-    } catch (e) {
-      return [];
+      throw Exception('Lỗi khi tải bài báo theo tác giả: $e');
     }
   }
 }

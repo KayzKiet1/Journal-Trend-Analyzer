@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/publication_controller.dart';
-import 'controllers/analysis_controller.dart';
+import 'controllers/journal_library_controller.dart';
+import 'controllers/firebase_demo_controller.dart';
+import 'controllers/notification_controller.dart';
 import 'controllers/user_controller.dart';
+import 'firebase/firebase_initializer.dart';
 import 'screens/main_screen.dart';
 import 'utils/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeFirebase();
   runApp(const JournalTrendAnalyzerApp());
 }
 
@@ -19,9 +24,25 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => PublicationController()),
-        ChangeNotifierProvider(create: (_) => AnalysisController()),
         ChangeNotifierProvider(create: (_) => UserController()),
+        ChangeNotifierProxyProvider<UserController, PublicationController>(
+          create: (_) => PublicationController(),
+          update: (_, userController, publicationController) {
+            final controller =
+                publicationController ?? PublicationController();
+            final contactEmail = userController.authEmail.isNotEmpty
+                ? userController.authEmail
+                : userController.email;
+            controller.syncApiService(
+              contactEmail,
+              apiKey: userController.apiKey,
+            );
+            return controller;
+          },
+        ),
+        ChangeNotifierProvider(create: (_) => JournalLibraryController()),
+        ChangeNotifierProvider(create: (_) => FirebaseDemoController()),
+        ChangeNotifierProvider(create: (_) => NotificationController()),
       ],
       child: MaterialApp(
         title: 'Journal Trend Analyzer',

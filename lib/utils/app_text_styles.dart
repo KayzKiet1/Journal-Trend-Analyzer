@@ -38,12 +38,12 @@ class AppTextStyles {
     fontSize: 12.0,
     fontWeight: FontWeight.bold,
     color: AppColors.textSecondary,
-    letterSpacing: 0.5,
+    letterSpacing: 0,
   );
 
   /// Trả về labelCaps với hiệu ứng viết hoa hoàn toàn
   static TextStyle get labelCapsUpper => labelCaps.copyWith(
-    // Flutter doesn't have a direct 'uppercase' text style property, 
+    // Flutter doesn't have a direct 'uppercase' text style property,
     // it's usually handled by .toUpperCase() on the string.
   );
 
@@ -57,5 +57,6 @@ class AppTextStyles {
   // Deprecated/Legacy aliases for compatibility
   static TextStyle get bodyMedium => bodySmall;
   static TextStyle get caption => labelCaps;
-  static TextStyle get statValue => h2.copyWith(color: AppColors.accent, fontSize: 22);
+  static TextStyle get statValue =>
+      h2.copyWith(color: AppColors.accent, fontSize: 22);
 }

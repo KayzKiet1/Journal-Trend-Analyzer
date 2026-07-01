@@ -4,8 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/journal_model.dart';
 import '../models/publication_model.dart';
 import '../models/trend_data_model.dart';
+import '../controllers/journal_library_controller.dart';
+import '../firebase/firebase_analytics_service.dart';
 import '../services/openalex_service.dart';
-import '../controllers/publication_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
@@ -13,16 +14,19 @@ import '../widgets/publication_card.dart';
 import '../widgets/year_trend_chart.dart';
 import '../widgets/loading_widget.dart';
 import 'publication_detail_screen.dart';
-import 'dashboard_screen.dart';
 
 class JournalDetailScreen extends StatefulWidget {
   final String journalId;
   final String journalName;
+  final List<String> topicIds;
+  final String? topicLabel;
 
   const JournalDetailScreen({
     super.key,
     required this.journalId,
     required this.journalName,
+    this.topicIds = const [],
+    this.topicLabel,
   });
 
   @override
@@ -41,6 +45,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   final int _perPage = 10;
   final ScrollController _scrollController = ScrollController();
   final OpenAlexService _apiService = OpenAlexService();
+  final FirebaseAnalyticsService _analyticsService = FirebaseAnalyticsService();
 
   // Filter and Search states
   final TextEditingController _searchController = TextEditingController();
@@ -55,6 +60,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _analyticsService.logViewJournal(journalName: widget.journalName);
     _loadInitialData();
   }
 
@@ -70,8 +76,15 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
     try {
       final results = await Future.wait([
         _apiService.getJournalDetails(widget.journalId),
-        _apiService.getWorksByJournal(widget.journalId, page: 1),
-        _apiService.getJournalYearlyTrend(widget.journalId),
+        _apiService.getWorksByJournal(
+          widget.journalId,
+          page: 1,
+          topicIds: widget.topicIds,
+        ),
+        _apiService.getJournalYearlyTrend(
+          widget.journalId,
+          topicIds: widget.topicIds,
+        ),
         _apiService.getJournalTopTopics(widget.journalId),
       ]);
 
@@ -84,6 +97,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         _topTopics = results[3] as List<Map<String, dynamic>>;
         _isLoading = false;
       });
+      if (mounted && _journal != null) {
+        context.read<JournalLibraryController>().addRecentViewed(_journal!);
+      }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -106,7 +122,10 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       final worksData = await _apiService.getWorksByJournal(
         widget.journalId,
         page: _currentPage,
-        search: _searchController.text.isNotEmpty ? _searchController.text : null,
+        topicIds: widget.topicIds,
+        search: _searchController.text.isNotEmpty
+            ? _searchController.text
+            : null,
         year: _selectedYear,
         minCitations: _minCitations,
         sortField: _sortField,
@@ -147,17 +166,32 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
           children: [
             const Icon(Icons.book_outlined, size: 20),
             const SizedBox(width: 8),
-            const Text('Source', style: TextStyle(fontSize: 16)),
+            const Text('Journal Detail', style: TextStyle(fontSize: 16)),
           ],
         ),
         elevation: 0,
+        actions: [
+          if (_journal != null)
+            Consumer<JournalLibraryController>(
+              builder: (context, library, child) {
+                final isFavorite = library.isFavorite(_journal!.id);
+                return IconButton(
+                  tooltip: isFavorite ? 'Bỏ lưu journal' : 'Lưu journal',
+                  icon: Icon(isFavorite ? Icons.star : Icons.star_border),
+                  onPressed: () => library.toggleFavorite(_journal!),
+                );
+              },
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         controller: _scrollController,
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
+            constraints: const BoxConstraints(
+              maxWidth: AppSpacing.maxContentWidth,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -165,39 +199,11 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   _journal?.name ?? widget.journalName,
                   style: AppTextStyles.h1,
                 ),
-                const SizedBox(height: AppSpacing.md),
-
-                // Analysis Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.read<PublicationController>().setLastAnalysis(_journal, _trends);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DashboardScreen(
-                            route: 'keywords',
-                            journal: _journal,
-                            trends: _trends,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.analytics_outlined),
-                    label: const Text('Go to Keywords Analysis'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppSpacing.radiusMd,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                if (widget.topicLabel != null &&
+                    widget.topicLabel!.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildHomeTopicScope(),
+                ],
                 const SizedBox(height: AppSpacing.lg),
 
                 // Top section: Re-integrating layout to match screenshot
@@ -272,7 +278,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         children: [
           _buildInfoRow('Homepage', _journal?.homepageUrl, isLink: true),
           _buildInfoRow('ISSNs', _journal?.issns.join(', ')),
-          _buildInfoRow('Source type', _journal?.type),
+          _buildInfoRow('Journal type', _journal?.type),
           _buildInfoRow('Publisher', _journal?.publisher),
           _buildInfoRow('Alternate names', _journal?.alternateNames.join(', ')),
           const Divider(height: 32),
@@ -310,7 +316,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
             child: Text(
               value,
               style: AppTextStyles.bodyMedium.copyWith(
-                color: isLink ? Colors.blue : AppColors.primary,
+                color: isLink ? AppColors.accent : AppColors.primary,
                 decoration: isLink ? TextDecoration.underline : null,
               ),
             ),
@@ -330,22 +336,24 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       ),
       child: Column(
         children: [
-          _buildStatItem('Works count', _journal?.worksCount.toString()),
+          _buildStatItem('Publications', _journal?.worksCount.toString()),
           _buildStatItem('Citation count', _journal?.citedByCount.toString()),
           _buildStatItem(
-            'H-index', 
+            'H-index',
             _journal?.hIndex?.toString(),
-            tooltip: 'Chỉ số đo lường năng suất và tác động trích dẫn. Chỉ số h là số h bài báo có ít nhất h lượt trích dẫn.',
+            tooltip:
+                'Chỉ số đo lường năng suất và tác động trích dẫn. Chỉ số h là số h bài báo có ít nhất h lượt trích dẫn.',
           ),
           _buildStatItem(
-            'I10-index', 
+            'I10-index',
             _journal?.i10Index?.toString(),
             tooltip: 'Số lượng bài báo có ít nhất 10 lượt trích dẫn.',
           ),
           _buildStatItem(
             '2yr mean citedness',
             _journal?.twoYearMeanCitedness?.toStringAsFixed(3),
-            tooltip: 'Số lượng trích dẫn trung bình của các bài báo được xuất bản trong 2 năm gần nhất (Tương đương Impact Factor).',
+            tooltip:
+                'Số lượng trích dẫn trung bình của các bài báo được xuất bản trong 2 năm gần nhất (Tương đương Impact Factor).',
           ),
         ],
       ),
@@ -378,7 +386,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                   ),
-                  textStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.background),
+                  textStyle: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.background,
+                  ),
                   child: const Icon(
                     Icons.help_outline,
                     size: 14,
@@ -451,7 +461,10 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       final worksData = await _apiService.getWorksByJournal(
         widget.journalId,
         page: _currentPage,
-        search: _searchController.text.isNotEmpty ? _searchController.text : null,
+        topicIds: widget.topicIds,
+        search: _searchController.text.isNotEmpty
+            ? _searchController.text
+            : null,
         year: _selectedYear,
         minCitations: _minCitations,
         sortField: _sortField,
@@ -467,6 +480,24 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
     }
   }
 
+  Widget _buildHomeTopicScope() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.secondary, width: 1),
+      ),
+      child: Text(
+        'Research scope: ${widget.topicLabel}',
+        style: AppTextStyles.bodySmall,
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
   Widget _buildWorksList() {
     int totalPages = (_totalWorks / _perPage).ceil();
     if (totalPages == 0 && _totalWorks > 0) totalPages = 1;
@@ -477,10 +508,10 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('RECENT WORKS', style: AppTextStyles.labelCaps),
+            Text('RECENT PUBLICATIONS', style: AppTextStyles.labelCaps),
             if (_totalWorks > 0)
               Text(
-                '$_totalWorks works',
+                '$_totalWorks publications',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.secondary,
                 ),
@@ -540,26 +571,28 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('SEARCH & FILTER', style: AppTextStyles.labelCaps.copyWith(fontSize: 10)),
+          Text(
+            'SEARCH & FILTER',
+            style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
+          ),
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _searchController,
             style: AppTextStyles.bodySmall,
             decoration: InputDecoration(
               hintText: 'Tìm theo tên bài báo...',
-              hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
-              prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondary),
+              hintStyle: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.secondary,
+              ),
+              prefixIcon: const Icon(
+                Icons.search,
+                size: 18,
+                color: AppColors.secondary,
+              ),
               isDense: true,
               filled: true,
               fillColor: AppColors.background.withValues(alpha: 0.5),
@@ -579,8 +612,19 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   label: 'NĂM XUẤT BẢN',
                   value: _selectedYear,
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('Tất cả', style: TextStyle(fontSize: 12))),
-                    ...availableYears.map((y) => DropdownMenuItem(value: y, child: Text(y.toString(), style: TextStyle(fontSize: 12)))),
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('Tất cả', style: TextStyle(fontSize: 12)),
+                    ),
+                    ...availableYears.map(
+                      (y) => DropdownMenuItem(
+                        value: y,
+                        child: Text(
+                          y.toString(),
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
                   ],
                   onChanged: (val) {
                     setState(() => _selectedYear = val);
@@ -594,8 +638,21 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   label: 'LƯỢT TRÍCH DẪN',
                   value: _minCitations,
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('Tất cả', style: TextStyle(fontSize: 12))),
-                    ..._citationOptions.where((opt) => opt > 0).map((opt) => DropdownMenuItem(value: opt, child: Text('$opt+', style: TextStyle(fontSize: 12)))),
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('Tất cả', style: TextStyle(fontSize: 12)),
+                    ),
+                    ..._citationOptions
+                        .where((opt) => opt > 0)
+                        .map(
+                          (opt) => DropdownMenuItem(
+                            value: opt,
+                            child: Text(
+                              '$opt+',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ),
                   ],
                   onChanged: (val) {
                     setState(() => _minCitations = val);
@@ -613,8 +670,20 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   label: 'SẮP XẾP THEO',
                   value: _sortField,
                   items: const [
-                    DropdownMenuItem(value: 'publication_year', child: Text('Năm xuất bản', style: TextStyle(fontSize: 12))),
-                    DropdownMenuItem(value: 'cited_by_count', child: Text('Lượt trích dẫn', style: TextStyle(fontSize: 12))),
+                    DropdownMenuItem(
+                      value: 'publication_year',
+                      child: Text(
+                        'Năm xuất bản',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'cited_by_count',
+                      child: Text(
+                        'Lượt trích dẫn',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
                   ],
                   onChanged: (val) {
                     if (val != null) {
@@ -630,8 +699,14 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   label: 'THỨ TỰ',
                   value: _isDescending,
                   items: const [
-                    DropdownMenuItem(value: true, child: Text('Giảm dần', style: TextStyle(fontSize: 12))),
-                    DropdownMenuItem(value: false, child: Text('Tăng dần', style: TextStyle(fontSize: 12))),
+                    DropdownMenuItem(
+                      value: true,
+                      child: Text('Giảm dần', style: TextStyle(fontSize: 12)),
+                    ),
+                    DropdownMenuItem(
+                      value: false,
+                      child: Text('Tăng dần', style: TextStyle(fontSize: 12)),
+                    ),
                   ],
                   onChanged: (val) {
                     if (val != null) {
@@ -657,7 +732,13 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.labelCaps.copyWith(fontSize: 9, color: AppColors.secondary)),
+        Text(
+          label,
+          style: AppTextStyles.labelCaps.copyWith(
+            fontSize: 9,
+            color: AppColors.secondary,
+          ),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -669,7 +750,11 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
             child: DropdownButton<T>(
               value: value,
               isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.secondary),
+              icon: const Icon(
+                Icons.keyboard_arrow_down,
+                size: 16,
+                color: AppColors.secondary,
+              ),
               items: items,
               onChanged: onChanged,
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),

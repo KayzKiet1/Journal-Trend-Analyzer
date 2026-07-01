@@ -1,0 +1,266 @@
+import 'package:flutter/material.dart';
+import '../firebase/firebase_analytics_service.dart';
+import '../models/publication_model.dart';
+import '../models/trend_data_model.dart';
+import '../services/openalex_service.dart';
+import '../utils/app_colors.dart';
+import '../utils/app_spacing.dart';
+import '../utils/app_text_styles.dart';
+import '../widgets/horizontal_bar_chart.dart';
+import '../widgets/publication_card.dart';
+import '../widgets/year_trend_chart.dart';
+import 'publication_detail_screen.dart';
+
+class KeywordDetailScreen extends StatefulWidget {
+  final String keywordId;
+  final String keywordName;
+  final int keywordCount;
+  final List<String> topicIds;
+  final String topicLabel;
+
+  const KeywordDetailScreen({
+    super.key,
+    required this.keywordId,
+    required this.keywordName,
+    required this.keywordCount,
+    required this.topicIds,
+    required this.topicLabel,
+  });
+
+  @override
+  State<KeywordDetailScreen> createState() => _KeywordDetailScreenState();
+}
+
+class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
+  final OpenAlexService _apiService = OpenAlexService();
+  final FirebaseAnalyticsService _analyticsService = FirebaseAnalyticsService();
+  bool _isLoading = true;
+  String _error = '';
+  String _warning = '';
+  List<TrendData> _trends = [];
+  List<Map<String, dynamic>> _journals = [];
+  List<Map<String, dynamic>> _authors = [];
+  List<Publication> _publications = [];
+  int _totalPublications = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _analyticsService.logViewKeyword(keyword: widget.keywordName);
+    _loadKeywordDetail();
+  }
+
+  Future<void> _loadKeywordDetail() async {
+    setState(() {
+      _isLoading = true;
+      _error = '';
+      _warning = '';
+    });
+
+    try {
+      final warnings = <String>[];
+      Future<T> loadPart<T>(
+        String label,
+        Future<T> Function() loader,
+        T fallback,
+      ) async {
+        try {
+          return await loader();
+        } catch (_) {
+          warnings.add(label);
+          return fallback;
+        }
+      }
+
+      final trends = await loadPart<List<TrendData>>(
+        'publication trend',
+        () => _apiService.getKeywordPublicationTrend(
+          widget.topicIds,
+          widget.keywordId,
+        ),
+        <TrendData>[],
+      );
+      final journals = await loadPart<List<Map<String, dynamic>>>(
+        'related journals',
+        () => _apiService.getKeywordTopJournals(
+          widget.topicIds,
+          widget.keywordId,
+          perPage: 5,
+        ),
+        <Map<String, dynamic>>[],
+      );
+      final authors = await loadPart<List<Map<String, dynamic>>>(
+        'top authors',
+        () => _apiService.getKeywordTopAuthors(
+          widget.topicIds,
+          widget.keywordId,
+          perPage: 5,
+        ),
+        <Map<String, dynamic>>[],
+      );
+      final worksData = await loadPart<Map<String, dynamic>>(
+        'related publications',
+        () => _apiService.getWorksByKeyword(
+          widget.topicIds,
+          widget.keywordId,
+          perPage: 5,
+        ),
+        {'results': <Publication>[], 'total_count': 0},
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _trends = trends;
+        _journals = journals;
+        _authors = authors;
+        _publications = worksData['results'] as List<Publication>;
+        _totalPublications = worksData['total_count'] as int? ?? 0;
+        _warning = warnings.isEmpty
+            ? ''
+            : 'Một vài phần dữ liệu OpenAlex đang quá tải nên đã được bỏ qua tạm thời: ${warnings.join(', ')}.';
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Không thể tải phân tích keyword từ OpenAlex: $error';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Keyword Analysis')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppSpacing.maxContentWidth,
+          ),
+          child: _buildBody(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.accent),
+      );
+    }
+
+    if (_error.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: _buildNotice(_error),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.keywordName, style: AppTextStyles.h1),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Research scope: ${widget.topicLabel}',
+            style: AppTextStyles.bodySmall,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _buildSummary(),
+          if (_warning.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _buildNotice(_warning),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          YearTrendChart(
+            trends: _trends,
+            forceLineChart: true,
+            title: 'Publication trend over time',
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          HorizontalBarChart(data: _journals, title: 'Related journals'),
+          const SizedBox(height: AppSpacing.lg),
+          HorizontalBarChart(data: _authors, title: 'Top authors'),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Authors are ranked by the number of matching publications.',
+            style: AppTextStyles.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text('RELATED PUBLICATIONS', style: AppTextStyles.h2),
+          const SizedBox(height: AppSpacing.md),
+          if (_publications.isEmpty)
+            _buildNotice('Không có công bố liên quan.')
+          else
+            ..._publications.map(
+              (publication) => PublicationCard(
+                title: publication.title,
+                year: publication.publicationYear.toString(),
+                journal: publication.journalName,
+                authors: publication.authorsString,
+                citations: publication.citedByCount,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PublicationDetailScreen(publication: publication),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummary() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.secondary, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ANALYSIS SCOPE', style: AppTextStyles.labelCaps),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '${_compactCount(_totalPublications)} journal publications match this keyword within the selected research topics.',
+            style: AppTextStyles.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotice(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.secondary, width: 1),
+      ),
+      child: Text(message, style: AppTextStyles.bodySmall),
+    );
+  }
+
+  String _compactCount(int value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
+    return value.toString();
+  }
+}

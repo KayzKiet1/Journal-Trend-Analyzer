@@ -44,7 +44,10 @@ class DonutChart extends StatelessWidget {
                         value: (item['count'] as num).toDouble(),
                         title: '$percentage%',
                         radius: 50,
-                        titleStyle: AppTextStyles.labelCaps.copyWith(color: Colors.white, fontSize: 10),
+                        titleStyle: AppTextStyles.labelCaps.copyWith(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
                       );
                     }).toList(),
                   ),
@@ -62,9 +65,25 @@ class DonutChart extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                       child: Row(
                         children: [
-                          Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
                           const SizedBox(width: 8),
-                          Text(item['name'], style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+                          Expanded(
+                            child: Text(
+                              item['name'],
+                              style: AppTextStyles.bodySmall.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                     );

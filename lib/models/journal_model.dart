@@ -6,7 +6,7 @@ class Journal {
   final String? publisher;
   final int worksCount;
   final int citedByCount;
-  
+
   // New fields for detailed view
   final String? homepageUrl;
   final List<String> issns;
@@ -20,7 +20,7 @@ class Journal {
   final List<JournalYearlyData> countsByYear;
 
   Journal({
-    required this.id, 
+    required this.id,
     required this.name,
     this.type,
     this.publisher,
@@ -41,11 +41,15 @@ class Journal {
   /// Chuyển đổi từ dữ liệu JSON của OpenAlex sang đối tượng Journal
   factory Journal.fromJson(Map<String, dynamic> json) {
     // Xử lý cả trường hợp source nằm trong location hoặc là entity độc lập
-    final Map<String, dynamic> sourceData = json.containsKey('source') ? json['source'] : json;
+    final Map<String, dynamic> sourceData = json.containsKey('source')
+        ? json['source']
+        : json;
 
-    final List<JournalYearlyData> yearlyData = (json['counts_by_year'] as List?)
+    final List<JournalYearlyData> yearlyData =
+        (json['counts_by_year'] as List?)
             ?.map((e) => JournalYearlyData.fromJson(e))
-            .toList() ?? [];
+            .toList() ??
+        [];
 
     return Journal(
       id: sourceData['id'] ?? '',
@@ -55,16 +59,74 @@ class Journal {
       worksCount: json['works_count'] ?? 0,
       citedByCount: json['cited_by_count'] ?? 0,
       homepageUrl: sourceData['homepage_url'],
-      issns: (sourceData['issn'] as List?)?.map((e) => e.toString()).toList() ?? [],
-      alternateNames: (sourceData['alternate_titles'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      issns:
+          (sourceData['issn'] as List?)?.map((e) => e.toString()).toList() ??
+          [],
+      alternateNames:
+          (sourceData['alternate_titles'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
       isOa: sourceData['is_oa'] ?? false,
       isInDoaj: sourceData['is_in_doaj'] ?? false,
       apcUsd: sourceData['apc_usd'],
       hIndex: json['summary_stats']?['h_index'],
       i10Index: json['summary_stats']?['i10_index'],
-      twoYearMeanCitedness: (json['summary_stats']?['2yr_mean_citedness'] as num?)?.toDouble(),
+      twoYearMeanCitedness:
+          (json['summary_stats']?['2yr_mean_citedness'] as num?)?.toDouble(),
       countsByYear: yearlyData,
     );
+  }
+
+  factory Journal.fromStoredJson(Map<String, dynamic> json) {
+    return Journal(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown Source',
+      type: json['type']?.toString(),
+      publisher: json['publisher']?.toString(),
+      worksCount: json['works_count'] as int? ?? 0,
+      citedByCount: json['cited_by_count'] as int? ?? 0,
+      homepageUrl: json['homepage_url']?.toString(),
+      issns: (json['issns'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      alternateNames:
+          (json['alternate_names'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      isOa: json['is_oa'] as bool? ?? false,
+      isInDoaj: json['is_in_doaj'] as bool? ?? false,
+      apcUsd: json['apc_usd'] as int?,
+      hIndex: json['h_index'] as int?,
+      i10Index: json['i10_index'] as int?,
+      twoYearMeanCitedness: (json['two_year_mean_citedness'] as num?)
+          ?.toDouble(),
+      countsByYear:
+          (json['counts_by_year'] as List?)
+              ?.map((e) => JournalYearlyData.fromJson(e))
+              .toList() ??
+          [],
+    );
+  }
+
+  Map<String, dynamic> toStoredJson() {
+    return {
+      'id': id,
+      'name': name,
+      'type': type,
+      'publisher': publisher,
+      'works_count': worksCount,
+      'cited_by_count': citedByCount,
+      'homepage_url': homepageUrl,
+      'issns': issns,
+      'alternate_names': alternateNames,
+      'is_oa': isOa,
+      'is_in_doaj': isInDoaj,
+      'apc_usd': apcUsd,
+      'h_index': hIndex,
+      'i10_index': i10Index,
+      'two_year_mean_citedness': twoYearMeanCitedness,
+      'counts_by_year': countsByYear.map((e) => e.toJson()).toList(),
+    };
   }
 }
 
@@ -73,7 +135,11 @@ class JournalYearlyData {
   final int worksCount;
   final int citedByCount;
 
-  JournalYearlyData({required this.year, required this.worksCount, required this.citedByCount});
+  JournalYearlyData({
+    required this.year,
+    required this.worksCount,
+    required this.citedByCount,
+  });
 
   factory JournalYearlyData.fromJson(Map<String, dynamic> json) {
     return JournalYearlyData(
@@ -81,5 +147,13 @@ class JournalYearlyData {
       worksCount: json['works_count'] ?? 0,
       citedByCount: json['cited_by_count'] ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'year': year,
+      'works_count': worksCount,
+      'cited_by_count': citedByCount,
+    };
   }
 }
