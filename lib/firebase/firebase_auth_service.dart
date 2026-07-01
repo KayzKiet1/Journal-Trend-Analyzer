@@ -40,6 +40,9 @@ class FirebaseAuthService {
     : _auth = auth ?? FirebaseAuth.instance,
       _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
 
+  static const String _webClientId =
+      '419524520507-qelmnva147dqm71nc5ba0javpunlhaoi.apps.googleusercontent.com';
+
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
   bool _isGoogleSignInReady = false;
@@ -84,12 +87,10 @@ class FirebaseAuthService {
       rethrow;
     } on FirebaseAuthException catch (error) {
       throw AuthServiceException(
-        error.message ?? 'Khong the dang nhap bang Google.',
+        _firebaseAuthErrorMessage(error),
       );
     } on GoogleSignInException catch (error) {
-      throw AuthServiceException(
-        error.description ?? 'Ban da huy hoac Google Sign-In gap loi.',
-      );
+      throw AuthServiceException(_googleSignInErrorMessage(error));
     } catch (error) {
       throw AuthServiceException('Khong the dang nhap bang Google: $error');
     }
@@ -108,7 +109,36 @@ class FirebaseAuthService {
 
   Future<void> _ensureGoogleSignInReady() async {
     if (_isGoogleSignInReady) return;
-    await _googleSignIn.initialize();
+    await _googleSignIn.initialize(serverClientId: _webClientId);
     _isGoogleSignInReady = true;
+  }
+
+  String _firebaseAuthErrorMessage(FirebaseAuthException error) {
+    final fallback = error.message ?? 'Khong the dang nhap bang Google.';
+    if (error.code == 'invalid-credential' ||
+        error.code == 'account-exists-with-different-credential') {
+      return '$fallback Hay kiem tra Android package name va SHA-1/SHA-256 '
+          'cua keystore dang build APK trong Firebase Console.';
+    }
+    return fallback;
+  }
+
+  String _googleSignInErrorMessage(GoogleSignInException error) {
+    final description = error.description ?? '';
+    final code = error.code;
+    if (code == GoogleSignInExceptionCode.canceled) {
+      return 'Google Sign-In bi huy hoac bi tu choi sau khi chon tai khoan. '
+          'Neu ban khong bam huy, hay them SHA-1/SHA-256 cua may build APK '
+          'vao Firebase Android app, tai lai google-services.json, roi build '
+          'lai APK.';
+    }
+    if (code == GoogleSignInExceptionCode.clientConfigurationError ||
+        code == GoogleSignInExceptionCode.providerConfigurationError) {
+      return 'Cau hinh Google Sign-In chua dung: ${description.isEmpty ? code.name : description}. '
+          'Kiem tra package name, web client id va SHA-1/SHA-256 trong Firebase.';
+    }
+    return description.isEmpty
+        ? 'Ban da huy hoac Google Sign-In gap loi.'
+        : description;
   }
 }
