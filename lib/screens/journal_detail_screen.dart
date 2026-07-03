@@ -10,6 +10,7 @@ import '../services/openalex_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
+import '../widgets/horizontal_bar_chart.dart';
 import '../widgets/publication_card.dart';
 import '../widgets/year_trend_chart.dart';
 import '../widgets/loading_widget.dart';
@@ -38,7 +39,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   Journal? _journal;
   List<Publication> _works = [];
   List<TrendData> _trends = [];
+  List<TrendData> _citationTrends = [];
   List<Map<String, dynamic>> _topTopics = [];
+  List<Map<String, dynamic>> _topAuthors = [];
   int _currentPage = 1;
   int _totalWorks = 0;
   bool _isWorksLoading = false;
@@ -86,6 +89,10 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
           topicIds: widget.topicIds,
         ),
         _apiService.getJournalTopTopics(widget.journalId),
+        _apiService.getJournalTopAuthors(
+          widget.journalId,
+          topicIds: widget.topicIds,
+        ),
       ]);
 
       setState(() {
@@ -95,6 +102,8 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         _totalWorks = worksData['total_count'];
         _trends = results[2] as List<TrendData>;
         _topTopics = results[3] as List<Map<String, dynamic>>;
+        _topAuthors = results[4] as List<Map<String, dynamic>>;
+        _citationTrends = _buildCitationTrends(_journal!);
         _isLoading = false;
       });
       if (mounted && _journal != null) {
@@ -221,6 +230,18 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                               children: [
                                 _buildInfoCard(),
                                 const SizedBox(height: AppSpacing.lg),
+                                YearTrendChart(
+                                  trends: _citationTrends,
+                                  forceLineChart: true,
+                                  title: 'Citation Trend',
+                                  valueLabel: 'trích dẫn',
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                HorizontalBarChart(
+                                  data: _topAuthors,
+                                  title: 'Top authors by publications',
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
                                 _buildWorksList(),
                               ],
                             ),
@@ -232,7 +253,10 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                               children: [
                                 _buildStatsCard(),
                                 const SizedBox(height: AppSpacing.lg),
-                                YearTrendChart(trends: _trends),
+                                YearTrendChart(
+                                  trends: _trends,
+                                  title: 'Publication Trend',
+                                ),
                                 const SizedBox(height: AppSpacing.lg),
                                 _buildTopicList(),
                               ],
@@ -247,10 +271,25 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                           const SizedBox(height: AppSpacing.lg),
                           _buildInfoCard(),
                           const SizedBox(height: AppSpacing.lg),
-                          YearTrendChart(trends: _trends),
+                          YearTrendChart(
+                            trends: _trends,
+                            title: 'Publication Trend',
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          YearTrendChart(
+                            trends: _citationTrends,
+                            forceLineChart: true,
+                            title: 'Citation Trend',
+                            valueLabel: 'trích dẫn',
+                          ),
                           const SizedBox(height: AppSpacing.lg),
                           _buildTopicList(),
-                          const SizedBox(height: AppSpacing.xl),
+                          const SizedBox(height: AppSpacing.lg),
+                          HorizontalBarChart(
+                            data: _topAuthors,
+                            title: 'Top authors by publications',
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
                           _buildWorksList(),
                         ],
                       );
@@ -355,9 +394,24 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
             tooltip:
                 'Số lượng trích dẫn trung bình của các bài báo được xuất bản trong 2 năm gần nhất (Tương đương Impact Factor).',
           ),
+          _buildStatItem(
+            'Quartile (Q1-Q4)',
+            'Not provided by OpenAlex',
+            tooltip:
+                'OpenAlex không cung cấp quartile Q1-Q4 chính thức cho journal. OpenAlex chỉ trả về các metric như 2yr mean citedness, H-index và I10-index.',
+          ),
         ],
       ),
     );
+  }
+
+  List<TrendData> _buildCitationTrends(Journal journal) {
+    final trends = journal.countsByYear
+        .where((data) => data.year > 0 && data.citedByCount > 0)
+        .map((data) => TrendData(year: data.year, count: data.citedByCount))
+        .toList();
+    trends.sort((a, b) => a.year.compareTo(b.year));
+    return trends;
   }
 
   Widget _buildStatItem(String label, String? value, {String? tooltip}) {
@@ -405,6 +459,8 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   }
 
   Widget _buildTopicList() {
+    if (_topTopics.isEmpty) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(

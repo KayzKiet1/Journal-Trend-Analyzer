@@ -10,8 +10,7 @@ import '../utils/app_text_styles.dart';
 import '../widgets/publication_card.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/empty_state_widget.dart';
-import '../widgets/donut_chart.dart';
-import '../widgets/horizontal_bar_chart.dart';
+import '../widgets/app_text_field.dart';
 import '../models/journal_model.dart';
 import 'compare_journals_screen.dart';
 import 'publication_detail_screen.dart';
@@ -37,6 +36,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   static const Duration _searchUiTimeout = Duration(seconds: 12);
 
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _journalSearchController =
+      TextEditingController();
   final List<Journal> _compareSelection = [];
   Timer? _searchTimeoutTimer;
 
@@ -44,6 +45,10 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.category == 'Sources') {
+        final controller = context.read<PublicationController>();
+        _journalSearchController.text = controller.journalSearchText;
+      }
       _runSearchFromWidget();
     });
 
@@ -63,6 +68,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   @override
   void dispose() {
     _searchTimeoutTimer?.cancel();
+    _journalSearchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -71,15 +77,22 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       final controller = context.read<PublicationController>();
-      if (!controller.isLoadingMore && controller.hasMoreFor(widget.category)) {
+      if (widget.category == 'Sources') {
+        if (!controller.isLoadingMoreJournals &&
+            controller.hasMoreJournalSources) {
+          controller.searchJournals(
+            controller.journalSearchText,
+            loadMore: true,
+          );
+        }
+      } else if (!controller.isLoadingMore &&
+          controller.hasMoreFor(widget.category)) {
         if (widget.category == 'AuthorWorks' && widget.authorId != null) {
           controller.searchByAuthor(
             widget.authorId!,
             widget.topic,
             loadMore: true,
           );
-        } else if (widget.category == 'Sources') {
-          controller.search(widget.topic, widget.category, loadMore: true);
         }
       }
     }
@@ -92,9 +105,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     if (widget.category == 'AuthorWorks') {
       displayTitle = 'Bài báo của ${widget.topic}';
     } else if (widget.category == 'Sources') {
-      displayTitle = widget.topic.trim().isEmpty
-          ? 'Top Journals'
-          : 'Journals: ${widget.topic}';
+      displayTitle = 'Journals';
     } else {
       displayTitle = '${widget.category}: ${widget.topic}';
     }
@@ -120,15 +131,21 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       body: Consumer<PublicationController>(
         builder: (context, controller, child) {
           final isCurrentResultEmpty = widget.category == 'Sources'
-              ? controller.sources.isEmpty
+              ? controller.journalSources.isEmpty
               : controller.publications.isEmpty;
+          final isLoading = widget.category == 'Sources'
+              ? controller.isLoadingJournals
+              : controller.isLoading;
+          final errorMessage = widget.category == 'Sources'
+              ? controller.journalErrorMessage
+              : controller.errorMessage;
 
-          if (controller.isLoading && isCurrentResultEmpty) {
+          if (isLoading && isCurrentResultEmpty) {
             return const LoadingWidget();
           }
 
-          if (controller.errorMessage.isNotEmpty && isCurrentResultEmpty) {
-            return _buildSearchError(controller.errorMessage);
+          if (errorMessage.isNotEmpty && isCurrentResultEmpty) {
+            return _buildSearchError(errorMessage);
           }
 
           return Center(
@@ -189,7 +206,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           },
         );
       case 'Sources':
-        if (controller.sources.isEmpty && !controller.isLoading) {
+        if (controller.journalSources.isEmpty &&
+            !controller.isLoadingJournals) {
           return Column(
             children: [
               _buildCompareBar(),
@@ -197,6 +215,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
+                    _buildJournalSearchPanel(controller),
+                    const SizedBox(height: AppSpacing.lg),
                     _buildLibraryPanel(),
                     const EmptyStateWidget(
                       message: 'Không tìm thấy nguồn nào.',
@@ -215,22 +235,22 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                 controller: _scrollController,
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 itemCount:
-                    controller.sources.length +
+                    controller.journalSources.length +
                     1 +
-                    (controller.hasMoreFor(widget.category) ? 1 : 0),
+                    (controller.hasMoreJournalSources ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildJournalAnalysisPanel(controller),
+                        _buildJournalSearchPanel(controller),
                         _buildLibraryPanel(),
                       ],
                     );
                   }
 
                   final sourceIndex = index - 1;
-                  if (sourceIndex == controller.sources.length) {
+                  if (sourceIndex == controller.journalSources.length) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
                       child: Center(
@@ -242,7 +262,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                     );
                   }
 
-                  final source = controller.sources[sourceIndex];
+                  final source = controller.journalSources[sourceIndex];
                   final isSelected = _isSelectedForCompare(source);
                   final library = context.watch<JournalLibraryController>();
                   final isFavorite = library.isFavorite(source.id);
@@ -272,7 +292,15 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     if (!mounted) return;
 
     final topic = widget.topic.trim();
-    if (widget.category == 'Sources') return;
+    if (widget.category == 'Sources') {
+      final controller = context.read<PublicationController>();
+      if (controller.journalSources.isEmpty &&
+          !controller.isLoadingJournals &&
+          controller.journalErrorMessage.isEmpty) {
+        controller.searchJournals('');
+      }
+      return;
+    }
 
     _searchTimeoutTimer?.cancel();
     final controller = context.read<PublicationController>();
@@ -308,13 +336,73 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     final controller = context.read<PublicationController>();
     controller.cancelActiveSearch();
 
-    final topic = widget.topic.trim();
-    if (widget.category == 'Sources' && topic.isNotEmpty) {
-      controller.search(topic, widget.category);
-    } else if (widget.category == 'Sources') {
-      controller.search('', widget.category);
+    if (widget.category == 'Sources') {
+      controller.searchJournals(_journalSearchController.text);
     } else {
       _runSearchFromWidget();
+    }
+  }
+
+  Widget _buildJournalSearchPanel(PublicationController controller) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 520;
+          final searchField = AppTextField(
+            controller: _journalSearchController,
+            hintText: 'Search journals by source name',
+            prefixIcon: Icons.manage_search,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: _submitJournalSearch,
+          );
+          final searchButton = ElevatedButton.icon(
+            onPressed: controller.isLoadingJournals
+                ? null
+                : _submitJournalSearch,
+            icon: const Icon(Icons.search, size: 18),
+            label: const Text('Search'),
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('OPENALEX JOURNAL SOURCES', style: AppTextStyles.labelCaps),
+              const SizedBox(height: AppSpacing.sm),
+              if (isCompact)
+                Column(
+                  children: [
+                    searchField,
+                    const SizedBox(height: AppSpacing.sm),
+                    Row(children: [Expanded(child: searchButton)]),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(child: searchField),
+                    const SizedBox(width: AppSpacing.sm),
+                    searchButton,
+                  ],
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _submitJournalSearch() {
+    context.read<PublicationController>().searchJournals(
+      _journalSearchController.text,
+    );
+    FocusScope.of(context).unfocus();
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -385,104 +473,6 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
         );
       },
     );
-  }
-
-  Widget _buildJournalAnalysisPanel(PublicationController controller) {
-    if (widget.category != 'Sources' ||
-        controller.currentTopicIds.isEmpty ||
-        controller.sources.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final publicationData = controller.sources
-        .take(8)
-        .map((journal) => {'name': journal.name, 'count': journal.worksCount})
-        .toList();
-    final contributionData = _journalContributionData(controller.sources);
-    final citationData = _journalCitationData(controller);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('JOURNAL ANALYSIS', style: AppTextStyles.labelCaps),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            controller.currentTopic,
-            style: AppTextStyles.h2,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          HorizontalBarChart(
-            data: publicationData,
-            title: 'Top journals by publications',
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          DonutChart(data: contributionData, title: 'Journal contribution'),
-          if (citationData.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.lg),
-            HorizontalBarChart(
-              data: citationData,
-              title: 'Citations by journal',
-              valueKey: 'citations',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Citation totals are based on the influential publications found for the selected research topics.',
-              style: AppTextStyles.bodySmall,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  List<Map<String, dynamic>> _journalContributionData(List<Journal> journals) {
-    final topJournals = journals.take(5).toList();
-    final total = topJournals.fold<int>(
-      0,
-      (sum, journal) => sum + journal.worksCount,
-    );
-    if (total <= 0) return [];
-
-    const colors = ['#B8422E', '#1A1C1E', '#6C7278', '#15803D', '#B45309'];
-    return topJournals.asMap().entries.map((entry) {
-      final journal = entry.value;
-      return {
-        'name': journal.name,
-        'count': journal.worksCount,
-        'percentage': ((journal.worksCount / total) * 100).round(),
-        'color': colors[entry.key % colors.length],
-      };
-    }).toList();
-  }
-
-  List<Map<String, dynamic>> _journalCitationData(
-    PublicationController controller,
-  ) {
-    final citationsByJournal = <String, int>{};
-    for (final publication in controller.topicDashboardPublications) {
-      final journal = publication.journalName.trim();
-      if (journal.isEmpty || journal.toLowerCase().contains('unknown')) {
-        continue;
-      }
-      citationsByJournal[journal] =
-          (citationsByJournal[journal] ?? 0) + publication.citedByCount;
-    }
-
-    final entries = citationsByJournal.entries.toList()
-      ..sort((a, b) {
-        final byCitations = b.value.compareTo(a.value);
-        if (byCitations != 0) return byCitations;
-        return a.key.toLowerCase().compareTo(b.key.toLowerCase());
-      });
-
-    return entries
-        .take(8)
-        .map((entry) => {'name': entry.key, 'citations': entry.value})
-        .toList();
   }
 
   Widget _buildJournalStrip({
@@ -825,22 +815,14 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   }
 
   void _openJournal(Journal journal) {
-    final controller = context.read<PublicationController>();
-    final topicIds = widget.category == 'Sources'
-        ? controller.currentTopicIds
-        : const <String>[];
-    final topicLabel = widget.category == 'Sources'
-        ? controller.currentTopic
-        : null;
-
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => JournalDetailScreen(
           journalId: journal.id,
           journalName: journal.name,
-          topicIds: topicIds,
-          topicLabel: topicLabel,
+          topicIds: const <String>[],
+          topicLabel: null,
         ),
       ),
     );

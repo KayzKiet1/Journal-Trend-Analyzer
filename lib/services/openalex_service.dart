@@ -260,10 +260,9 @@ class OpenAlexService {
     return response.reasonPhrase ?? 'Không rõ nguyên nhân';
   }
 
-  /// Tìm kiếm nguồn xuất bản (Sources/Journals).
+  /// Tìm kiếm trực tiếp nguồn xuất bản (Sources/Journals).
   ///
-  /// Nếu có query, query được hiểu là topic nghiên cứu. Service sẽ resolve
-  /// topic qua OpenAlex rồi group works theo journal source.
+  /// Query được gửi vào endpoint /sources với filter type:journal.
   Future<Map<String, dynamic>> searchSources(
     String query, {
     int page = 1,
@@ -271,15 +270,7 @@ class OpenAlexService {
     String? topicId,
     List<String>? topicIds,
   }) async {
-    if (query.trim().isNotEmpty) {
-      return _searchJournalSourcesByTopic(
-        query.trim(),
-        topicId: topicId,
-        topicIds: topicIds,
-        page: page,
-        perPage: perPage,
-      );
-    }
+    final trimmedQuery = query.trim();
 
     final Map<String, String> params = {
       'filter': 'type:journal',
@@ -290,8 +281,8 @@ class OpenAlexService {
           'id,display_name,host_organization_name,type,works_count,cited_by_count',
     };
 
-    if (query.isNotEmpty) {
-      params['search'] = query;
+    if (trimmedQuery.isNotEmpty) {
+      params['search'] = trimmedQuery;
     }
 
     final Uri url = Uri.parse(
@@ -312,7 +303,7 @@ class OpenAlexService {
     }
   }
 
-  Future<Map<String, dynamic>> _searchJournalSourcesByTopic(
+  Future<Map<String, dynamic>> searchJournalSourcesByTopic(
     String topicQuery, {
     String? topicId,
     List<String>? topicIds,
@@ -952,6 +943,64 @@ class OpenAlexService {
         fallbackData['group_by'] ?? [],
         filterField: 'concepts.id',
       );
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getJournalTopAuthors(
+    String journalId, {
+    List<String>? topicIds,
+    int perPage = 8,
+  }) async {
+    return _getJournalGroupedCounts(
+      journalId,
+      'authorships.author.id',
+      topicIds: topicIds,
+      perPage: perPage,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _getJournalGroupedCounts(
+    String journalId,
+    String groupBy, {
+    List<String>? topicIds,
+    int perPage = 8,
+  }) async {
+    final sourceId = _openAlexId(journalId);
+    String filter = 'primary_location.source.id:$sourceId';
+    final topicFilter = _topicFilterValue(topicIds: topicIds);
+    if (topicFilter != null && topicFilter.isNotEmpty) {
+      filter += ',primary_topic.id:$topicFilter';
+    }
+
+    final Uri url =
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+        ).replace(
+          queryParameters: {
+            'filter': filter,
+            'group_by': groupBy,
+            'per_page': perPage.toString(),
+          },
+        );
+
+    try {
+      final data = await _getWithRetryAndCache(url);
+      final List groups = data['group_by'] ?? [];
+      return groups
+          .where((group) {
+            final name = group['key_display_name']?.toString() ?? '';
+            return name.isNotEmpty && name.toLowerCase() != 'unknown';
+          })
+          .map(
+            (group) => {
+              'id': group['key']?.toString() ?? '',
+              'name': group['key_display_name']?.toString() ?? '',
+              'count': (group['count'] as num?)?.toInt() ?? 0,
+            },
+          )
+          .toList();
     } catch (e) {
       return [];
     }

@@ -49,10 +49,21 @@ class PublicationController extends ChangeNotifier {
 
   List<Publication> _publications = [];
   List<Journal> _sources = [];
+  List<Journal> _journalSources = [];
 
   String? _lastAuthorId;
   int _authorWorksPage = 1;
   int _authorWorksTotal = 0;
+  int _journalSourcesPage = 1;
+  int _journalSourcesTotal = 0;
+  String _journalSearchText = '';
+  String? _lastFetchedJournalQuery;
+  bool _isLoadingJournals = false;
+  bool _isLoadingMoreJournals = false;
+  String _journalErrorMessage = '';
+  int _journalSearchRequestId = 0;
+  DateTime? _lastJournalRequestStartedAt;
+  static const Duration _journalRequestSpacing = Duration(milliseconds: 900);
 
   String _lastSearchText = '';
   String get lastSearchText => _lastSearchText;
@@ -113,6 +124,12 @@ class PublicationController extends ChangeNotifier {
 
   List<Publication> get publications => _publications;
   List<Journal> get sources => _sources;
+  List<Journal> get journalSources => _journalSources;
+  String get journalSearchText => _journalSearchText;
+  String get journalErrorMessage => _journalErrorMessage;
+  bool get isLoadingJournals => _isLoadingJournals;
+  bool get isLoadingMoreJournals => _isLoadingMoreJournals;
+  int get journalSourcesTotal => _journalSourcesTotal;
 
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
@@ -154,8 +171,99 @@ class PublicationController extends ChangeNotifier {
 
   bool get hasMore => hasMoreFor(_currentCategory);
 
+  bool get hasMoreJournalSources =>
+      _journalSources.length < _journalSourcesTotal;
+
   String _currentCategory = 'Sources';
   String get currentCategory => _currentCategory;
+
+  Future<void> searchJournals(String query, {bool loadMore = false}) async {
+    final trimmedQuery = query.trim();
+
+    if (!loadMore && _isLoadingJournals && _journalSearchText == trimmedQuery) {
+      return;
+    }
+
+    if (!loadMore &&
+        _lastFetchedJournalQuery == trimmedQuery &&
+        _journalSources.isNotEmpty &&
+        _journalErrorMessage.isEmpty) {
+      return;
+    }
+
+    if (loadMore) {
+      if (_isLoadingMoreJournals || !hasMoreJournalSources) return;
+      _isLoadingMoreJournals = true;
+      _journalSourcesPage++;
+    } else {
+      _journalSearchText = trimmedQuery;
+      _isLoadingJournals = true;
+      _journalErrorMessage = '';
+      _journalSourcesPage = 1;
+      _journalSourcesTotal = 0;
+      _journalSources = [];
+    }
+
+    final requestId = ++_journalSearchRequestId;
+    notifyListeners();
+
+    try {
+      await _waitForJournalRequestSlot();
+      if (requestId != _journalSearchRequestId) return;
+
+      final data = await _apiService
+          .searchSources(
+            trimmedQuery,
+            page: _journalSourcesPage,
+            perPage: _perPage,
+          )
+          .timeout(
+            searchTimeout,
+            onTimeout: () => throw TimeoutException(
+              'OpenAlex phản hồi quá lâu. Vui lòng kiểm tra mạng hoặc thử lại sau.',
+            ),
+          );
+      final results = data['results'] as List<Journal>;
+      final total = data['total_count'] as int? ?? results.length;
+
+      if (requestId != _journalSearchRequestId) return;
+
+      if (loadMore) {
+        _journalSources.addAll(results);
+      } else {
+        _journalSources = results;
+        _lastFetchedJournalQuery = trimmedQuery;
+      }
+      _journalSourcesTotal = total;
+
+      if (!loadMore && _journalSources.isEmpty) {
+        final label = trimmedQuery.isEmpty ? 'journal phổ biến' : trimmedQuery;
+        _journalErrorMessage =
+            'Không tìm thấy journal nào cho "$label" trên OpenAlex.';
+      }
+    } catch (e) {
+      if (requestId != _journalSearchRequestId) return;
+      _journalErrorMessage = _formatSearchError(e);
+    } finally {
+      if (requestId == _journalSearchRequestId) {
+        _isLoadingJournals = false;
+        _isLoadingMoreJournals = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _waitForJournalRequestSlot() async {
+    final now = DateTime.now();
+    final lastStarted = _lastJournalRequestStartedAt;
+    if (lastStarted != null) {
+      final elapsed = now.difference(lastStarted);
+      if (elapsed < _journalRequestSpacing) {
+        await Future.delayed(_journalRequestSpacing - elapsed);
+      }
+    }
+    _lastJournalRequestStartedAt = DateTime.now();
+  }
 
   /// Thực hiện tìm kiếm journal sources.
   Future<void> search(
@@ -428,16 +536,16 @@ class PublicationController extends ChangeNotifier {
 
       final journalData =
           await _loadOptionalDashboardPart<Map<String, dynamic>>(
-        () => _apiService.searchSources(
-          topicLabel,
-          topicIds: topicIds,
-          perPage: 10,
-        ),
-        fallback: {
-          'results': _journalsFromPublications(publications),
-          'total_count': _rankJournalsFromPublications(publications).length,
-        },
-      );
+            () => _apiService.searchJournalSourcesByTopic(
+              topicLabel,
+              topicIds: topicIds,
+              perPage: 10,
+            ),
+            fallback: {
+              'results': _journalsFromPublications(publications),
+              'total_count': _rankJournalsFromPublications(publications).length,
+            },
+          );
       if (requestId != _searchRequestId) return;
       _sources = journalData['results'] as List<Journal>;
       _totalResults = journalData['total_count'] as int? ?? _sources.length;
@@ -627,11 +735,7 @@ class PublicationController extends ChangeNotifier {
       counts[name] = (counts[name] ?? 0) + 1;
       journalsByName.putIfAbsent(
         name,
-        () => Journal(
-          id: publication.journalId,
-          name: name,
-          type: 'journal',
-        ),
+        () => Journal(id: publication.journalId, name: name, type: 'journal'),
       );
     }
 
@@ -701,6 +805,14 @@ class PublicationController extends ChangeNotifier {
     _topicDashboardTotalWorks = 0;
     _topicDashboardAverageCitations = 0;
     _topicDashboardPeakYear = null;
+    _journalSources = [];
+    _journalSourcesPage = 1;
+    _journalSourcesTotal = 0;
+    _journalSearchText = '';
+    _lastFetchedJournalQuery = null;
+    _isLoadingJournals = false;
+    _isLoadingMoreJournals = false;
+    _journalErrorMessage = '';
     _errorMessage = '';
     notifyListeners();
   }

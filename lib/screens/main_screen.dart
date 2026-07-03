@@ -19,8 +19,10 @@ class _MainScreenState extends State<MainScreen> {
   void _onItemTapped(int index) {
     final controller = context.read<PublicationController>();
 
-    if (index == 1 && controller.sources.isEmpty && !controller.isLoading) {
-      controller.search(controller.lastSearchText, 'Sources');
+    if (index == 1 &&
+        controller.journalSources.isEmpty &&
+        !controller.isLoadingJournals) {
+      controller.searchJournals('');
     }
 
     controller.setSelectedIndex(index);
@@ -33,7 +35,7 @@ class _MainScreenState extends State<MainScreen> {
 
     final List<Widget> screens = [
       const HomeScreen(),
-      SearchResultScreen(topic: controller.lastSearchText, category: 'Sources'),
+      const SearchResultScreen(topic: '', category: 'Sources'),
       const DashboardScreen(route: 'keywords'),
       const ProfileScreen(),
     ];

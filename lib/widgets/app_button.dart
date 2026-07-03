@@ -7,18 +7,14 @@ class AppButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
 
-  const AppButton({
-    super.key, 
-    required this.text, 
-    required this.onPressed,
-  });
+  const AppButton({super.key, required this.text, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return FilledButton(
       onPressed: onPressed,
       style: FilledButton.styleFrom(
-        // Background: accent (Boston Clay #B8422E)
+        // Background: accent (Citation Teal #0F766E)
         backgroundColor: AppColors.accent,
         foregroundColor: AppColors.textInverted,
         disabledBackgroundColor: AppColors.secondary.withValues(alpha: 0.2),
@@ -31,10 +27,7 @@ class AppButton extends StatelessWidget {
         // No heavy drop shadows
         elevation: 0,
       ),
-      child: Text(
-        text,
-        style: AppTextStyles.buttonText,
-      ),
+      child: Text(text, style: AppTextStyles.buttonText),
     );
   }
 }

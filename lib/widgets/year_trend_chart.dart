@@ -10,12 +10,14 @@ class YearTrendChart extends StatelessWidget {
   final List<TrendData> trends;
   final bool forceLineChart;
   final String? title;
+  final String valueLabel;
 
   const YearTrendChart({
-    super.key, 
+    super.key,
     required this.trends,
     this.forceLineChart = false,
     this.title,
+    this.valueLabel = 'bài',
   });
 
   @override
@@ -42,13 +44,14 @@ class YearTrendChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title ?? (useLineChart ? 'Publication Trend' : 'Số lượng bài báo theo năm'),
+            title ??
+                (useLineChart
+                    ? 'Publication Trend'
+                    : 'Số lượng bài báo theo năm'),
             style: AppTextStyles.h2,
           ),
           const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: useLineChart ? _buildLineChart() : _buildBarChart(),
-          ),
+          Expanded(child: useLineChart ? _buildLineChart() : _buildBarChart()),
         ],
       ),
     );
@@ -58,7 +61,8 @@ class YearTrendChart extends StatelessWidget {
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: (trends.map((e) => e.count).reduce((a, b) => a > b ? a : b) * 1.2).toDouble(),
+        maxY: (trends.map((e) => e.count).reduce((a, b) => a > b ? a : b) * 1.2)
+            .toDouble(),
         gridData: const FlGridData(show: false),
         titlesData: const FlTitlesData(
           bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -89,7 +93,7 @@ class YearTrendChart extends StatelessWidget {
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final year = trends[group.x.toInt()].year;
               return BarTooltipItem(
-                '$year: ${rod.toY.toInt()} bài',
+                '$year: ${rod.toY.toInt()} $valueLabel',
                 AppTextStyles.labelCaps.copyWith(color: AppColors.textInverted),
               );
             },
@@ -102,7 +106,8 @@ class YearTrendChart extends StatelessWidget {
   Widget _buildLineChart() {
     return LineChart(
       LineChartData(
-        maxY: (trends.map((e) => e.count).reduce((a, b) => a > b ? a : b) * 1.2).toDouble(),
+        maxY: (trends.map((e) => e.count).reduce((a, b) => a > b ? a : b) * 1.2)
+            .toDouble(),
         gridData: const FlGridData(show: false),
         titlesData: _buildTitlesData(),
         borderData: FlBorderData(show: false),
@@ -129,8 +134,10 @@ class YearTrendChart extends StatelessWidget {
               return touchedSpots.map((spot) {
                 final year = trends[spot.x.toInt()].year;
                 return LineTooltipItem(
-                  '$year: ${spot.y.toInt()} bài',
-                  AppTextStyles.labelCaps.copyWith(color: AppColors.textInverted),
+                  '$year: ${spot.y.toInt()} $valueLabel',
+                  AppTextStyles.labelCaps.copyWith(
+                    color: AppColors.textInverted,
+                  ),
                 );
               }).toList();
             },

@@ -4,7 +4,7 @@ import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
 
 /// Hiển thị sản lượng nghiên cứu theo quốc gia dưới dạng danh sách/biểu đồ (Thay cho Map phức tạp)
-/// Theo Heritage Design System, ưu tiên sự rõ ràng của dữ liệu
+/// Theo Research Analytics Design System, ưu tiên sự rõ ràng của dữ liệu
 class CountryOutputList extends StatelessWidget {
   final List<Map<String, dynamic>> countries;
 
@@ -17,7 +17,10 @@ class CountryOutputList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('12. SẢN LƯỢNG NGHIÊN CỨU THEO QUỐC GIA', style: AppTextStyles.labelCaps),
+        Text(
+          '12. SẢN LƯỢNG NGHIÊN CỨU THEO QUỐC GIA',
+          style: AppTextStyles.labelCaps,
+        ),
         const SizedBox(height: AppSpacing.md),
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -39,7 +42,9 @@ class CountryOutputList extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.background,
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: AppColors.secondary.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Text(
                         country['country_code'] ?? '??',
@@ -50,12 +55,16 @@ class CountryOutputList extends StatelessWidget {
                     Expanded(
                       child: Text(
                         '${country['name']} (${country['country_code']})',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                     Text(
                       '${country['count']} ấn phẩm',
-                      style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
+                      style: AppTextStyles.labelCaps.copyWith(
+                        color: AppColors.accent,
+                      ),
                     ),
                   ],
                 ),

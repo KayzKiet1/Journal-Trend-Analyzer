@@ -1,5 +1,5 @@
 ---
-system: Heritage
+system: Research Analytics
 product: Journal Trend Analyzer
 version: 1.1
 audience: researchers, students, academic analysts
@@ -10,16 +10,16 @@ principles:
   - responsive mobile readability
 colors:
   primary:
-    value: "#1A1C1E"
+    value: "#14213D"
     role: headlines, body text, primary icons
   secondary:
-    value: "#6C7278"
+    value: "#64748B"
     role: borders, captions, metadata
   accent:
-    value: "#B8422E"
+    value: "#0F766E"
     role: primary actions, active states, chart emphasis
   background:
-    value: "#F7F5F2"
+    value: "#F5F8FA"
     role: app background
   surface:
     value: "#FFFFFF"
@@ -103,11 +103,11 @@ components:
 
 ## Overview
 
-Journal Trend Analyzer uses the Heritage design system: a quiet, editorial interface for academic journal discovery and trend analysis. The product should feel like a focused research workspace rather than a marketing page. The first priority is helping users compare journals, inspect publication trends, and return to saved research sources without visual noise.
+Journal Trend Analyzer uses the Research Analytics design system: a quiet, data-first interface for academic journal discovery and trend analysis. The product should feel like a focused research workspace rather than a marketing page. The first priority is helping users compare journals, inspect publication trends, and return to saved research sources without visual noise.
 
 ## Colors
 
-The palette is intentionally restrained. Deep Ink (`#1A1C1E`) carries primary reading content. Sophisticated Slate (`#6C7278`) supports metadata, borders, and low-priority text. Boston Clay (`#B8422E`) is reserved for decisive actions, active states, and chart emphasis. Warm Limestone (`#F7F5F2`) keeps the app background soft, while Paper White (`#FFFFFF`) frames cards and controls.
+The palette is intentionally restrained and tuned for academic data work. Scholar Ink (`#14213D`) carries primary reading content. Data Slate (`#64748B`) supports metadata, borders, and low-priority text. Citation Teal (`#0F766E`) is reserved for decisive actions, active states, and chart emphasis. Lab Mist (`#F5F8FA`) keeps the app background clean and analytical, while Paper White (`#FFFFFF`) frames cards and controls.
 
 Avoid adding broad gradients, decorative color fields, or extra accent colors unless they encode a real data state. Charts may use additional colors only when multiple series need clear separation.
 
@@ -133,7 +133,7 @@ Use 4px radius for small tags and chips. Use 8px radius for cards, buttons, inpu
 
 ## Components
 
-Primary buttons use Boston Clay with inverted text. Icon buttons should use familiar Material icons for actions like search, favorite, compare, and navigation. Cards should show the most important research signal first: journal name, publisher or type, citation metadata, and actions.
+Primary buttons use Citation Teal with inverted text. Icon buttons should use familiar Material icons for actions like search, favorite, compare, and navigation. Cards should show the most important research signal first: journal name, publisher or type, citation metadata, and actions.
 
 Analysis components should be direct and data-first:
 

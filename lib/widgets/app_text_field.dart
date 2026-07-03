@@ -51,7 +51,7 @@ class AppTextField extends StatelessWidget {
           borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
         ),
 
-        // Active state: accent (Boston Clay)
+        // Active state: accent (Citation Teal)
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.accent, width: 2.0),

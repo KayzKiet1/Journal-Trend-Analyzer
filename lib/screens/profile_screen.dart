@@ -326,7 +326,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             _buildInfoCard(
               'Thiết kế',
-              'Heritage Design System (Minimalism)',
+              'Research Analytics Design System',
               Icons.palette_outlined,
             ),
           ],
