@@ -117,13 +117,14 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
         _totalPublications = worksData['total_count'] as int? ?? 0;
         _warning = warnings.isEmpty
             ? ''
-            : 'Một vài phần dữ liệu OpenAlex đang quá tải nên đã được bỏ qua tạm thời: ${warnings.join(', ')}.';
+            : 'Some OpenAlex sections were temporarily skipped: ${warnings.join(', ')}.';
         _isLoading = false;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = 'Không thể tải phân tích keyword từ OpenAlex: $error';
+        _error =
+            'Could not load keyword analysis from OpenAlex for the selected Home topics: $error';
         _isLoading = false;
       });
     }
@@ -164,14 +165,7 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.keywordName, style: AppTextStyles.h1),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Research scope: ${widget.topicLabel}',
-            style: AppTextStyles.bodySmall,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+          _buildHeroHeader(),
           const SizedBox(height: AppSpacing.lg),
           _buildSummary(),
           if (_warning.isNotEmpty) ...[
@@ -194,52 +188,178 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
             style: AppTextStyles.bodySmall,
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('RELATED PUBLICATIONS', style: AppTextStyles.h2),
-          const SizedBox(height: AppSpacing.md),
-          if (_publications.isEmpty)
-            _buildNotice('Không có công bố liên quan.')
-          else
-            ..._publications.map(
-              (publication) => PublicationCard(
-                title: publication.title,
-                year: publication.publicationYear.toString(),
-                journal: publication.journalName,
-                authors: publication.authorsString,
-                citations: publication.citedByCount,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          PublicationDetailScreen(publication: publication),
-                    ),
-                  );
-                },
-              ),
-            ),
+          _buildPublicationSection(context),
         ],
       ),
     );
   }
 
+  Widget _buildHeroHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primarySoft, AppColors.accent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'HOME TOPIC KEYWORD DETAIL',
+            style: AppTextStyles.labelCaps.copyWith(
+              color: AppColors.surface.withValues(alpha: 0.86),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            widget.keywordName,
+            style: AppTextStyles.h1.copyWith(
+              color: AppColors.surface,
+              fontSize: 26,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            widget.topicLabel,
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: AppColors.surface.withValues(alpha: 0.86),
+              height: 1.35,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              _buildHeroBadge('${widget.topicIds.length} Home topics'),
+              _buildHeroBadge('${_compactCount(widget.keywordCount)} matches'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        border: Border.all(color: AppColors.surface.withValues(alpha: 0.22)),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.labelCaps.copyWith(
+          color: AppColors.surface.withValues(alpha: 0.9),
+          fontSize: 10,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPublicationSection(BuildContext context) {
+    return _buildSectionCard(
+      title: 'Related Publications',
+      icon: Icons.article_outlined,
+      child: _publications.isEmpty
+          ? _buildNotice(
+              'No related publications found for this Home topic scope.',
+            )
+          : Column(
+              children: _publications.map((publication) {
+                return PublicationCard(
+                  title: publication.title,
+                  year: publication.publicationYear.toString(),
+                  journal: publication.journalName,
+                  authors: publication.authorsString,
+                  citations: publication.citedByCount,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            PublicationDetailScreen(publication: publication),
+                      ),
+                    );
+                  },
+                );
+              }).toList(),
+            ),
+    );
+  }
+
   Widget _buildSummary() {
+    return _buildSectionCard(
+      title: 'Analysis Scope',
+      icon: Icons.radar_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${_compactCount(_totalPublications)} journal publications match this keyword within the selected research topics.',
+            style: AppTextStyles.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Source: selected topics from Home.',
+            style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('ANALYSIS SCOPE', style: AppTextStyles.labelCaps),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '${_compactCount(_totalPublications)} journal publications match this keyword within the selected research topics.',
-            style: AppTextStyles.bodySmall,
+          Row(
+            children: [
+              Icon(icon, size: 18, color: AppColors.accent),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(title, style: AppTextStyles.h2)),
+            ],
           ),
+          const SizedBox(height: AppSpacing.md),
+          child,
         ],
       ),
     );
@@ -252,7 +372,7 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Text(message, style: AppTextStyles.bodySmall),
     );

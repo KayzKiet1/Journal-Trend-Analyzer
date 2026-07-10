@@ -47,16 +47,24 @@ class _MainScreenState extends State<MainScreen> {
           color: AppColors.surface,
           border: Border(
             top: BorderSide(
-              color: AppColors.secondary.withValues(alpha: 0.3),
+              color: AppColors.border,
               width: AppSpacing.borderWidth,
             ),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, -8),
+            ),
+          ],
         ),
         child: BottomNavigationBar(
           currentIndex: selectedIndex,
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
           backgroundColor: AppColors.surface,
+          elevation: 0,
           selectedItemColor: AppColors.accent,
           unselectedItemColor: AppColors.primary.withValues(alpha: 0.5),
           selectedLabelStyle: const TextStyle(

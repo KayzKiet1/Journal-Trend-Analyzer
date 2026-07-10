@@ -235,33 +235,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     if (topicIds.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.analytics_outlined,
-                size: 48,
-                color: AppColors.secondary,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Chưa có keyword để phân tích',
-                style: AppTextStyles.h2,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Hãy search topic ở tab HOME trước, sau đó quay lại KEYWORDS để xem phân tích keyword.',
-                style: AppTextStyles.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildKeywordEmptyState(controller);
     }
 
     final topicKey = topicIds.join('|');
@@ -279,40 +253,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('KEYWORD ANALYSIS', style: AppTextStyles.h1),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Based on: ${controller.currentTopic}',
-                style: AppTextStyles.bodySmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              _buildKeywordHero(controller, topicIds, topicKey),
+              const SizedBox(height: AppSpacing.lg),
+              _buildKeywordMetricGrid(),
               const SizedBox(height: AppSpacing.xl),
               if (_isKeywordDashboardLoading)
-                const Center(
-                  child: CircularProgressIndicator(color: AppColors.accent),
+                _buildKeywordNotice(
+                  'Loading keyword trends from OpenAlex...',
+                  icon: Icons.sync,
                 )
               else if (_keywordDashboardError.isNotEmpty)
-                _buildKeywordNotice(_keywordDashboardError)
+                _buildKeywordNotice(
+                  _keywordDashboardError,
+                  icon: Icons.error_outline,
+                  action: TextButton.icon(
+                    onPressed: () => _loadKeywordDashboard(topicIds, topicKey),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Retry'),
+                  ),
+                )
               else ...[
-                HorizontalBarChart(
-                  data: _topKeywords,
-                  title: 'Most used keywords',
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Counts show how often each keyword appears in journal publications for the selected research topics.',
-                  style: AppTextStyles.bodySmall,
+                _buildKeywordChartSection(
+                  title: 'Most Used Keywords',
+                  description:
+                      'Counts show how often each keyword appears in journal publications for the selected Home topics.',
+                  child: HorizontalBarChart(
+                    data: _topKeywords,
+                    title: 'Most used keywords',
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                HorizontalBarChart(
-                  data: _trendingKeywords,
-                  title: 'Recently active keywords',
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'These keywords have the strongest activity in recent journal publications for the selected topics.',
-                  style: AppTextStyles.bodySmall,
+                _buildKeywordChartSection(
+                  title: 'Recently Active Keywords',
+                  description:
+                      'These keywords have the strongest activity in recent journal publications for the selected Home topics.',
+                  child: HorizontalBarChart(
+                    data: _trendingKeywords,
+                    title: 'Recently active keywords',
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 _buildKeywordFrequencyTable(),
@@ -321,6 +299,162 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKeywordEmptyState(PublicationController controller) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 520),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.manage_search_outlined,
+                size: 48,
+                color: AppColors.accent,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'No keyword analysis yet',
+                style: AppTextStyles.h2,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Search and select topics in Home first, then return here. Keyword results are generated only from the selected Home topics.',
+                style: AppTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              if (controller.lastSearchText.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Last Home search: ${controller.lastSearchText}',
+                  style: AppTextStyles.labelCaps.copyWith(
+                    color: AppColors.accent,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKeywordHero(
+    PublicationController controller,
+    List<String> topicIds,
+    String topicKey,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primarySoft, AppColors.accent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'HOME TOPIC KEYWORD INTELLIGENCE',
+            style: AppTextStyles.labelCaps.copyWith(
+              color: AppColors.surface.withValues(alpha: 0.86),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Keyword Intelligence',
+            style: AppTextStyles.h1.copyWith(
+              color: AppColors.surface,
+              fontSize: 26,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            controller.currentTopic,
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: AppColors.surface.withValues(alpha: 0.86),
+              height: 1.35,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              _buildHeroBadge('${topicIds.length} Home topics'),
+              _buildHeroBadge('${_topKeywords.length} top keywords'),
+              _buildHeroBadge('${_trendingKeywords.length} active keywords'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: _isKeywordDashboardLoading
+                ? null
+                : () => _loadKeywordDashboard(topicIds, topicKey),
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Refresh'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.surface,
+              side: BorderSide(color: AppColors.surface.withValues(alpha: 0.5)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        border: Border.all(color: AppColors.surface.withValues(alpha: 0.22)),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.labelCaps.copyWith(
+          color: AppColors.surface.withValues(alpha: 0.9),
+          fontSize: 10,
         ),
       ),
     );
@@ -362,7 +496,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!mounted) return;
       if (requestId != _keywordDashboardRequestId) return;
       setState(() {
-        _keywordDashboardError = 'Không thể tải keyword từ OpenAlex: $error';
+        _keywordDashboardError =
+            'Could not load keywords from OpenAlex for the selected Home topics: $error';
         _isKeywordDashboardLoading = false;
       });
     }
@@ -370,58 +505,110 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildKeywordFrequencyTable() {
     if (_topKeywords.isEmpty) {
-      return _buildKeywordNotice('Không có dữ liệu keyword frequency.');
+      return _buildKeywordNotice(
+        'No keyword frequency data is available for the selected Home topics.',
+      );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1),
-      ),
+    final maxCount = _topKeywords
+        .map((keyword) => (keyword['count'] as num?)?.toInt() ?? 0)
+        .fold<int>(0, (max, count) => count > max ? count : max);
+
+    return _buildKeywordSectionCard(
+      title: 'Keyword Occurrences',
+      icon: Icons.format_list_numbered,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('KEYWORD OCCURRENCES', style: AppTextStyles.labelCaps),
+          Text(
+            'Tap a keyword to inspect journals, authors, trends, and related publications. All results use the selected Home topics.',
+            style: AppTextStyles.bodySmall,
+          ),
           const SizedBox(height: AppSpacing.md),
-          ..._topKeywords.map(
-            (keyword) => Padding(
+          ..._topKeywords.asMap().entries.map((entry) {
+            final rank = entry.key + 1;
+            final keyword = entry.value;
+            final count = (keyword['count'] as num?)?.toInt() ?? 0;
+            final ratio = maxCount == 0 ? 0.0 : count / maxCount;
+
+            return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: InkWell(
-                onTap: () => _openKeywordDetail(keyword),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          keyword['name'].toString(),
-                          style: AppTextStyles.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+              child: Material(
+                color: AppColors.surfaceTint,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                child: InkWell(
+                  onTap: () => _openKeywordDetail(keyword),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 28,
+                              height: 28,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: AppColors.accentLight,
+                                borderRadius: BorderRadius.circular(
+                                  AppSpacing.radiusSm,
+                                ),
+                              ),
+                              child: Text(
+                                '$rank',
+                                style: AppTextStyles.labelCaps.copyWith(
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                keyword['name'].toString(),
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              _compactCount(count),
+                              style: AppTextStyles.labelCaps.copyWith(
+                                color: AppColors.accent,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            const Icon(
+                              Icons.chevron_right,
+                              size: 16,
+                              color: AppColors.secondary,
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        _compactCount((keyword['count'] as num?)?.toInt() ?? 0),
-                        style: AppTextStyles.labelCaps.copyWith(
-                          color: AppColors.accent,
+                        const SizedBox(height: AppSpacing.sm),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusSm,
+                          ),
+                          child: LinearProgressIndicator(
+                            minHeight: 6,
+                            value: ratio.clamp(0.0, 1.0),
+                            color: AppColors.accent,
+                            backgroundColor: AppColors.accentLight,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      const Icon(
-                        Icons.chevron_right,
-                        size: 16,
-                        color: AppColors.secondary,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );
@@ -429,7 +616,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildKeywordTrendCharts() {
     if (_keywordTrends.isEmpty) {
-      return _buildKeywordNotice('Không có dữ liệu xu hướng keyword.');
+      return _buildKeywordNotice(
+        'No keyword trend data is available for the selected Home topics.',
+      );
     }
 
     final keywordNamesById = {
@@ -437,22 +626,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _keywordId(keyword['id'].toString()): keyword['name'].toString(),
     };
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('KEYWORD TRENDS OVER TIME', style: AppTextStyles.labelCaps),
-        const SizedBox(height: AppSpacing.md),
-        ..._keywordTrends.entries.map(
-          (entry) => Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-            child: YearTrendChart(
-              trends: entry.value,
-              forceLineChart: true,
-              title: keywordNamesById[entry.key] ?? entry.key,
+    final visibleTrends = _keywordTrends.entries.take(3).toList();
+
+    return _buildKeywordSectionCard(
+      title: 'Keyword Trends Over Time',
+      icon: Icons.show_chart,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Showing the top ${visibleTrends.length} keyword trend lines to keep the dashboard readable.',
+            style: AppTextStyles.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ...visibleTrends.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: YearTrendChart(
+                trends: entry.value,
+                forceLineChart: true,
+                title: keywordNamesById[entry.key] ?? entry.key,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -472,16 +670,160 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildKeywordNotice(String message) {
+  Widget _buildKeywordMetricGrid() {
+    final metrics = [
+      _KeywordMetricData(
+        'Top Keywords',
+        _compactCount(_topKeywords.length),
+        Icons.sell_outlined,
+      ),
+      _KeywordMetricData(
+        'Trending Keywords',
+        _compactCount(_trendingKeywords.length),
+        Icons.trending_up,
+      ),
+      _KeywordMetricData(
+        'Trend Lines',
+        _compactCount(_keywordTrends.length),
+        Icons.show_chart,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 620;
+        return GridView.count(
+          crossAxisCount: isWide ? 3 : 1,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: isWide ? 2.4 : 3.6,
+          children: metrics.map(_buildKeywordMetricTile).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildKeywordMetricTile(_KeywordMetricData metric) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Text(message, style: AppTextStyles.bodySmall),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.accentLight,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+            child: Icon(metric.icon, color: AppColors.accent, size: 22),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(metric.value, style: AppTextStyles.h2),
+                const SizedBox(height: AppSpacing.xs),
+                Text(metric.label, style: AppTextStyles.labelCaps),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeywordChartSection({
+    required String title,
+    required String description,
+    required Widget child,
+  }) {
+    return _buildKeywordSectionCard(
+      title: title,
+      icon: Icons.analytics_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(description, style: AppTextStyles.bodySmall),
+          const SizedBox(height: AppSpacing.md),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeywordSectionCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: AppColors.accent),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(title, style: AppTextStyles.h2)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeywordNotice(String message, {IconData? icon, Widget? action}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceTint,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon ?? Icons.info_outline, size: 18, color: AppColors.accent),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(message, style: AppTextStyles.bodySmall)),
+          ?action,
+        ],
+      ),
     );
   }
 
@@ -608,4 +950,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .toList(),
     );
   }
+}
+
+class _KeywordMetricData {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _KeywordMetricData(this.label, this.value, this.icon);
 }

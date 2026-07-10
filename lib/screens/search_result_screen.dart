@@ -103,7 +103,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     String displayTitle = widget.topic;
 
     if (widget.category == 'AuthorWorks') {
-      displayTitle = 'Bài báo của ${widget.topic}';
+      displayTitle = 'Papers by ${widget.topic}';
     } else if (widget.category == 'Sources') {
       displayTitle = 'Journals';
     } else {
@@ -124,7 +124,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                 context.read<PublicationController>().setSelectedIndex(0);
               }
             },
-            tooltip: 'Tìm kiếm mới',
+            tooltip: 'New search',
           ),
         ],
       ),
@@ -141,7 +141,11 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
               : controller.errorMessage;
 
           if (isLoading && isCurrentResultEmpty) {
-            return const LoadingWidget();
+            return LoadingWidget(
+              message: widget.category == 'Sources'
+                  ? 'Loading journals from OpenAlex...'
+                  : 'Loading data from OpenAlex...',
+            );
           }
 
           if (errorMessage.isNotEmpty && isCurrentResultEmpty) {
@@ -165,7 +169,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     switch (widget.category) {
       case 'AuthorWorks':
         if (controller.publications.isEmpty && !controller.isLoading) {
-          return const EmptyStateWidget(message: 'Không tìm thấy bài báo nào.');
+          return const EmptyStateWidget(message: 'No publications found.');
         }
         return ListView.builder(
           controller: _scrollController,
@@ -218,9 +222,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                     _buildJournalSearchPanel(controller),
                     const SizedBox(height: AppSpacing.lg),
                     _buildLibraryPanel(),
-                    const EmptyStateWidget(
-                      message: 'Không tìm thấy nguồn nào.',
-                    ),
+                    _buildJournalEmptyState(),
                   ],
                 ),
               ),
@@ -267,11 +269,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                   final library = context.watch<JournalLibraryController>();
                   final isFavorite = library.isFavorite(source.id);
                   return _buildEntityCard(
-                    title: source.name,
-                    subtitle: source.publisher ?? 'Journal',
-                    trailing: '${source.worksCount} publications',
-                    icon: Icons.book_outlined,
-                    meta: '',
+                    journal: source,
                     isSelectedForCompare: isSelected,
                     isFavorite: isFavorite,
                     onCompareToggle: () => _toggleCompareSelection(source),
@@ -284,7 +282,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           ],
         );
       default:
-        return const EmptyStateWidget(message: 'Không có dữ liệu phù hợp.');
+        return const EmptyStateWidget(message: 'No matching data.');
     }
   }
 
@@ -351,8 +349,12 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           final isCompact = constraints.maxWidth < 520;
           final searchField = AppTextField(
             controller: _journalSearchController,
-            hintText: 'Search journals by source name',
+            hintText: 'Search by journal name or publisher',
             prefixIcon: Icons.manage_search,
+            suffixIcon: _journalSearchController.text.isEmpty
+                ? null
+                : Icons.close,
+            onSuffixTap: _clearJournalSearch,
             onChanged: (_) => setState(() {}),
             onSubmitted: _submitJournalSearch,
           );
@@ -367,24 +369,57 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('OPENALEX JOURNAL SOURCES', style: AppTextStyles.labelCaps),
-              const SizedBox(height: AppSpacing.sm),
-              if (isCompact)
-                Column(
-                  children: [
-                    searchField,
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(children: [Expanded(child: searchButton)]),
-                  ],
-                )
-              else
-                Row(
-                  children: [
-                    Expanded(child: searchField),
-                    const SizedBox(width: AppSpacing.sm),
-                    searchButton,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
                   ],
                 ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'OPENALEX JOURNAL SOURCES',
+                      style: AppTextStyles.labelCaps,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text('Discover Journals', style: AppTextStyles.h1),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Search OpenAlex sources by journal name or publisher.',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (isCompact)
+                      Column(
+                        children: [
+                          searchField,
+                          const SizedBox(height: AppSpacing.sm),
+                          Row(children: [Expanded(child: searchButton)]),
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(child: searchField),
+                          const SizedBox(width: AppSpacing.sm),
+                          searchButton,
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _buildJournalResultSummary(controller),
             ],
           );
         },
@@ -392,10 +427,50 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     );
   }
 
+  Widget _buildJournalResultSummary(PublicationController controller) {
+    final query = controller.journalSearchText.trim();
+    final total = controller.journalSourcesTotal;
+    final loaded = controller.journalSources.length;
+    final label = query.isEmpty
+        ? 'Showing popular journal sources'
+        : 'Showing results for "$query"';
+
+    return Row(
+      children: [
+        const Icon(
+          Icons.library_books_outlined,
+          size: 16,
+          color: AppColors.accent,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            total > 0 ? '$label • $loaded of $total loaded' : label,
+            style: AppTextStyles.bodySmall,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _submitJournalSearch() {
     context.read<PublicationController>().searchJournals(
       _journalSearchController.text,
     );
+    FocusScope.of(context).unfocus();
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _clearJournalSearch() {
+    setState(_journalSearchController.clear);
+    context.read<PublicationController>().searchJournals('');
     FocusScope.of(context).unfocus();
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -430,11 +505,52 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
               ElevatedButton.icon(
                 onPressed: _retrySearch,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Thử lại'),
+                label: const Text('Try again'),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildJournalEmptyState() {
+    final hasQuery = _journalSearchController.text.trim().isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceTint,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.search_off_outlined,
+            size: 40,
+            color: AppColors.accent,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text('No journals found', style: AppTextStyles.h2),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            hasQuery
+                ? 'Try a broader source name or clear your search.'
+                : 'OpenAlex did not return journal sources yet.',
+            style: AppTextStyles.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+          if (hasQuery) ...[
+            const SizedBox(height: AppSpacing.md),
+            ElevatedButton.icon(
+              onPressed: _clearJournalSearch,
+              icon: const Icon(Icons.close, size: 18),
+              label: const Text('Clear Search'),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -459,7 +575,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             ],
             if (library.recentViewed.isNotEmpty) ...[
               _buildJournalStrip(
-                title: 'RECENT VIEWED JOURNALS',
+                title: 'RECENTLY VIEWED',
                 journals: library.recentViewed,
                 icon: Icons.history,
                 trailing: TextButton(
@@ -519,7 +635,14 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(color: AppColors.secondary.withValues(alpha: 0.4)),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,6 +670,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
 
   Widget _buildCompareBar() {
     final canCompare = _compareSelection.length == 2;
+    final hasSelection = _compareSelection.isNotEmpty;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -558,7 +682,9 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             const SizedBox(width: AppSpacing.sm),
             Flexible(
               child: Text(
-                'Selected ${_compareSelection.length}/2 journals',
+                hasSelection
+                    ? 'Selected ${_compareSelection.length}/2 journals'
+                    : 'Select 2 journals to compare',
                 style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -587,15 +713,24 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           width: double.infinity,
           padding: EdgeInsets.symmetric(
             horizontal: isCompact ? AppSpacing.md : AppSpacing.lg,
-            vertical: AppSpacing.sm,
+            vertical: hasSelection ? AppSpacing.sm : AppSpacing.xs,
           ),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: hasSelection ? AppColors.accentLight : AppColors.surface,
             border: Border(
               bottom: BorderSide(
-                color: AppColors.secondary.withValues(alpha: 0.25),
+                color: hasSelection ? AppColors.accent : AppColors.border,
               ),
             ),
+            boxShadow: hasSelection
+                ? [
+                    BoxShadow(
+                      color: AppColors.accent.withValues(alpha: 0.12),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
           ),
           child: isCompact
               ? Column(
@@ -619,11 +754,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   }
 
   Widget _buildEntityCard({
-    required String title,
-    required String subtitle,
-    required String trailing,
-    required IconData icon,
-    required String meta,
+    required Journal journal,
     bool isSelectedForCompare = false,
     bool isFavorite = false,
     VoidCallback? onCompareToggle,
@@ -633,65 +764,77 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 520;
+        final typeLabel = (journal.type?.trim().isNotEmpty == true)
+            ? journal.type!.toUpperCase()
+            : 'JOURNAL';
         final leading = Container(
           padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
-            color: AppColors.accent.withValues(alpha: 0.1),
+            color: isSelectedForCompare
+                ? AppColors.accent
+                : AppColors.accent.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: AppColors.accent, size: 24),
+          child: Icon(
+            Icons.book_outlined,
+            color: isSelectedForCompare ? AppColors.surface : AppColors.accent,
+            size: 24,
+          ),
         );
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
+              journal.name,
               style: AppTextStyles.h2.copyWith(fontSize: isCompact ? 16 : 18),
               maxLines: isCompact ? 2 : 1,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
             Text(
-              subtitle,
+              journal.publisher ?? 'OpenAlex journal source',
               style: AppTextStyles.bodySmall,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            if (meta.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.format_quote,
-                    size: 12,
-                    color: AppColors.accent,
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              children: [
+                _buildMetricBadge(
+                  Icons.article_outlined,
+                  '${_compactCount(journal.worksCount)} publications',
+                ),
+                _buildMetricBadge(
+                  Icons.format_quote,
+                  '${_compactCount(journal.citedByCount)} citations',
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      meta,
-                      style: AppTextStyles.labelCaps.copyWith(
-                        color: AppColors.accent,
-                        fontSize: 10,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceTint,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    border: Border.all(color: AppColors.border),
                   ),
-                ],
-              ),
-            ],
+                  child: Text(
+                    typeLabel,
+                    style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
+                  ),
+                ),
+              ],
+            ),
           ],
         );
-        final actions = Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          alignment: WrapAlignment.end,
+        final actionButtons = Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (onFavoriteToggle != null)
               Tooltip(
-                message: isFavorite ? 'Bỏ lưu journal' : 'Lưu journal',
+                message: isFavorite ? 'Remove from library' : 'Save journal',
                 child: IconButton(
                   onPressed: onFavoriteToggle,
                   icon: Icon(
@@ -703,8 +846,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             if (onCompareToggle != null)
               Tooltip(
                 message: isSelectedForCompare
-                    ? 'Bỏ khỏi so sánh'
-                    : 'Thêm vào so sánh',
+                    ? 'Remove from comparison'
+                    : 'Add to comparison',
                 child: IconButton(
                   onPressed: onCompareToggle,
                   icon: Icon(
@@ -715,64 +858,124 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                   ),
                 ),
               ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                border: Border.all(
-                  color: AppColors.secondary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                trailing,
-                style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
-              ),
-            ),
           ],
         );
-
-        return GestureDetector(
-          onTap: onTap,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: AppSpacing.md),
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(
-                color: AppColors.secondary,
-                width: AppSpacing.borderWidth,
+        final openHint = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Details',
+                style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
               ),
-            ),
-            child: isCompact
-                ? Column(
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(
+                Icons.chevron_right,
+                size: 14,
+                color: AppColors.secondary,
+              ),
+            ],
+          ),
+        );
+        final actions = isCompact
+            ? Row(children: [actionButtons, const Spacer(), openHint])
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  actionButtons,
+                  const SizedBox(height: AppSpacing.sm),
+                  openHint,
+                ],
+              );
+        final cardContent = isCompact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          leading,
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(child: content),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Align(alignment: Alignment.centerRight, child: actions),
-                    ],
-                  )
-                : Row(
                     children: [
                       leading,
                       const SizedBox(width: AppSpacing.md),
                       Expanded(child: content),
-                      const SizedBox(width: AppSpacing.sm),
-                      actions,
                     ],
                   ),
+                  const SizedBox(height: AppSpacing.sm),
+                  actions,
+                ],
+              )
+            : Row(
+                children: [
+                  leading,
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(child: content),
+                  const SizedBox(width: AppSpacing.sm),
+                  actions,
+                ],
+              );
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: isSelectedForCompare
+                    ? AppColors.accentLight
+                    : AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(
+                  color: isSelectedForCompare
+                      ? AppColors.accent
+                      : AppColors.border,
+                  width: AppSpacing.borderWidth,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.05),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: cardContent,
+            ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMetricBadge(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppColors.accent),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: AppTextStyles.labelCaps.copyWith(
+              color: AppColors.accent,
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -793,7 +996,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       if (_compareSelection.length >= 2) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Chỉ chọn tối đa 2 journal để so sánh.'),
+            content: Text('Select up to 2 journals for comparison.'),
           ),
         );
         return;
@@ -801,6 +1004,16 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
 
       _compareSelection.add(journal);
     });
+  }
+
+  String _compactCount(int value) {
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    }
+    if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}K';
+    }
+    return value.toString();
   }
 
   void _openCompareScreen() {

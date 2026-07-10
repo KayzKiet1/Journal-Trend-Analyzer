@@ -3,22 +3,24 @@ import '../utils/app_colors.dart';
 
 /// Widget hiển thị vòng xoay đang tải dữ liệu
 class LoadingWidget extends StatelessWidget {
-  const LoadingWidget({super.key});
+  final String message;
+
+  const LoadingWidget({
+    super.key,
+    this.message = 'Loading data from OpenAlex...',
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
+          const CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
           ),
-          SizedBox(height: 16),
-          Text(
-            'Đang tải dữ liệu từ OpenAlex...',
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
+          const SizedBox(height: 16),
+          Text(message, style: const TextStyle(color: AppColors.textSecondary)),
         ],
       ),
     );

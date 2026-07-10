@@ -29,6 +29,7 @@ class AppTheme {
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.primary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
         titleTextStyle: AppTextStyles.h2,
         iconTheme: const IconThemeData(color: AppColors.primary),
@@ -70,11 +71,11 @@ class AppTheme {
 
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.border, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.border, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -85,10 +86,11 @@ class AppTheme {
       // Card Theme: Level 1 (Paper White surface, 1px Data Slate border, no shadow)
       cardTheme: CardThemeData(
         color: AppColors.surface,
-        elevation: 0,
+        elevation: 1,
+        shadowColor: AppColors.primary.withValues(alpha: 0.08),
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
         shape: RoundedRectangleBorder(
-          side: const BorderSide(color: AppColors.secondary, width: 1.0),
+          side: const BorderSide(color: AppColors.border, width: 1.0),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
       ),
@@ -101,7 +103,7 @@ class AppTheme {
         padding: const EdgeInsets.all(4),
         labelStyle: AppTextStyles.labelCaps,
         shape: RoundedRectangleBorder(
-          side: const BorderSide(color: AppColors.secondary, width: 1.0),
+          side: const BorderSide(color: AppColors.border, width: 1.0),
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         ),
       ),

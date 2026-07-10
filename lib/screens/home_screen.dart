@@ -26,6 +26,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FirebaseAnalyticsService _analyticsService = FirebaseAnalyticsService();
   Timer? _topicDebounce;
+  static const List<String> _quickTopics = [
+    'Artificial Intelligence',
+    'Healthcare',
+    'Climate Change',
+  ];
 
   void _handleSearch() {
     final currentController = context.read<PublicationController>();
@@ -52,11 +57,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onSearchTextChanged(String value) {
+    setState(() {});
     final controller = context.read<PublicationController>();
     controller.updateSearchText(value);
     controller.clearTopicSelection();
     _topicDebounce?.cancel();
-    _topicDebounce = Timer(const Duration(milliseconds: 600), () {
+    _topicDebounce = Timer(const Duration(milliseconds: 450), () {
       if (!mounted) return;
       _loadTopicSuggestions(value);
     });
@@ -71,9 +77,29 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<PublicationController>().toggleTopic(topic);
   }
 
+  void _handleQuickTopic(String topic) {
+    _topicDebounce?.cancel();
+    setState(() {
+      _searchController.text = topic;
+    });
+    final controller = context.read<PublicationController>();
+    controller.updateSearchText(topic);
+    controller.loadTopicSuggestions(topic);
+  }
+
+  void _clearSearchInput() {
+    _topicDebounce?.cancel();
+    setState(_searchController.clear);
+    final controller = context.read<PublicationController>();
+    controller.updateSearchText('');
+    controller.clearTopicSelection();
+  }
+
   void _handleRecentTopic(RecentSearch search) {
     _topicDebounce?.cancel();
-    _searchController.text = search.label;
+    setState(() {
+      _searchController.text = search.label;
+    });
     final controller = context.read<PublicationController>();
     controller.updateSearchText(search.label);
 
@@ -122,138 +148,180 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Journal Trend Analyzer'), elevation: 0),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: AppSpacing.maxContentWidth,
+      appBar: AppBar(
+        title: const Text('Journal Trend Analyzer'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.accentLight.withValues(alpha: 0.75),
+              AppColors.background,
+              AppColors.background,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.xl,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppSpacing.maxContentWidth,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: AppSpacing.xl),
-                Text('Explore Academic Insights', style: AppTextStyles.h1),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Search by research topic, then explore matching journals from OpenAlex.',
-                  style: AppTextStyles.bodyLarge,
-                ),
-                const SizedBox(height: AppSpacing.xl * 2),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xl,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeroHeader(),
+                  const SizedBox(height: AppSpacing.lg),
 
-                // Search Input Field
-                AppTextField(
-                  controller: _searchController,
-                  hintText: 'Enter a research topic...',
-                  prefixIcon: Icons.search,
-                  onChanged: _onSearchTextChanged,
-                  onSubmitted: () => _handleSearch(),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _buildTopicSuggestions(),
-                const SizedBox(height: AppSpacing.lg),
+                  // Search Input Field
+                  AppTextField(
+                    controller: _searchController,
+                    hintText: 'Enter a research topic...',
+                    prefixIcon: Icons.search,
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : Icons.close,
+                    onSuffixTap: _clearSearchInput,
+                    onChanged: _onSearchTextChanged,
+                    onSubmitted: () => _handleSearch(),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildTopicSuggestions(),
+                  const SizedBox(height: AppSpacing.lg),
 
-                // Search Button
-                Consumer<PublicationController>(
-                  builder: (context, controller, child) {
-                    final selectedCount = controller.selectedTopics.length;
-                    final isLoading = controller.isLoadingTopicDashboard;
-                    return SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: AppButton(
-                        text: isLoading
-                            ? 'Loading Research Overview...'
-                            : selectedCount == 0
-                            ? 'Search Journals by Topic'
-                            : 'Search Journals by $selectedCount Topics',
-                        onPressed: selectedCount == 0 || isLoading
-                            ? null
-                            : _handleSearch,
-                      ),
-                    );
-                  },
-                ),
-                Consumer<PublicationController>(
-                  builder: (context, controller, child) {
-                    if (controller.selectedTopics.isNotEmpty ||
-                        _searchController.text.trim().isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.sm),
-                      child: Text(
-                        'Chọn một topic bên trên trước khi tìm journal.',
-                        style: AppTextStyles.bodySmall,
-                      ),
-                    );
-                  },
-                ),
-                Consumer<PublicationController>(
-                  builder: (context, controller, child) {
-                    final selectedTopics = controller.selectedTopics;
-                    if (selectedTopics.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    final label = selectedTopics
-                        .map((topic) => topic.name)
-                        .join(', ');
-                    return Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.sm),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.check_circle,
-                            size: 18,
-                            color: AppColors.success,
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Text(
-                              'Selected topics: $label',
-                              style: AppTextStyles.bodySmall.copyWith(
+                  // Search Button
+                  Consumer<PublicationController>(
+                    builder: (context, controller, child) {
+                      final selectedCount = controller.selectedTopics.length;
+                      final isLoading = controller.isLoadingTopicDashboard;
+                      final isLoadingSuggestions =
+                          controller.isLoadingTopicSuggestions;
+                      final query = _searchController.text.trim();
+                      final hasSelection = selectedCount > 0;
+                      final canFindTopics = query.length >= 2;
+                      return SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: AppButton(
+                          text: isLoading
+                              ? 'Loading Research Overview...'
+                              : isLoadingSuggestions
+                              ? 'Finding Topics...'
+                              : !hasSelection
+                              ? 'Find Topics'
+                              : 'Search Journals by $selectedCount Topics',
+                          onPressed:
+                              isLoading ||
+                                  isLoadingSuggestions ||
+                                  (!hasSelection && !canFindTopics)
+                              ? null
+                              : () {
+                                  if (hasSelection) {
+                                    _handleSearch();
+                                  } else {
+                                    _loadTopicSuggestions(query);
+                                  }
+                                },
+                        ),
+                      );
+                    },
+                  ),
+                  Consumer<PublicationController>(
+                    builder: (context, controller, child) {
+                      if (controller.selectedTopics.isNotEmpty ||
+                          _searchController.text.trim().isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.sm),
+                        child: Text(
+                          'Select a topic above before searching journals.',
+                          style: AppTextStyles.bodySmall,
+                        ),
+                      );
+                    },
+                  ),
+                  Consumer<PublicationController>(
+                    builder: (context, controller, child) {
+                      final selectedTopics = controller.selectedTopics;
+                      if (selectedTopics.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SELECTED TOPICS',
+                              style: AppTextStyles.labelCaps.copyWith(
                                 color: AppColors.success,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-
-                _buildTopicDashboard(),
-
-                const SizedBox(height: AppSpacing.xl),
-                Text('RECENT SEARCHES', style: AppTextStyles.labelCaps),
-                const SizedBox(height: AppSpacing.md),
-
-                Consumer<UserController>(
-                  builder: (context, userController, child) {
-                    final history = userController.recentSearches;
-
-                    if (history.isEmpty) {
-                      return Text(
-                        'Chưa có lịch sử tìm kiếm.',
-                        style: AppTextStyles.bodySmall,
+                            const SizedBox(height: AppSpacing.sm),
+                            Wrap(
+                              spacing: AppSpacing.sm,
+                              runSpacing: AppSpacing.sm,
+                              children: selectedTopics
+                                  .map(
+                                    (topic) => _buildSelectedTopicChip(topic),
+                                  )
+                                  .toList(),
+                            ),
+                          ],
+                        ),
                       );
-                    }
+                    },
+                  ),
 
-                    return Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: history
-                          .map((search) => _buildTopicChip(search))
-                          .toList(),
-                    );
-                  },
-                ),
-              ],
+                  _buildTopicDashboard(),
+
+                  const SizedBox(height: AppSpacing.xl),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.history,
+                        color: AppColors.accent,
+                        size: 18,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text('RECENT SEARCHES', style: AppTextStyles.labelCaps),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+
+                  Consumer<UserController>(
+                    builder: (context, userController, child) {
+                      final history = userController.recentSearches;
+
+                      if (history.isEmpty) {
+                        return Text(
+                          'No recent searches yet.',
+                          style: AppTextStyles.bodySmall,
+                        );
+                      }
+
+                      return Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: history
+                            .map((search) => _buildTopicChip(search))
+                            .toList(),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -261,18 +329,122 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildHeroHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primarySoft, AppColors.accent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -16,
+            top: -20,
+            child: Icon(
+              Icons.auto_graph,
+              size: 108,
+              color: AppColors.surface.withValues(alpha: 0.08),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  border: Border.all(
+                    color: AppColors.surface.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Text(
+                  'OPENALEX RESEARCH DISCOVERY',
+                  style: AppTextStyles.labelCaps.copyWith(
+                    color: AppColors.surface.withValues(alpha: 0.88),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Explore Academic Insights',
+                style: AppTextStyles.h1.copyWith(
+                  color: AppColors.surface,
+                  fontSize: 24,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Search by research topic, then explore matching journals from OpenAlex.',
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: AppColors.surface.withValues(alpha: 0.86),
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTopicChip(RecentSearch search) {
     return ActionChip(
-      label: Text(search.label),
+      label: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 248),
+        child: Text(search.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
       onPressed: () => _handleRecentTopic(search),
-      backgroundColor: AppColors.surface,
+      avatar: const Icon(Icons.north_west, size: 14),
+      backgroundColor: AppColors.surfaceTint,
+      surfaceTintColor: AppColors.accentLight,
+      elevation: 1,
+      shadowColor: AppColors.primary.withValues(alpha: 0.08),
       labelStyle: AppTextStyles.labelCaps.copyWith(
         color: AppColors.primary,
         fontSize: 11,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.secondary, width: 1.0),
+        side: const BorderSide(color: AppColors.border, width: 1.0),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      ),
+    );
+  }
+
+  Widget _buildSelectedTopicChip(ResearchTopic topic) {
+    return InputChip(
+      label: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 220),
+        child: Text(topic.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+      onDeleted: () => _toggleTopic(topic),
+      deleteIcon: const Icon(Icons.close, size: 16),
+      backgroundColor: AppColors.accentLight,
+      deleteIconColor: AppColors.accent,
+      labelStyle: AppTextStyles.labelCaps.copyWith(
+        color: AppColors.primary,
+        fontSize: 11,
+      ),
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppColors.accent, width: 1.0),
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       ),
     );
@@ -285,7 +457,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (query.length < 2 &&
             !controller.isLoadingTopicSuggestions &&
             controller.topicSuggestions.isEmpty) {
-          return const SizedBox.shrink();
+          return _buildQuickTopics();
         }
 
         if (controller.isLoadingTopicSuggestions) {
@@ -311,7 +483,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         if (controller.topicSuggestions.isEmpty) {
-          return const SizedBox.shrink();
+          return _buildQuickTopics();
         }
 
         return Column(
@@ -352,6 +524,42 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildQuickTopics() {
+    if (_searchController.text.trim().isNotEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('TRY A TOPIC', style: AppTextStyles.labelCaps),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: _quickTopics
+              .map(
+                (topic) => ActionChip(
+                  label: Text(topic),
+                  avatar: const Icon(Icons.add, size: 14),
+                  onPressed: () => _handleQuickTopic(topic),
+                  backgroundColor: AppColors.surface,
+                  labelStyle: AppTextStyles.labelCaps.copyWith(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    side: const BorderSide(color: AppColors.border, width: 1.0),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ],
     );
   }
 
@@ -523,7 +731,14 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1),
+        border: Border.all(color: AppColors.border, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,7 +768,14 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1),
+        border: Border.all(color: AppColors.border, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,9 +825,9 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surfaceTint,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Row(
         children: [
@@ -621,13 +843,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Material(
-        color: AppColors.surface,
+        color: selected ? AppColors.accentLight : AppColors.surface,
+        elevation: selected ? 1 : 0,
+        shadowColor: AppColors.accent.withValues(alpha: 0.15),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           side: BorderSide(
-            color: selected
-                ? AppColors.accent
-                : AppColors.secondary.withValues(alpha: 0.7),
+            color: selected ? AppColors.accent : AppColors.border,
             width: 1,
           ),
         ),
@@ -644,7 +866,9 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Icon(
                   selected ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: selected ? AppColors.accent : AppColors.secondary,
+                  color: selected
+                      ? AppColors.accent
+                      : AppColors.secondary.withValues(alpha: 0.75),
                   size: 22,
                 ),
                 const SizedBox(width: AppSpacing.md),

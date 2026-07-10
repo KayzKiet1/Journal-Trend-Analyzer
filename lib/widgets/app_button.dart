@@ -11,23 +11,45 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: onPressed,
-      style: FilledButton.styleFrom(
-        // Background: accent (Citation Teal #0F766E)
-        backgroundColor: AppColors.accent,
-        foregroundColor: AppColors.textInverted,
-        disabledBackgroundColor: AppColors.secondary.withValues(alpha: 0.2),
-        disabledForegroundColor: AppColors.secondary.withValues(alpha: 0.5),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        // Radius md: 8px
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        ),
-        // No heavy drop shadows
-        elevation: 0,
+    final enabled = onPressed != null;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        gradient: enabled
+            ? const LinearGradient(
+                colors: [AppColors.accent, AppColors.accentDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: enabled ? null : AppColors.secondary.withValues(alpha: 0.18),
+        boxShadow: enabled
+            ? [
+                BoxShadow(
+                  color: AppColors.accent.withValues(alpha: 0.26),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                ),
+              ]
+            : [],
       ),
-      child: Text(text, style: AppTextStyles.buttonText),
+      child: FilledButton(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: AppColors.textInverted,
+          disabledBackgroundColor: Colors.transparent,
+          disabledForegroundColor: AppColors.secondary.withValues(alpha: 0.58),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+          elevation: 0,
+          shadowColor: Colors.transparent,
+        ),
+        child: Text(text, style: AppTextStyles.buttonText),
+      ),
     );
   }
 }
