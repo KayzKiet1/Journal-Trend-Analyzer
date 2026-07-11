@@ -185,6 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // Search Input Field
                   AppTextField(
+                    fieldKey: const Key('home_topic_search_field'),
                     controller: _searchController,
                     hintText: 'Enter a research topic...',
                     prefixIcon: Icons.search,
@@ -213,6 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: double.infinity,
                         height: 56,
                         child: AppButton(
+                          key: const Key('home_search_button'),
                           text: isLoading
                               ? 'Loading Research Overview...'
                               : isLoadingSuggestions
@@ -854,6 +856,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         child: InkWell(
+          key: Key('topic_option_${topic.id}'),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           onTap: () => _toggleTopic(topic),
           child: Padding(

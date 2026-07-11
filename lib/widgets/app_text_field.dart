@@ -4,6 +4,7 @@ import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
 
 class AppTextField extends StatelessWidget {
+  final Key? fieldKey;
   final TextEditingController controller;
   final String hintText;
   final IconData? prefixIcon;
@@ -14,6 +15,7 @@ class AppTextField extends StatelessWidget {
 
   const AppTextField({
     super.key,
+    this.fieldKey,
     required this.controller,
     required this.hintText,
     this.prefixIcon,
@@ -37,6 +39,7 @@ class AppTextField extends StatelessWidget {
         ],
       ),
       child: TextField(
+        key: fieldKey,
         controller: controller,
         style: AppTextStyles.bodyLarge,
         cursorColor: AppColors.accent,

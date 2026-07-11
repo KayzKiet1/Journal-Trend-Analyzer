@@ -74,23 +74,23 @@ class _MainScreenState extends State<MainScreen> {
           unselectedLabelStyle: const TextStyle(fontSize: 12),
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
+              icon: Icon(Icons.home_outlined, key: Key('nav_home')),
+              activeIcon: Icon(Icons.home, key: Key('nav_home')),
               label: 'HOME',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.book_outlined),
-              activeIcon: Icon(Icons.book),
+              icon: Icon(Icons.book_outlined, key: Key('nav_journals')),
+              activeIcon: Icon(Icons.book, key: Key('nav_journals')),
               label: 'JOURNALS',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.analytics_outlined),
-              activeIcon: Icon(Icons.analytics),
+              icon: Icon(Icons.analytics_outlined, key: Key('nav_keywords')),
+              activeIcon: Icon(Icons.analytics, key: Key('nav_keywords')),
               label: 'KEYWORDS',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
+              icon: Icon(Icons.person_outline, key: Key('nav_profile')),
+              activeIcon: Icon(Icons.person, key: Key('nav_profile')),
               label: 'PROFILE',
             ),
           ],

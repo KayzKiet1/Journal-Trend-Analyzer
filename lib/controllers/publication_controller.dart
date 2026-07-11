@@ -111,6 +111,8 @@ class PublicationController extends ChangeNotifier {
   List<TrendData> _topicDashboardTrends = [];
   Map<String, int> _topicDashboardTopAuthors = {};
   Map<String, int> _topicDashboardTopJournals = {};
+  List<Map<String, dynamic>> _keywordFixtures = [];
+  bool _hasTestingFixtures = false;
   bool _isLoadingTopicDashboard = false;
   String _topicDashboardError = '';
   String? _topicDashboardTopicKey;
@@ -156,6 +158,9 @@ class PublicationController extends ChangeNotifier {
       _topicDashboardPublications.isEmpty
       ? null
       : _topicDashboardPublications.first;
+  List<Map<String, dynamic>> get keywordFixtures =>
+      List.unmodifiable(_keywordFixtures);
+  bool get hasTestingFixtures => _hasTestingFixtures;
   int get totalResults => _totalResults;
 
   bool hasMoreFor(String category) {
@@ -173,6 +178,53 @@ class PublicationController extends ChangeNotifier {
 
   bool get hasMoreJournalSources =>
       _journalSources.length < _journalSourcesTotal;
+
+  @visibleForTesting
+  void seedE2eFixtures({
+    required String topic,
+    required List<String> topicIds,
+    required List<Publication> publications,
+    required List<TrendData> trends,
+    required Map<String, int> topAuthors,
+    required Map<String, int> topJournals,
+    required List<Journal> journals,
+    required List<Map<String, dynamic>> keywords,
+  }) {
+    _hasTestingFixtures = true;
+    _lastSearchText = topic;
+    _currentTopic = topic;
+    _currentTopicIds = topicIds;
+    _selectedTopics = [
+      ResearchTopic(
+        id: topicIds.isEmpty ? 'test-topic' : topicIds.first,
+        name: topic,
+      ),
+    ];
+    _topicDashboardPublications = publications;
+    _topicDashboardTrends = trends;
+    _topicDashboardTopAuthors = topAuthors;
+    _topicDashboardTopJournals = topJournals;
+    _topicDashboardTotalWorks = publications.length;
+    _topicDashboardAverageCitations = publications.isEmpty
+        ? 0
+        : publications
+                  .map((publication) => publication.citedByCount)
+                  .reduce((a, b) => a + b) /
+              publications.length;
+    _topicDashboardPeakYear = trends.isEmpty
+        ? null
+        : trends.reduce((a, b) => a.count >= b.count ? a : b).year;
+    _topicDashboardError = '';
+    _topicDashboardTopicKey = topicIds.join('|');
+    _isLoadingTopicDashboard = false;
+    _journalSources = journals;
+    _journalSourcesTotal = journals.length;
+    _journalSearchText = '';
+    _journalErrorMessage = '';
+    _isLoadingJournals = false;
+    _keywordFixtures = keywords;
+    notifyListeners();
+  }
 
   String _currentCategory = 'Sources';
   String get currentCategory => _currentCategory;
@@ -405,6 +457,22 @@ class PublicationController extends ChangeNotifier {
     if (trimmedQuery.length < 2) {
       _topicSuggestionRequestId++;
       _topicSuggestions = [];
+      _topicSuggestionError = '';
+      _isLoadingTopicSuggestions = false;
+      notifyListeners();
+      return;
+    }
+
+    if (_hasTestingFixtures) {
+      _topicSuggestionRequestId++;
+      _topicSuggestions = [
+        ResearchTopic(
+          id: _currentTopicIds.isEmpty ? 'test-topic' : _currentTopicIds.first,
+          name: _currentTopic.isEmpty ? trimmedQuery : _currentTopic,
+          description: 'E2E fixture topic',
+          worksCount: _topicDashboardTotalWorks,
+        ),
+      ];
       _topicSuggestionError = '';
       _isLoadingTopicSuggestions = false;
       notifyListeners();

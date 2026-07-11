@@ -161,6 +161,7 @@ class _KeywordDetailScreenState extends State<KeywordDetailScreen> {
     }
 
     return SingleChildScrollView(
+      key: const Key('keyword_detail_content'),
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -348,6 +348,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
         builder: (context, constraints) {
           final isCompact = constraints.maxWidth < 520;
           final searchField = AppTextField(
+            fieldKey: const Key('journal_search_field'),
             controller: _journalSearchController,
             hintText: 'Search by journal name or publisher',
             prefixIcon: Icons.manage_search,
@@ -359,6 +360,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             onSubmitted: _submitJournalSearch,
           );
           final searchButton = ElevatedButton.icon(
+            key: const Key('journal_search_button'),
             onPressed: controller.isLoadingJournals
                 ? null
                 : _submitJournalSearch,
@@ -921,6 +923,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
               );
 
         return Material(
+          key: Key('journal_card_${journal.id}'),
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
@@ -1031,12 +1034,16 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => JournalDetailScreen(
-          journalId: journal.id,
-          journalName: journal.name,
-          topicIds: const <String>[],
-          topicLabel: null,
-        ),
+        builder: (context) {
+          final controller = context.read<PublicationController>();
+          return JournalDetailScreen(
+            journalId: journal.id,
+            journalName: journal.name,
+            topicIds: const <String>[],
+            topicLabel: null,
+            journalForTesting: controller.hasTestingFixtures ? journal : null,
+          );
+        },
       ),
     );
   }

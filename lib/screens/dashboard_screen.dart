@@ -234,6 +234,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
+    if (controller.keywordFixtures.isNotEmpty) {
+      return _buildKeywordFixtureDashboard(controller);
+    }
+
     if (topicIds.isEmpty) {
       return _buildKeywordEmptyState(controller);
     }
@@ -297,6 +301,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: AppSpacing.xl),
                 _buildKeywordTrendCharts(),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKeywordFixtureDashboard(PublicationController controller) {
+    final keywords = controller.keywordFixtures;
+    final topicIds = controller.currentTopicIds;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildKeywordHero(controller, topicIds, topicIds.join('|')),
+              const SizedBox(height: AppSpacing.lg),
+              _buildKeywordMetricGrid(),
+              const SizedBox(height: AppSpacing.xl),
+              _buildKeywordSectionCard(
+                title: 'Keyword Occurrences',
+                icon: Icons.format_list_numbered,
+                child: Column(
+                  children: keywords.asMap().entries.map((entry) {
+                    final rank = entry.key + 1;
+                    final keyword = entry.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: Material(
+                        color: AppColors.surfaceTint,
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusMd,
+                        ),
+                        child: InkWell(
+                          key: Key('keyword_card_$rank'),
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusMd,
+                          ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => _KeywordFixtureDetail(
+                                keywordName: keyword['name'].toString(),
+                                topicLabel: controller.currentTopic,
+                              ),
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    keyword['name'].toString(),
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  _compactCount(
+                                    (keyword['count'] as num?)?.toInt() ?? 0,
+                                  ),
+                                  style: AppTextStyles.labelCaps.copyWith(
+                                    color: AppColors.accent,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  size: 16,
+                                  color: AppColors.secondary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
             ],
           ),
         ),
@@ -537,6 +626,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: AppColors.surfaceTint,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 child: InkWell(
+                  key: Key('keyword_card_$rank'),
                   onTap: () => _openKeywordDetail(keyword),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   child: Padding(
@@ -958,4 +1048,43 @@ class _KeywordMetricData {
   final IconData icon;
 
   const _KeywordMetricData(this.label, this.value, this.icon);
+}
+
+class _KeywordFixtureDetail extends StatelessWidget {
+  const _KeywordFixtureDetail({
+    required this.keywordName,
+    required this.topicLabel,
+  });
+
+  final String keywordName;
+  final String topicLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Keyword Analysis')),
+      body: SingleChildScrollView(
+        key: const Key('keyword_detail_content'),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(keywordName, style: AppTextStyles.h1),
+            const SizedBox(height: AppSpacing.md),
+            Text(topicLabel, style: AppTextStyles.bodySmall),
+            const SizedBox(height: AppSpacing.lg),
+            Text('Analysis Scope', style: AppTextStyles.h2),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Fixture keyword analysis for the selected research topic.',
+              style: AppTextStyles.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text('Related Publications', style: AppTextStyles.h2),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -184,6 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Profile')),
       body: SingleChildScrollView(
+        key: const Key('profile_content'),
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,6 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: double.infinity,
             child: isSignedIn
                 ? OutlinedButton.icon(
+                    key: const Key('sign_out_button'),
                     onPressed: userController.isAuthLoading ? null : _signOut,
                     icon: const Icon(Icons.logout),
                     label: Text(
@@ -326,6 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   )
                 : ElevatedButton.icon(
+                    key: const Key('google_sign_in_button'),
                     onPressed: userController.isAuthLoading
                         ? null
                         : _signInWithGoogle,
@@ -551,6 +554,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
+                      key: const Key('export_pdf_button'),
                       onPressed: canExport
                           ? () => _exportAndUploadReport(
                               publicationController,
@@ -706,7 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Manage Firebase Cloud Messaging permission, topic subscriptions, and received research alerts.',
+                'Manage push notification permission and optional research alert subscriptions.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -715,19 +719,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: controller.isLoading
-                      ? null
-                      : controller.requestPermission,
-                  icon: const Icon(Icons.notification_add_outlined),
+                  onPressed: controller.canRequestPermission
+                      ? controller.requestPermission
+                      : null,
+                  icon: Icon(
+                    controller.isNotificationReady
+                        ? Icons.notifications_active_outlined
+                        : Icons.notification_add_outlined,
+                  ),
                   label: Text(
                     controller.isLoading
                         ? 'CHECKING...'
+                        : controller.isNotificationReady
+                        ? 'NOTIFICATIONS ENABLED'
                         : 'ENABLE NOTIFICATIONS',
                   ),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text('NOTIFICATION TOPICS', style: AppTextStyles.labelCaps),
+              Text('OPTIONAL ALERT TOPICS', style: AppTextStyles.labelCaps),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Use these switches to subscribe this device to Firebase Messaging demo topics.',
+                style: AppTextStyles.bodySmall,
+              ),
               const SizedBox(height: AppSpacing.sm),
               ...NotificationController.preferences.map(
                 (preference) => SwitchListTile(
@@ -938,8 +953,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, controller, _) {
         final values = controller.remoteConfigValues;
         return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: _firebaseDemoCardDecoration(),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(color: AppColors.border, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -961,25 +987,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: AppSpacing.md),
-              _buildConfigRow(
-                'Max journals displayed',
-                values.maxJournalsDisplay.toString(),
-                Icons.book_outlined,
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceTint,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    _buildConfigRow(
+                      'Max journals displayed',
+                      values.maxJournalsDisplay.toString(),
+                      Icons.book_outlined,
+                    ),
+                    _buildConfigRow(
+                      'Max keywords displayed',
+                      values.maxKeywordsDisplay.toString(),
+                      Icons.analytics_outlined,
+                    ),
+                    _buildConfigRow(
+                      'Report export enabled',
+                      values.enableReportExport ? 'true' : 'false',
+                      Icons.picture_as_pdf_outlined,
+                    ),
+                  ],
+                ),
               ),
-              _buildConfigRow(
-                'Max keywords displayed',
-                values.maxKeywordsDisplay.toString(),
-                Icons.analytics_outlined,
-              ),
-              _buildConfigRow(
-                'Report export enabled',
-                values.enableReportExport ? 'true' : 'false',
-                Icons.picture_as_pdf_outlined,
-              ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 'Status: ${controller.remoteConfigStatus}',
-                style: AppTextStyles.bodySmall,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.primary,
+                ),
               ),
               if (controller.remoteConfigError != null) ...[
                 const SizedBox(height: AppSpacing.xs),
@@ -994,14 +1034,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
+                  key: const Key('fetch_remote_config_button'),
                   onPressed: controller.isRemoteConfigLoading
                       ? null
                       : controller.fetchRemoteConfig,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.textInverted,
+                    disabledBackgroundColor: AppColors.accent.withValues(
+                      alpha: 0.65,
+                    ),
+                    disabledForegroundColor: AppColors.textInverted,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                  ),
                   icon: controller.isRemoteConfigLoading
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.textInverted,
+                          ),
                         )
                       : const Icon(Icons.cloud_download_outlined),
                   label: Text(
@@ -1137,7 +1195,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(child: Text(title, style: AppTextStyles.bodySmall)),
           Text(
             value,
-            style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
+            style: AppTextStyles.labelCaps.copyWith(
+              color: AppColors.accent,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -1195,7 +1256,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Icon(icon, color: AppColors.secondary, size: 20),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            // Thêm Expanded để tránh lỗi overflow khi text quá dài
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1208,7 +1268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.primary,
                   ),
-                  maxLines: 2, // Cho phép hiển thị tối đa 2 dòng
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

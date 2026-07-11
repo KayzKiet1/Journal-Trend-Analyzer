@@ -22,6 +22,7 @@ class JournalDetailScreen extends StatefulWidget {
   final String journalName;
   final List<String> topicIds;
   final String? topicLabel;
+  final Journal? journalForTesting;
 
   const JournalDetailScreen({
     super.key,
@@ -29,6 +30,7 @@ class JournalDetailScreen extends StatefulWidget {
     required this.journalName,
     this.topicIds = const [],
     this.topicLabel,
+    this.journalForTesting,
   });
 
   @override
@@ -76,6 +78,28 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    if (widget.journalForTesting != null) {
+      setState(() {
+        _journal = widget.journalForTesting;
+        _works = [];
+        _totalWorks = widget.journalForTesting!.worksCount;
+        _trends = widget.journalForTesting!.countsByYear
+            .map((item) => TrendData(year: item.year, count: item.worksCount))
+            .toList();
+        _citationTrends = _buildCitationTrends(widget.journalForTesting!);
+        _topTopics = [
+          {'name': 'Artificial Intelligence', 'count': 42},
+          {'name': 'Machine Learning', 'count': 28},
+        ];
+        _topAuthors = [
+          {'name': 'Ada Lovelace', 'count': 8},
+          {'name': 'Alan Turing', 'count': 6},
+        ];
+        _isLoading = false;
+      });
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
@@ -199,6 +223,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         ],
       ),
       body: SingleChildScrollView(
+        key: const Key('journal_detail_content'),
         controller: _scrollController,
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Center(
