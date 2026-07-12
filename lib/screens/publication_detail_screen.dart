@@ -34,27 +34,25 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
   Future<void> _launchURL(BuildContext context, String? urlString) async {
     if (urlString == null || urlString.isEmpty) return;
 
-    // Hiển thị hộp thoại xác nhận theo phong cách Heritage
     final bool? confirm = await showDialog<bool>(
       context: context,
-      barrierDismissible:
-          false, // Ngăn đóng hộp thoại bằng cách nhấn ra ngoài để tránh xung đột async
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           side: const BorderSide(color: AppColors.secondary, width: 1.0),
         ),
-        title: Text('Xác nhận chuyển hướng', style: AppTextStyles.h2),
+        title: Text('Open external link?', style: AppTextStyles.h2),
         content: Text(
-          'Bạn có muốn rời ứng dụng để xem toàn văn bài báo trên trình duyệt web không?',
+          'Do you want to leave the app and open the publication in a browser?',
           style: AppTextStyles.bodySmall,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: Text(
-              'HỦY',
+              'CANCEL',
               style: AppTextStyles.labelCaps.copyWith(
                 color: AppColors.secondary,
               ),
@@ -63,7 +61,7 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
-              'XÁC NHẬN',
+              'OPEN',
               style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
             ),
           ),
@@ -75,8 +73,6 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
 
     final Uri url = Uri.parse(urlString);
     try {
-      // Sử dụng chế độ mặc định thay vì ép buộc externalApplication để tránh lỗi treo trên emulator
-      // url_launcher sẽ tự động chọn phương thức tốt nhất
       final bool launched = await launchUrl(
         url,
         mode: LaunchMode.platformDefault,
@@ -84,14 +80,14 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
 
       if (!launched && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể mở liên kết này')),
+          const SnackBar(content: Text('Could not open this link.')),
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Lỗi khi mở trình duyệt')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error while opening the browser.')),
+        );
       }
     }
   }
@@ -108,8 +104,7 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
       MaterialPageRoute(
         builder: (context) => SearchResultScreen(
           topic: authorName,
-          category:
-              'AuthorWorks', // Loại đặc biệt để hiển thị danh sách bài của tác giả
+          category: 'AuthorWorks',
           authorId: authorId,
         ),
       ),
@@ -120,7 +115,7 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Chi tiết bài báo')),
+      appBar: AppBar(title: const Text('Publication Details')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
@@ -129,34 +124,31 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
+              key: const Key('publication_detail_content'),
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Tiêu đề bài báo
                 Text(publication.title, style: AppTextStyles.h1),
                 const SizedBox(height: AppSpacing.xl),
 
-                // Tác giả (Có thể nhấn)
                 _buildClickableAuthors(context),
 
                 _buildInfoRow(
                   Icons.calendar_today,
-                  'Năm xuất bản',
+                  'Publication year',
                   publication.publicationYear.toString(),
                 ),
-                _buildInfoRow(Icons.book, 'Tạp chí', publication.journalName),
+                _buildInfoRow(Icons.book, 'Journal', publication.journalName),
                 _buildInfoRow(
                   Icons.format_quote,
-                  'Lượt trích dẫn',
+                  'Citations',
                   publication.citedByCount.toString(),
                 ),
 
-                // DOI (Có thể nhấn mở link)
                 _buildClickableDOI(context),
 
                 const SizedBox(height: AppSpacing.xl * 2),
 
-                // Phần tóm tắt (Abstract)
-                Text('TÓM TẮT (ABSTRACT)', style: AppTextStyles.labelCaps),
+                Text('ABSTRACT', style: AppTextStyles.labelCaps),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   publication.abstractText,
@@ -183,7 +175,7 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
             child: Wrap(
               children: [
                 Text(
-                  'Tác giả: ',
+                  'Authors: ',
                   style: AppTextStyles.bodySmall.copyWith(
                     fontWeight: FontWeight.bold,
                   ),

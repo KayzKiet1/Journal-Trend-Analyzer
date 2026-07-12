@@ -41,26 +41,21 @@ void main() {
       expect(keywords.single['name'], 'Computer science');
     });
 
-    test('searchSources treats non-empty input as a topic', () async {
+    test('searchSources searches OpenAlex journal sources directly', () async {
       final requestedUrls = <Uri>[];
       final service = OpenAlexService(
         minRequestInterval: Duration.zero,
         client: MockClient((request) async {
           requestedUrls.add(request.url);
-          if (request.url.path.endsWith('/autocomplete/topics')) {
-            return _jsonResponse({
-              'results': [
-                {'id': 'https://openalex.org/T1', 'display_name': 'Analytics'},
-              ],
-            });
-          }
-
           return _jsonResponse({
-            'group_by': [
+            'meta': {'count': 1},
+            'results': [
               {
-                'key': 'https://openalex.org/S1',
-                'key_display_name': 'Journal Analytics',
-                'count': 100,
+                'id': 'https://openalex.org/S1',
+                'display_name': 'Journal Analytics',
+                'type': 'journal',
+                'works_count': 100,
+                'cited_by_count': 250,
               },
             ],
           });
@@ -71,17 +66,9 @@ void main() {
 
       expect(result['total_count'], 1);
       expect(result['results'].single.name, 'Journal Analytics');
-      expect(requestedUrls.first.path, endsWith('/autocomplete/topics'));
-      expect(requestedUrls.first.queryParameters['q'], 'analytics');
-      expect(requestedUrls.last.path, endsWith('/works'));
-      expect(
-        requestedUrls.last.queryParameters['filter'],
-        'primary_topic.id:T1,primary_location.source.type:journal',
-      );
-      expect(
-        requestedUrls.last.queryParameters['group_by'],
-        'primary_location.source.id',
-      );
+      expect(requestedUrls.single.path, endsWith('/sources'));
+      expect(requestedUrls.single.queryParameters['filter'], 'type:journal');
+      expect(requestedUrls.single.queryParameters['search'], 'analytics');
     });
 
     test('searchSources without input loads trending journals', () async {
@@ -227,7 +214,7 @@ void main() {
     );
 
     test(
-      'searchSources uses selected topic id without resolving again',
+      'searchJournalSourcesByTopic uses selected topic id without resolving again',
       () async {
         Uri? requestedUrl;
         final service = OpenAlexService(
@@ -246,7 +233,7 @@ void main() {
           }),
         );
 
-        final result = await service.searchSources(
+        final result = await service.searchJournalSourcesByTopic(
           'Machine learning',
           topicId: 'https://openalex.org/T1',
         );
@@ -358,7 +345,7 @@ void main() {
     );
 
     test(
-      'searchSources can filter journals by multiple selected topics',
+      'searchJournalSourcesByTopic can filter journals by multiple selected topics',
       () async {
         Uri? requestedUrl;
         final service = OpenAlexService(
@@ -377,7 +364,7 @@ void main() {
           }),
         );
 
-        final result = await service.searchSources(
+        final result = await service.searchJournalSourcesByTopic(
           'Military topics',
           topicIds: ['https://openalex.org/T1', 'https://openalex.org/T2'],
         );
@@ -541,10 +528,7 @@ void main() {
         minRequestInterval: Duration.zero,
         client: MockClient((request) async {
           requestedUrl = request.url;
-          return _jsonResponse({
-            'id': 'S1',
-            'display_name': 'API Key Journal',
-          });
+          return _jsonResponse({'id': 'S1', 'display_name': 'API Key Journal'});
         }),
       );
 
@@ -560,10 +544,7 @@ void main() {
         minRequestInterval: Duration.zero,
         client: MockClient((request) async {
           calls++;
-          return _jsonResponse({
-            'id': 'S1',
-            'display_name': 'Cached Journal',
-          });
+          return _jsonResponse({'id': 'S1', 'display_name': 'Cached Journal'});
         }),
       );
 

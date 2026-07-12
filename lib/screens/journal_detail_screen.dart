@@ -10,6 +10,8 @@ import '../services/openalex_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
+import '../widgets/horizontal_bar_chart.dart';
+import '../widgets/journal_impact_charts.dart';
 import '../widgets/publication_card.dart';
 import '../widgets/year_trend_chart.dart';
 import '../widgets/loading_widget.dart';
@@ -20,6 +22,7 @@ class JournalDetailScreen extends StatefulWidget {
   final String journalName;
   final List<String> topicIds;
   final String? topicLabel;
+  final Journal? journalForTesting;
 
   const JournalDetailScreen({
     super.key,
@@ -27,6 +30,7 @@ class JournalDetailScreen extends StatefulWidget {
     required this.journalName,
     this.topicIds = const [],
     this.topicLabel,
+    this.journalForTesting,
   });
 
   @override
@@ -38,7 +42,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   Journal? _journal;
   List<Publication> _works = [];
   List<TrendData> _trends = [];
+  List<TrendData> _citationTrends = [];
   List<Map<String, dynamic>> _topTopics = [];
+  List<Map<String, dynamic>> _topAuthors = [];
   int _currentPage = 1;
   int _totalWorks = 0;
   bool _isWorksLoading = false;
@@ -72,6 +78,28 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    if (widget.journalForTesting != null) {
+      setState(() {
+        _journal = widget.journalForTesting;
+        _works = [];
+        _totalWorks = widget.journalForTesting!.worksCount;
+        _trends = widget.journalForTesting!.countsByYear
+            .map((item) => TrendData(year: item.year, count: item.worksCount))
+            .toList();
+        _citationTrends = _buildCitationTrends(widget.journalForTesting!);
+        _topTopics = [
+          {'name': 'Artificial Intelligence', 'count': 42},
+          {'name': 'Machine Learning', 'count': 28},
+        ];
+        _topAuthors = [
+          {'name': 'Ada Lovelace', 'count': 8},
+          {'name': 'Alan Turing', 'count': 6},
+        ];
+        _isLoading = false;
+      });
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
@@ -86,6 +114,10 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
           topicIds: widget.topicIds,
         ),
         _apiService.getJournalTopTopics(widget.journalId),
+        _apiService.getJournalTopAuthors(
+          widget.journalId,
+          topicIds: widget.topicIds,
+        ),
       ]);
 
       setState(() {
@@ -95,6 +127,8 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         _totalWorks = worksData['total_count'];
         _trends = results[2] as List<TrendData>;
         _topTopics = results[3] as List<Map<String, dynamic>>;
+        _topAuthors = results[4] as List<Map<String, dynamic>>;
+        _citationTrends = _buildCitationTrends(_journal!);
         _isLoading = false;
       });
       if (mounted && _journal != null) {
@@ -105,7 +139,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi khi tải dữ liệu: $e')));
+        ).showSnackBar(SnackBar(content: Text('Could not load journal: $e')));
       }
     }
   }
@@ -150,24 +184,28 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Không thể mở liên kết')));
+        ).showSnackBar(const SnackBar(content: Text('Could not open link')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: LoadingWidget());
+    if (_isLoading) {
+      return const Scaffold(
+        body: LoadingWidget(
+          message: 'Loading journal profile from OpenAlex...',
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Row(
-          children: [
-            const Icon(Icons.book_outlined, size: 20),
-            const SizedBox(width: 8),
-            const Text('Journal Detail', style: TextStyle(fontSize: 16)),
-          ],
+        title: Text(
+          _journal?.name ?? widget.journalName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         elevation: 0,
         actions: [
@@ -176,7 +214,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
               builder: (context, library, child) {
                 final isFavorite = library.isFavorite(_journal!.id);
                 return IconButton(
-                  tooltip: isFavorite ? 'Bỏ lưu journal' : 'Lưu journal',
+                  tooltip: isFavorite ? 'Remove from library' : 'Save journal',
                   icon: Icon(isFavorite ? Icons.star : Icons.star_border),
                   onPressed: () => library.toggleFavorite(_journal!),
                 );
@@ -185,6 +223,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         ],
       ),
       body: SingleChildScrollView(
+        key: const Key('journal_detail_content'),
         controller: _scrollController,
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Center(
@@ -195,18 +234,14 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _journal?.name ?? widget.journalName,
-                  style: AppTextStyles.h1,
-                ),
+                _buildProfileHeader(),
                 if (widget.topicLabel != null &&
                     widget.topicLabel!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.md),
                   _buildHomeTopicScope(),
                 ],
                 const SizedBox(height: AppSpacing.lg),
 
-                // Top section: Re-integrating layout to match screenshot
                 LayoutBuilder(
                   builder: (context, constraints) {
                     bool isDesktop = constraints.maxWidth > 700;
@@ -219,7 +254,32 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildInfoCard(),
+                                YearTrendChart(
+                                  trends: _trends,
+                                  title: 'Publication Trend',
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                YearTrendChart(
+                                  trends: _citationTrends,
+                                  forceLineChart: true,
+                                  title: 'Citation Trend',
+                                  valueLabel: 'citations',
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                PublicationCitationTrendChart(
+                                  yearlyData:
+                                      _journal?.countsByYear ?? const [],
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                CitationsPerPublicationChart(
+                                  yearlyData:
+                                      _journal?.countsByYear ?? const [],
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                HorizontalBarChart(
+                                  data: _topAuthors,
+                                  title: 'Top Authors by Publications',
+                                ),
                                 const SizedBox(height: AppSpacing.lg),
                                 _buildWorksList(),
                               ],
@@ -232,9 +292,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                               children: [
                                 _buildStatsCard(),
                                 const SizedBox(height: AppSpacing.lg),
-                                YearTrendChart(trends: _trends),
-                                const SizedBox(height: AppSpacing.lg),
                                 _buildTopicList(),
+                                const SizedBox(height: AppSpacing.lg),
+                                _buildInfoCard(),
                               ],
                             ),
                           ),
@@ -245,13 +305,36 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                         children: [
                           _buildStatsCard(),
                           const SizedBox(height: AppSpacing.lg),
-                          _buildInfoCard(),
+                          YearTrendChart(
+                            trends: _trends,
+                            title: 'Publication Trend',
+                          ),
                           const SizedBox(height: AppSpacing.lg),
-                          YearTrendChart(trends: _trends),
+                          YearTrendChart(
+                            trends: _citationTrends,
+                            forceLineChart: true,
+                            title: 'Citation Trend',
+                            valueLabel: 'citations',
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          PublicationCitationTrendChart(
+                            yearlyData: _journal?.countsByYear ?? const [],
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          CitationsPerPublicationChart(
+                            yearlyData: _journal?.countsByYear ?? const [],
+                          ),
                           const SizedBox(height: AppSpacing.lg),
                           _buildTopicList(),
-                          const SizedBox(height: AppSpacing.xl),
+                          const SizedBox(height: AppSpacing.lg),
+                          HorizontalBarChart(
+                            data: _topAuthors,
+                            title: 'Top Authors by Publications',
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
                           _buildWorksList(),
+                          const SizedBox(height: AppSpacing.lg),
+                          _buildInfoCard(),
                         ],
                       );
                     }
@@ -266,30 +349,158 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   }
 
   Widget _buildInfoCard() {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary),
-      ),
+    return _buildSectionCard(
+      title: 'Journal Metadata',
+      icon: Icons.info_outline,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoRow('Homepage', _journal?.homepageUrl, isLink: true),
-          _buildInfoRow('ISSNs', _journal?.issns.join(', ')),
-          _buildInfoRow('Journal type', _journal?.type),
+          Text('IDENTITY', style: AppTextStyles.labelCaps),
+          const SizedBox(height: AppSpacing.sm),
           _buildInfoRow('Publisher', _journal?.publisher),
+          _buildInfoRow('Source type', _journal?.type),
+          _buildInfoRow('ISSNs', _journal?.issns.join(', ')),
           _buildInfoRow('Alternate names', _journal?.alternateNames.join(', ')),
-          const Divider(height: 32),
+          const Divider(height: AppSpacing.xl),
+          Text('ACCESS', style: AppTextStyles.labelCaps),
+          const SizedBox(height: AppSpacing.sm),
+          _buildInfoRow('Homepage', _journal?.homepageUrl, isLink: true),
+          _buildInfoRow('Fully open access', _yesNo(_journal?.isOa)),
+          _buildInfoRow('Indexed in DOAJ', _yesNo(_journal?.isInDoaj)),
           _buildInfoRow(
-            'Fully open access',
-            _journal?.isOa == true ? 'Yes' : 'No',
+            'Article processing charge',
+            _journal?.apcUsd != null ? '\$${_journal!.apcUsd}' : null,
           ),
-          _buildInfoRow('In DOAJ', _journal?.isInDoaj == true ? 'Yes' : 'No'),
-          _buildInfoRow(
-            'Article Processing Charge',
-            _journal?.apcUsd != null ? '\$${_journal!.apcUsd}' : 'Unknown',
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    final journal = _journal;
+    final sourceType = journal?.type?.trim().isNotEmpty == true
+        ? journal!.type!.toUpperCase()
+        : 'JOURNAL';
+
+    return Consumer<JournalLibraryController>(
+      builder: (context, library, child) {
+        final isFavorite = journal != null && library.isFavorite(journal.id);
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            gradient: const LinearGradient(
+              colors: [
+                AppColors.primary,
+                AppColors.primarySoft,
+                AppColors.accent,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.18),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  _buildHeaderBadge(sourceType, Icons.book_outlined),
+                  if (journal?.isOa == true)
+                    _buildHeaderBadge('OPEN ACCESS', Icons.lock_open),
+                  if (journal?.isInDoaj == true)
+                    _buildHeaderBadge('DOAJ', Icons.verified_outlined),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                journal?.name ?? widget.journalName,
+                style: AppTextStyles.h1.copyWith(
+                  color: AppColors.surface,
+                  fontSize: 26,
+                  height: 1.15,
+                ),
+              ),
+              if (journal?.publisher?.isNotEmpty == true) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  journal!.publisher!,
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: AppColors.surface.withValues(alpha: 0.86),
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: journal == null
+                        ? null
+                        : () => library.toggleFavorite(journal),
+                    icon: Icon(isFavorite ? Icons.star : Icons.star_border),
+                    label: Text(isFavorite ? 'Saved' : 'Save Journal'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.surface,
+                      side: BorderSide(
+                        color: AppColors.surface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                  if (journal?.homepageUrl?.isNotEmpty == true)
+                    OutlinedButton.icon(
+                      onPressed: () => _launchUrl(journal!.homepageUrl),
+                      icon: const Icon(Icons.open_in_new, size: 18),
+                      label: const Text('Homepage'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.surface,
+                        side: BorderSide(
+                          color: AppColors.surface.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeaderBadge(String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        border: Border.all(color: AppColors.surface.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.surface),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: AppTextStyles.labelCaps.copyWith(
+              color: AppColors.surface.withValues(alpha: 0.9),
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -327,128 +538,248 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
   }
 
   Widget _buildStatsCard() {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary),
+    final metrics = [
+      _MetricData(
+        'Publications',
+        _compactCount(_journal?.worksCount ?? 0),
+        Icons.article_outlined,
       ),
+      _MetricData(
+        'Citations',
+        _compactCount(_journal?.citedByCount ?? 0),
+        Icons.format_quote,
+      ),
+      _MetricData('H-index', _journal?.hIndex?.toString() ?? '-', Icons.tag),
+      _MetricData(
+        'I10-index',
+        _journal?.i10Index?.toString() ?? '-',
+        Icons.format_list_numbered,
+      ),
+      _MetricData(
+        '2yr citedness',
+        _journal?.twoYearMeanCitedness?.toStringAsFixed(3) ?? '-',
+        Icons.trending_up,
+      ),
+    ];
+
+    return _buildSectionCard(
+      title: 'Key Metrics',
+      icon: Icons.analytics_outlined,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatItem('Publications', _journal?.worksCount.toString()),
-          _buildStatItem('Citation count', _journal?.citedByCount.toString()),
-          _buildStatItem(
-            'H-index',
-            _journal?.hIndex?.toString(),
-            tooltip:
-                'Chỉ số đo lường năng suất và tác động trích dẫn. Chỉ số h là số h bài báo có ít nhất h lượt trích dẫn.',
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 420;
+              return GridView.count(
+                crossAxisCount: isWide ? 3 : 2,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                childAspectRatio: isWide ? 1.45 : 1.35,
+                children: metrics
+                    .map(
+                      (metric) => _buildMetricTile(
+                        metric.label,
+                        metric.value,
+                        metric.icon,
+                      ),
+                    )
+                    .toList(),
+              );
+            },
           ),
-          _buildStatItem(
-            'I10-index',
-            _journal?.i10Index?.toString(),
-            tooltip: 'Số lượng bài báo có ít nhất 10 lượt trích dẫn.',
-          ),
-          _buildStatItem(
-            '2yr mean citedness',
-            _journal?.twoYearMeanCitedness?.toStringAsFixed(3),
-            tooltip:
-                'Số lượng trích dẫn trung bình của các bài báo được xuất bản trong 2 năm gần nhất (Tương đương Impact Factor).',
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'H-index and I10-index are calculated for this source from OpenAlex works. 2yr citedness is a source-level citation average.',
+            style: AppTextStyles.bodySmall,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String? value, {String? tooltip}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
+  Widget _buildMetricTile(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceTint,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (tooltip != null) ...[
-                const SizedBox(width: 4),
-                Tooltip(
-                  message: tooltip,
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  showDuration: const Duration(seconds: 3),
-                  triggerMode: TooltipTriggerMode.tap,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                  ),
-                  textStyle: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.background,
-                  ),
-                  child: const Icon(
-                    Icons.help_outline,
-                    size: 14,
-                    color: AppColors.secondary,
-                  ),
-                ),
-              ],
-            ],
+          Icon(icon, color: AppColors.accent, size: 20),
+          Text(
+            value,
+            style: AppTextStyles.h2.copyWith(color: AppColors.accent),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          Text(value ?? '-', style: AppTextStyles.bodyMedium),
+          Text(
+            label,
+            style: AppTextStyles.labelCaps,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
+  }
+
+  List<TrendData> _buildCitationTrends(Journal journal) {
+    final trends = journal.countsByYear
+        .where((data) => data.year > 0 && data.citedByCount > 0)
+        .map((data) => TrendData(year: data.year, count: data.citedByCount))
+        .toList();
+    trends.sort((a, b) => a.year.compareTo(b.year));
+    return trends;
   }
 
   Widget _buildTopicList() {
+    if (_topTopics.isEmpty) return const SizedBox.shrink();
+
+    final maxCount = _topTopics
+        .map((topic) => (topic['count'] as num?)?.toInt() ?? 0)
+        .fold<int>(0, (max, count) => count > max ? count : max);
+
+    return _buildSectionCard(
+      title: 'Top Topics',
+      icon: Icons.sell_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ..._topTopics.map((topic) {
+            final count = (topic['count'] as num?)?.toInt() ?? 0;
+            final ratio = maxCount == 0 ? 0.0 : count / maxCount;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          topic['name']?.toString() ?? 'Unknown topic',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.primary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        _compactCount(count),
+                        style: AppTextStyles.labelCaps.copyWith(
+                          color: AppColors.accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    child: LinearProgressIndicator(
+                      minHeight: 6,
+                      value: ratio.clamp(0.0, 1.0),
+                      color: AppColors.accent,
+                      backgroundColor: AppColors.accentLight,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: _topTopics.take(4).map((topic) {
+              return Chip(
+                label: Text(topic['name']?.toString() ?? 'Topic'),
+                backgroundColor: AppColors.surfaceTint,
+                labelStyle: AppTextStyles.labelCaps.copyWith(
+                  color: AppColors.primary,
+                  fontSize: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  side: const BorderSide(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.tag, size: 16),
-              const SizedBox(width: 8),
-              Text('Topic', style: AppTextStyles.h2),
+              Icon(icon, size: 18, color: AppColors.accent),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(title, style: AppTextStyles.h2)),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          ..._topTopics.map(
-            (topic) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      topic['name'],
-                      style: AppTextStyles.bodySmall,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    topic['count'].toString(),
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          child,
         ],
       ),
     );
+  }
+
+  String _yesNo(bool? value) {
+    if (value == null) return 'Unknown';
+    return value ? 'Yes' : 'No';
+  }
+
+  String _compactCount(int value) {
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    }
+    if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}K';
+    }
+    return value.toString();
+  }
+
+  Future<void> _resetFilters() async {
+    setState(() {
+      _searchController.clear();
+      _selectedYear = null;
+      _minCitations = null;
+      _sortField = 'publication_year';
+      _isDescending = true;
+    });
+    await _applyFilters();
   }
 
   Future<void> _applyFilters() async {
@@ -485,9 +816,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surfaceTint,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Text(
         'Research scope: ${widget.topicLabel}',
@@ -565,26 +896,17 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
     List<int> availableYears = _trends.map((t) => t.year).toSet().toList();
     availableYears.sort((a, b) => b.compareTo(a));
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
-      ),
+    return _buildSectionCard(
+      title: 'Search & Filter',
+      icon: Icons.tune,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'SEARCH & FILTER',
-            style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
-          ),
-          const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _searchController,
             style: AppTextStyles.bodySmall,
             decoration: InputDecoration(
-              hintText: 'Tìm theo tên bài báo...',
+              hintText: 'Search publication titles...',
               hintStyle: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.secondary,
               ),
@@ -593,15 +915,34 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                 size: 18,
                 color: AppColors.secondary,
               ),
+              suffixIcon: _searchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: () {
+                        setState(_searchController.clear);
+                        _applyFilters();
+                      },
+                      icon: const Icon(Icons.close, size: 18),
+                      tooltip: 'Clear publication search',
+                    ),
               isDense: true,
               filled: true,
-              fillColor: AppColors.background.withValues(alpha: 0.5),
+              fillColor: AppColors.surfaceTint,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                borderSide: BorderSide.none,
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                borderSide: const BorderSide(color: AppColors.accent),
               ),
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
             ),
+            onChanged: (_) => setState(() {}),
             onSubmitted: (_) => _applyFilters(),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -609,12 +950,12 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
             children: [
               Expanded(
                 child: _buildLabeledDropdown<int?>(
-                  label: 'NĂM XUẤT BẢN',
+                  label: 'PUBLICATION YEAR',
                   value: _selectedYear,
                   items: [
                     const DropdownMenuItem(
                       value: null,
-                      child: Text('Tất cả', style: TextStyle(fontSize: 12)),
+                      child: Text('All years', style: TextStyle(fontSize: 12)),
                     ),
                     ...availableYears.map(
                       (y) => DropdownMenuItem(
@@ -635,12 +976,12 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: _buildLabeledDropdown<int?>(
-                  label: 'LƯỢT TRÍCH DẪN',
+                  label: 'MIN CITATIONS',
                   value: _minCitations,
                   items: [
                     const DropdownMenuItem(
                       value: null,
-                      child: Text('Tất cả', style: TextStyle(fontSize: 12)),
+                      child: Text('Any', style: TextStyle(fontSize: 12)),
                     ),
                     ..._citationOptions
                         .where((opt) => opt > 0)
@@ -667,22 +1008,19 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
             children: [
               Expanded(
                 child: _buildLabeledDropdown<String>(
-                  label: 'SẮP XẾP THEO',
+                  label: 'SORT BY',
                   value: _sortField,
                   items: const [
                     DropdownMenuItem(
                       value: 'publication_year',
                       child: Text(
-                        'Năm xuất bản',
+                        'Publication year',
                         style: TextStyle(fontSize: 12),
                       ),
                     ),
                     DropdownMenuItem(
                       value: 'cited_by_count',
-                      child: Text(
-                        'Lượt trích dẫn',
-                        style: TextStyle(fontSize: 12),
-                      ),
+                      child: Text('Citations', style: TextStyle(fontSize: 12)),
                     ),
                   ],
                   onChanged: (val) {
@@ -696,16 +1034,16 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: _buildLabeledDropdown<bool>(
-                  label: 'THỨ TỰ',
+                  label: 'ORDER',
                   value: _isDescending,
                   items: const [
                     DropdownMenuItem(
                       value: true,
-                      child: Text('Giảm dần', style: TextStyle(fontSize: 12)),
+                      child: Text('Descending', style: TextStyle(fontSize: 12)),
                     ),
                     DropdownMenuItem(
                       value: false,
-                      child: Text('Tăng dần', style: TextStyle(fontSize: 12)),
+                      child: Text('Ascending', style: TextStyle(fontSize: 12)),
                     ),
                   ],
                   onChanged: (val) {
@@ -717,6 +1055,15 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _resetFilters,
+              icon: const Icon(Icons.restart_alt, size: 18),
+              label: const Text('Reset filters'),
+            ),
           ),
         ],
       ),
@@ -743,8 +1090,9 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            color: AppColors.background.withValues(alpha: 0.5),
+            color: AppColors.surfaceTint,
             borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            border: Border.all(color: AppColors.border),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<T>(
@@ -771,7 +1119,7 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -802,4 +1150,12 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
       ),
     );
   }
+}
+
+class _MetricData {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _MetricData(this.label, this.value, this.icon);
 }

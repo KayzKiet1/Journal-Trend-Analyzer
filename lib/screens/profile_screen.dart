@@ -46,7 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (userController.authError == null) {
       _analyticsService.logLogin();
     }
-    final message = userController.authError ?? 'Đăng nhập Google thành công!';
+    final message = userController.authError ?? 'Signed in with Google.';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -67,7 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Đã đăng xuất khỏi Firebase.'),
+        content: Text('Signed out from Firebase.'),
         backgroundColor: AppColors.success,
       ),
     );
@@ -111,7 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _uploadedReportUrl = downloadUrl);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đã export và upload PDF report thành công.'),
+          content: Text('PDF report exported and uploaded.'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -127,7 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Không thể tạo hoặc upload PDF report: $error'),
+          content: Text('Could not create or upload PDF report: $error'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -146,7 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Đã copy report URL.'),
+        content: Text('Report URL copied.'),
         backgroundColor: AppColors.success,
       ),
     );
@@ -161,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Không thể mở report URL.'),
+          content: Text('Could not open report URL.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -184,117 +184,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Profile')),
       body: SingleChildScrollView(
+        key: const Key('profile_content'),
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('USER INFORMATION', style: AppTextStyles.labelCaps),
-            const SizedBox(height: AppSpacing.md),
             Consumer<UserController>(
-              builder: (context, userController, _) {
-                final isSignedIn = userController.isSignedIn;
-                final photoUrl = userController.authPhotoUrl;
-                final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
-
-                return Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    border: Border.all(color: AppColors.secondary, width: 1.0),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundImage: hasPhoto
-                                ? NetworkImage(photoUrl)
-                                : null,
-                            child: hasPhoto
-                                ? null
-                                : const Icon(Icons.person_outline, size: 28),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isSignedIn
-                                      ? userController.authDisplayName
-                                      : 'Chưa đăng nhập',
-                                  style: AppTextStyles.h2,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: AppSpacing.xs),
-                                Text(
-                                  isSignedIn
-                                      ? userController.authEmail
-                                      : 'Đăng nhập Google để đồng bộ tài khoản Firebase.',
-                                  style: AppTextStyles.bodySmall,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        'Firebase Authentication quản lý phiên đăng nhập Google. Email đăng nhập cũng được dùng làm email liên hệ khi gọi OpenAlex.',
-                        style: AppTextStyles.bodySmall,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      if (isSignedIn) ...[
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: userController.isAuthLoading
-                                ? null
-                                : _signOut,
-                            icon: const Icon(Icons.logout),
-                            label: Text(
-                              userController.isAuthLoading
-                                  ? 'ĐANG XỬ LÝ...'
-                                  : 'ĐĂNG XUẤT',
-                            ),
-                          ),
-                        ),
-                      ] else ...[
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: userController.isAuthLoading
-                                ? null
-                                : _signInWithGoogle,
-                            icon: const Icon(Icons.login),
-                            label: Text(
-                              userController.isAuthLoading
-                                  ? 'ĐANG ĐĂNG NHẬP...'
-                                  : 'ĐĂNG NHẬP VỚI GOOGLE',
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (userController.authError != null) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          userController.authError!,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
+              builder: (context, userController, _) =>
+                  _buildProfileHero(userController),
             ),
+            const SizedBox(height: AppSpacing.lg),
+            _buildFirebaseStatusOverview(),
             const SizedBox(height: AppSpacing.xl),
             Text('NOTIFICATION CENTER', style: AppTextStyles.labelCaps),
             const SizedBox(height: AppSpacing.md),
@@ -312,21 +212,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: AppSpacing.md),
             _buildCrashlyticsDemo(),
             const SizedBox(height: AppSpacing.xl),
-            Text('VỀ ỨNG DỤNG', style: AppTextStyles.labelCaps),
+            Text('ABOUT APP', style: AppTextStyles.labelCaps),
             const SizedBox(height: AppSpacing.md),
             _buildInfoCard(
-              'Phiên bản',
-              '1.0.0 (PRM393 Lab2)',
+              'Version',
+              '1.0.0 (PRM393 Lab 03)',
               Icons.info_outline,
             ),
+            _buildInfoCard('Data source', 'OpenAlex API', Icons.cloud_outlined),
             _buildInfoCard(
-              'Nguồn dữ liệu',
-              'OpenAlex API (Hệ thống dữ liệu học thuật mở)',
-              Icons.cloud_outlined,
-            ),
-            _buildInfoCard(
-              'Thiết kế',
-              'Heritage Design System (Minimalism)',
+              'Design',
+              'Research Analytics Design System',
               Icons.palette_outlined,
             ),
           ],
@@ -335,113 +231,384 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildReportExport() {
-    return Consumer2<PublicationController, UserController>(
-      builder: (context, publicationController, userController, _) {
-        final hasDashboardData =
-            publicationController.currentTopicIds.isNotEmpty &&
-            (publicationController.topicDashboardTotalWorks > 0 ||
-                publicationController.topicDashboardTrends.isNotEmpty ||
-                publicationController.topicDashboardPublications.isNotEmpty);
-        final isSignedIn = userController.isSignedIn;
-        final canExport = hasDashboardData && isSignedIn && !_isReportUploading;
+  Widget _buildProfileHero(UserController userController) {
+    final isSignedIn = userController.isSignedIn;
+    final photoUrl = userController.authPhotoUrl;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
-        return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            border: Border.all(color: AppColors.secondary, width: 1.0),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.accent],
+        ),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.16),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.picture_as_pdf_outlined,
-                    color: AppColors.accent,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text('Research Trend PDF', style: AppTextStyles.h2),
-                  ),
-                ],
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: Colors.white.withValues(alpha: 0.18),
+                backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+                child: hasPhoto
+                    ? null
+                    : const Icon(
+                        Icons.person_outline,
+                        color: Colors.white,
+                        size: 30,
+                      ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Export current dashboard analytics as a PDF report and upload it to Firebase Storage.',
-                style: AppTextStyles.bodySmall,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _buildReportScope(publicationController),
-              if (!isSignedIn) ...[
-                const SizedBox(height: AppSpacing.sm),
-                _buildReportHint(
-                  'Đăng nhập Google trước khi upload report lên Firebase Storage.',
-                ),
-              ],
-              if (!hasDashboardData) ...[
-                const SizedBox(height: AppSpacing.sm),
-                _buildReportHint(
-                  'Search và chọn topic ở HOME trước để tạo dashboard report.',
-                ),
-              ],
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: canExport
-                      ? () => _exportAndUploadReport(
-                          publicationController,
-                          userController,
-                        )
-                      : null,
-                  icon: _isReportUploading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.cloud_upload_outlined),
-                  label: Text(
-                    _isReportUploading
-                        ? 'ĐANG TẠO VÀ UPLOAD REPORT...'
-                        : 'EXPORT PDF & UPLOAD',
-                  ),
-                ),
-              ),
-              if (_uploadedReportUrl != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                Text('FIREBASE STORAGE URL', style: AppTextStyles.labelCaps),
-                const SizedBox(height: AppSpacing.xs),
-                SelectableText(
-                  _uploadedReportUrl!,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.accent,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: _copyUploadedReportUrl,
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('COPY URL'),
+                    Text(
+                      isSignedIn
+                          ? userController.authDisplayName
+                          : 'Guest researcher',
+                      style: AppTextStyles.h1.copyWith(color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    OutlinedButton.icon(
-                      onPressed: _openUploadedReportUrl,
-                      icon: const Icon(Icons.open_in_new, size: 18),
-                      label: const Text('OPEN'),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      isSignedIn
+                          ? userController.authEmail
+                          : 'Sign in to export reports and sync Firebase demos.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.white.withValues(alpha: 0.84),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
-              ],
+              ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Firebase Authentication manages Google sign-in, while this tab shows Messaging, Storage, Remote Config, and Crashlytics readiness in one place.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: Colors.white.withValues(alpha: 0.86),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: isSignedIn
+                ? OutlinedButton.icon(
+                    key: const Key('sign_out_button'),
+                    onPressed: userController.isAuthLoading ? null : _signOut,
+                    icon: const Icon(Icons.logout),
+                    label: Text(
+                      userController.isAuthLoading
+                          ? 'PROCESSING...'
+                          : 'SIGN OUT',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  )
+                : ElevatedButton.icon(
+                    key: const Key('google_sign_in_button'),
+                    onPressed: userController.isAuthLoading
+                        ? null
+                        : _signInWithGoogle,
+                    icon: const Icon(Icons.login),
+                    label: Text(
+                      userController.isAuthLoading
+                          ? 'SIGNING IN...'
+                          : 'SIGN IN WITH GOOGLE',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primary,
+                    ),
+                  ),
+          ),
+          if (userController.authError != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              userController.authError!,
+              style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFirebaseStatusOverview() {
+    return Consumer4<
+      UserController,
+      NotificationController,
+      FirebaseDemoController,
+      PublicationController
+    >(
+      builder:
+          (
+            context,
+            userController,
+            notificationController,
+            firebaseDemoController,
+            publicationController,
+            _,
+          ) {
+            final hasDashboardData =
+                publicationController.currentTopicIds.isNotEmpty &&
+                (publicationController.topicDashboardTotalWorks > 0 ||
+                    publicationController.topicDashboardTrends.isNotEmpty ||
+                    publicationController
+                        .topicDashboardPublications
+                        .isNotEmpty);
+            final exportEnabled =
+                firebaseDemoController.remoteConfigValues.enableReportExport;
+            final items = [
+              _FirebaseStatusItem(
+                icon: Icons.verified_user_outlined,
+                label: 'Auth',
+                value: userController.isSignedIn ? 'Signed in' : 'Guest',
+                isReady: userController.isSignedIn,
+              ),
+              _FirebaseStatusItem(
+                icon: Icons.notifications_active_outlined,
+                label: 'FCM',
+                value: notificationController.permissionStatus,
+                isReady: notificationController.hasToken,
+              ),
+              _FirebaseStatusItem(
+                icon: Icons.cloud_upload_outlined,
+                label: 'Storage',
+                value: hasDashboardData && userController.isSignedIn
+                    ? 'Ready'
+                    : 'Needs setup',
+                isReady: hasDashboardData && userController.isSignedIn,
+              ),
+              _FirebaseStatusItem(
+                icon: Icons.tune_outlined,
+                label: 'Config',
+                value: exportEnabled ? 'Export on' : 'Export off',
+                isReady: exportEnabled,
+              ),
+            ];
+
+            return Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: items.map(_buildFirebaseStatusTile).toList(),
+            );
+          },
+    );
+  }
+
+  Widget _buildFirebaseStatusTile(_FirebaseStatusItem item) {
+    final statusColor = item.isReady ? AppColors.success : AppColors.secondary;
+
+    return SizedBox(
+      width: MediaQuery.of(context).size.width >= 420
+          ? (MediaQuery.of(context).size.width -
+                    AppSpacing.lg * 2 -
+                    AppSpacing.sm) /
+                2
+          : double.infinity,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: _firebaseDemoCardDecoration(),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+              child: Icon(item.icon, color: statusColor, size: 19),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.label, style: AppTextStyles.labelCaps),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.value,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.primary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReportExport() {
+    return Consumer3<
+      PublicationController,
+      UserController,
+      FirebaseDemoController
+    >(
+      builder:
+          (
+            context,
+            publicationController,
+            userController,
+            firebaseDemoController,
+            _,
+          ) {
+            final hasDashboardData =
+                publicationController.currentTopicIds.isNotEmpty &&
+                (publicationController.topicDashboardTotalWorks > 0 ||
+                    publicationController.topicDashboardTrends.isNotEmpty ||
+                    publicationController
+                        .topicDashboardPublications
+                        .isNotEmpty);
+            final isSignedIn = userController.isSignedIn;
+            final exportEnabled =
+                firebaseDemoController.remoteConfigValues.enableReportExport;
+            final canExport =
+                hasDashboardData &&
+                isSignedIn &&
+                exportEnabled &&
+                !_isReportUploading;
+
+            return Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(color: AppColors.secondary, width: 1.0),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.picture_as_pdf_outlined,
+                        color: AppColors.accent,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Research Trend PDF',
+                          style: AppTextStyles.h2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Generate a structured PDF from the current HOME topic dashboard and upload it to Firebase Storage.',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildReportScope(publicationController),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildExportRequirement(
+                    'Google sign-in',
+                    isSignedIn,
+                    isSignedIn
+                        ? userController.authEmail
+                        : 'Required for Storage',
+                  ),
+                  _buildExportRequirement(
+                    'HOME dashboard data',
+                    hasDashboardData,
+                    hasDashboardData
+                        ? '${publicationController.topicDashboardTotalWorks} publications'
+                        : 'Search and select a topic first',
+                  ),
+                  _buildExportRequirement(
+                    'Remote Config export flag',
+                    exportEnabled,
+                    exportEnabled ? 'Enabled' : 'Disabled',
+                  ),
+                  _buildExportRequirement('Export format', true, 'PDF report'),
+                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      key: const Key('export_pdf_button'),
+                      onPressed: canExport
+                          ? () => _exportAndUploadReport(
+                              publicationController,
+                              userController,
+                            )
+                          : null,
+                      icon: _isReportUploading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.cloud_upload_outlined),
+                      label: Text(
+                        _isReportUploading
+                            ? 'GENERATING AND UPLOADING...'
+                            : 'EXPORT PDF & UPLOAD',
+                      ),
+                    ),
+                  ),
+                  if (_uploadedReportUrl != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'FIREBASE STORAGE URL',
+                      style: AppTextStyles.labelCaps,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    SelectableText(
+                      _uploadedReportUrl!,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _copyUploadedReportUrl,
+                          icon: const Icon(Icons.copy, size: 18),
+                          label: const Text('COPY URL'),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        OutlinedButton.icon(
+                          onPressed: _openUploadedReportUrl,
+                          icon: const Icon(Icons.open_in_new, size: 18),
+                          label: const Text('OPEN'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
     );
   }
 
@@ -469,7 +636,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '${controller.topicDashboardTotalWorks} publications loaded for export',
+            '${controller.topicDashboardTotalWorks} publications, ${controller.topicDashboardTrends.length} yearly trend points, ${controller.topicDashboardTopJournals.length} journals',
             style: AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
           ),
         ],
@@ -477,10 +644,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildReportHint(String message) {
-    return Text(
-      message,
-      style: AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
+  Widget _buildExportRequirement(String label, bool isReady, String value) {
+    final statusColor = isReady ? AppColors.success : AppColors.secondary;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isReady ? Icons.check_circle_outline : Icons.info_outline,
+            color: statusColor,
+            size: 18,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppTextStyles.bodySmall),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.secondary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -514,7 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Nhận thông báo về chủ đề nghiên cứu, citation alerts và cập nhật xu hướng từ Firebase.',
+                'Manage push notification permission and optional research alert subscriptions.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -523,19 +719,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: controller.isLoading
-                      ? null
-                      : controller.requestPermission,
-                  icon: const Icon(Icons.notification_add_outlined),
+                  onPressed: controller.canRequestPermission
+                      ? controller.requestPermission
+                      : null,
+                  icon: Icon(
+                    controller.isNotificationReady
+                        ? Icons.notifications_active_outlined
+                        : Icons.notification_add_outlined,
+                  ),
                   label: Text(
                     controller.isLoading
-                        ? 'ĐANG KIỂM TRA...'
+                        ? 'CHECKING...'
+                        : controller.isNotificationReady
+                        ? 'NOTIFICATIONS ENABLED'
                         : 'ENABLE NOTIFICATIONS',
                   ),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text('NOTIFICATION TOPICS', style: AppTextStyles.labelCaps),
+              Text('OPTIONAL ALERT TOPICS', style: AppTextStyles.labelCaps),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Use these switches to subscribe this device to Firebase Messaging demo topics.',
+                style: AppTextStyles.bodySmall,
+              ),
               const SizedBox(height: AppSpacing.sm),
               ...NotificationController.preferences.map(
                 (preference) => SwitchListTile(
@@ -601,15 +808,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          const Icon(Icons.verified_user_outlined, size: 18),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'Permission: ${controller.permissionStatus}',
-              style: AppTextStyles.bodySmall,
-            ),
+          Row(
+            children: [
+              const Icon(Icons.verified_user_outlined, size: 18),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Permission: ${controller.permissionStatus}',
+                  style: AppTextStyles.bodySmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              const Icon(Icons.vpn_key_outlined, size: 18),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Device token: ${controller.compactToken()}',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: controller.hasToken
+                        ? AppColors.primary
+                        : AppColors.secondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -635,7 +865,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Chưa có thông báo nào từ Firebase Cloud Messaging.',
+            'No Firebase Cloud Messaging notifications yet.',
             style: AppTextStyles.bodySmall,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -723,8 +953,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, controller, _) {
         final values = controller.remoteConfigValues;
         return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: _firebaseDemoCardDecoration(),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(color: AppColors.border, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -742,29 +983,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Điều chỉnh giới hạn hiển thị journal, keyword và trạng thái export report từ Firebase Console mà không cần rebuild app.',
+                'Fetch display limits and the report-export flag from Firebase Console without rebuilding the app.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: AppSpacing.md),
-              _buildConfigRow(
-                'Max journals displayed',
-                values.maxJournalsDisplay.toString(),
-                Icons.book_outlined,
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceTint,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    _buildConfigRow(
+                      'Max journals displayed',
+                      values.maxJournalsDisplay.toString(),
+                      Icons.book_outlined,
+                    ),
+                    _buildConfigRow(
+                      'Max keywords displayed',
+                      values.maxKeywordsDisplay.toString(),
+                      Icons.analytics_outlined,
+                    ),
+                    _buildConfigRow(
+                      'Report export enabled',
+                      values.enableReportExport ? 'true' : 'false',
+                      Icons.picture_as_pdf_outlined,
+                    ),
+                  ],
+                ),
               ),
-              _buildConfigRow(
-                'Max keywords displayed',
-                values.maxKeywordsDisplay.toString(),
-                Icons.analytics_outlined,
-              ),
-              _buildConfigRow(
-                'Report export enabled',
-                values.enableReportExport ? 'true' : 'false',
-                Icons.picture_as_pdf_outlined,
-              ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 'Status: ${controller.remoteConfigStatus}',
-                style: AppTextStyles.bodySmall,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.primary,
+                ),
               ),
               if (controller.remoteConfigError != null) ...[
                 const SizedBox(height: AppSpacing.xs),
@@ -779,19 +1034,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
+                  key: const Key('fetch_remote_config_button'),
                   onPressed: controller.isRemoteConfigLoading
                       ? null
                       : controller.fetchRemoteConfig,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.textInverted,
+                    disabledBackgroundColor: AppColors.accent.withValues(
+                      alpha: 0.65,
+                    ),
+                    disabledForegroundColor: AppColors.textInverted,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                  ),
                   icon: controller.isRemoteConfigLoading
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.textInverted,
+                          ),
                         )
                       : const Icon(Icons.cloud_download_outlined),
                   label: Text(
                     controller.isRemoteConfigLoading
-                        ? 'ĐANG TẢI CONFIG...'
+                        ? 'FETCHING CONFIG...'
                         : 'FETCH CONFIG',
                   ),
                 ),
@@ -829,8 +1102,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Gửi handled exception hoặc tạo test crash có chủ đích để kiểm tra crash monitoring trên Firebase.',
+                'Record a handled exception or trigger a deliberate test crash for Firebase Crashlytics validation.',
                 style: AppTextStyles.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_outlined,
+                      color: AppColors.error,
+                      size: 18,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Test crash intentionally closes the app. Use it only while demoing Crashlytics.',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (controller.crashlyticsMessage != null) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -857,7 +1160,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : const Icon(Icons.report_gmailerrorred_outlined),
                   label: Text(
                     controller.isCrashlyticsLoading
-                        ? 'ĐANG GỬI...'
+                        ? 'SENDING...'
                         : 'RECORD HANDLED EXCEPTION',
                   ),
                 ),
@@ -892,7 +1195,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(child: Text(title, style: AppTextStyles.bodySmall)),
           Text(
             value,
-            style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
+            style: AppTextStyles.labelCaps.copyWith(
+              color: AppColors.accent,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -905,7 +1211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Trigger test crash?'),
         content: const Text(
-          'App sẽ crash có chủ đích để gửi báo cáo lên Firebase Crashlytics. Chỉ dùng khi demo.',
+          'The app will intentionally crash to send a Firebase Crashlytics report. Use this only during demo.',
         ),
         actions: [
           TextButton(
@@ -950,7 +1256,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Icon(icon, color: AppColors.secondary, size: 20),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            // Thêm Expanded để tránh lỗi overflow khi text quá dài
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -963,7 +1268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.primary,
                   ),
-                  maxLines: 2, // Cho phép hiển thị tối đa 2 dòng
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -973,4 +1278,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+}
+
+class _FirebaseStatusItem {
+  const _FirebaseStatusItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.isReady,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isReady;
 }

@@ -31,17 +31,17 @@ class NotificationController extends ChangeNotifier {
     NotificationPreference(
       label: 'Trending research topics',
       topic: 'research_trends',
-      description: 'Chủ đề nghiên cứu mới đang có xu hướng.',
+      description: 'New research topics that are gaining attention.',
     ),
     NotificationPreference(
       label: 'High citation alerts',
       topic: 'citation_alerts',
-      description: 'Cảnh báo công bố có số lượt trích dẫn cao.',
+      description: 'Alerts for publications with high citation counts.',
     ),
     NotificationPreference(
       label: 'Research trend updates',
       topic: 'topic_updates',
-      description: 'Cập nhật xu hướng nghiên cứu.',
+      description: 'Updates about changes in research trends.',
     ),
   ];
 
@@ -65,6 +65,8 @@ class NotificationController extends ChangeNotifier {
   String? get fcmToken => _fcmToken;
   String? get errorMessage => _errorMessage;
   bool get hasToken => _fcmToken != null && _fcmToken!.isNotEmpty;
+  bool get isNotificationReady => _permissionStatus == 'Authorized' && hasToken;
+  bool get canRequestPermission => !isLoading && !isNotificationReady;
 
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -78,7 +80,7 @@ class NotificationController extends ChangeNotifier {
       await _loadInitialMessage();
       _errorMessage = null;
     } catch (error) {
-      _errorMessage = 'Không thể khởi tạo Firebase Messaging: $error';
+      _errorMessage = 'Could not initialize Firebase Messaging: $error';
     } finally {
       _setLoading(false);
     }
@@ -92,7 +94,7 @@ class NotificationController extends ChangeNotifier {
       _fcmToken = await _messagingService.getToken();
       _errorMessage = null;
     } catch (error) {
-      _errorMessage = 'Không thể xin quyền notification: $error';
+      _errorMessage = 'Could not request notification permission: $error';
     } finally {
       _setLoading(false);
     }
@@ -111,7 +113,7 @@ class NotificationController extends ChangeNotifier {
       await _saveSubscribedTopics();
       _errorMessage = null;
     } catch (error) {
-      _errorMessage = 'Không thể cập nhật topic $topic: $error';
+      _errorMessage = 'Could not update topic $topic: $error';
     } finally {
       _setLoading(false);
     }

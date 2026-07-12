@@ -184,6 +184,20 @@ class _FakeOpenAlexService extends OpenAlexService {
   }
 
   @override
+  Future<Map<String, dynamic>> searchJournalSourcesByTopic(
+    String topicQuery, {
+    String? topicId,
+    List<String>? topicIds,
+    int page = 1,
+    int perPage = 10,
+  }) async {
+    return {
+      'results': [_journal('TopicJournal')],
+      'total_count': 1,
+    };
+  }
+
+  @override
   Future<Map<String, dynamic>> getWorksByAuthor(
     String authorId, {
     int page = 1,

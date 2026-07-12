@@ -19,8 +19,10 @@ class _MainScreenState extends State<MainScreen> {
   void _onItemTapped(int index) {
     final controller = context.read<PublicationController>();
 
-    if (index == 1 && controller.sources.isEmpty && !controller.isLoading) {
-      controller.search(controller.lastSearchText, 'Sources');
+    if (index == 1 &&
+        controller.journalSources.isEmpty &&
+        !controller.isLoadingJournals) {
+      controller.searchJournals('');
     }
 
     controller.setSelectedIndex(index);
@@ -33,7 +35,7 @@ class _MainScreenState extends State<MainScreen> {
 
     final List<Widget> screens = [
       const HomeScreen(),
-      SearchResultScreen(topic: controller.lastSearchText, category: 'Sources'),
+      const SearchResultScreen(topic: '', category: 'Sources'),
       const DashboardScreen(route: 'keywords'),
       const ProfileScreen(),
     ];
@@ -45,16 +47,24 @@ class _MainScreenState extends State<MainScreen> {
           color: AppColors.surface,
           border: Border(
             top: BorderSide(
-              color: AppColors.secondary.withValues(alpha: 0.3),
+              color: AppColors.border,
               width: AppSpacing.borderWidth,
             ),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, -8),
+            ),
+          ],
         ),
         child: BottomNavigationBar(
           currentIndex: selectedIndex,
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
           backgroundColor: AppColors.surface,
+          elevation: 0,
           selectedItemColor: AppColors.accent,
           unselectedItemColor: AppColors.primary.withValues(alpha: 0.5),
           selectedLabelStyle: const TextStyle(
@@ -64,23 +74,23 @@ class _MainScreenState extends State<MainScreen> {
           unselectedLabelStyle: const TextStyle(fontSize: 12),
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
+              icon: Icon(Icons.home_outlined, key: Key('nav_home')),
+              activeIcon: Icon(Icons.home, key: Key('nav_home')),
               label: 'HOME',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.book_outlined),
-              activeIcon: Icon(Icons.book),
+              icon: Icon(Icons.book_outlined, key: Key('nav_journals')),
+              activeIcon: Icon(Icons.book, key: Key('nav_journals')),
               label: 'JOURNALS',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.analytics_outlined),
-              activeIcon: Icon(Icons.analytics),
+              icon: Icon(Icons.analytics_outlined, key: Key('nav_keywords')),
+              activeIcon: Icon(Icons.analytics, key: Key('nav_keywords')),
               label: 'KEYWORDS',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
+              icon: Icon(Icons.person_outline, key: Key('nav_profile')),
+              activeIcon: Icon(Icons.person, key: Key('nav_profile')),
               label: 'PROFILE',
             ),
           ],

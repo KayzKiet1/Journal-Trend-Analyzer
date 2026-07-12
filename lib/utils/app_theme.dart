@@ -3,7 +3,7 @@ import 'app_colors.dart';
 import 'app_spacing.dart';
 import 'app_text_styles.dart';
 
-/// Class cấu hình Theme toàn cục theo hệ thống Heritage.
+/// Class cấu hình Theme toàn cục theo hệ thống Research Analytics.
 class AppTheme {
   AppTheme._();
 
@@ -12,7 +12,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.background,
-      
+
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         onPrimary: AppColors.textInverted,
@@ -24,11 +24,12 @@ class AppTheme {
         outline: AppColors.secondary,
       ),
 
-      // AppBar: Journalistic style (Warm Limestone background, Deep Ink text)
+      // AppBar: Research workspace style (Lab Mist background, Scholar Ink text)
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.primary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
         titleTextStyle: AppTextStyles.h2,
         iconTheme: const IconThemeData(color: AppColors.primary),
@@ -43,7 +44,7 @@ class AppTheme {
         labelSmall: AppTextStyles.labelCaps,
       ),
 
-      // Button Theme: Boston Clay (#B8422E)
+      // Button Theme: Citation Teal (#0F766E)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.accent,
@@ -60,21 +61,21 @@ class AppTheme {
         ),
       ),
 
-      // Input Theme: Paper White surface, Sophisticated Slate border
+      // Input Theme: Paper White surface, Data Slate border
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.all(AppSpacing.md),
         hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
         labelStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),
-        
+
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.border, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.secondary, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.border, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -82,17 +83,18 @@ class AppTheme {
         ),
       ),
 
-      // Card Theme: Level 1 (Paper White surface, 1px Slate border, No shadow)
+      // Card Theme: Level 1 (Paper White surface, 1px Data Slate border, no shadow)
       cardTheme: CardThemeData(
         color: AppColors.surface,
-        elevation: 0,
+        elevation: 1,
+        shadowColor: AppColors.primary.withValues(alpha: 0.08),
         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
         shape: RoundedRectangleBorder(
-          side: const BorderSide(color: AppColors.secondary, width: 1.0),
+          side: const BorderSide(color: AppColors.border, width: 1.0),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
       ),
-      
+
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surface,
         disabledColor: AppColors.secondary.withValues(alpha: 0.1),
@@ -101,7 +103,7 @@ class AppTheme {
         padding: const EdgeInsets.all(4),
         labelStyle: AppTextStyles.labelCaps,
         shape: RoundedRectangleBorder(
-          side: const BorderSide(color: AppColors.secondary, width: 1.0),
+          side: const BorderSide(color: AppColors.border, width: 1.0),
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         ),
       ),

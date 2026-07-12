@@ -37,7 +37,7 @@ class DonutChart extends StatelessWidget {
                     sectionsSpace: 4,
                     centerSpaceRadius: 40,
                     sections: data.map((item) {
-                      final color = _hexToColor(item['color'] ?? '#B8422E');
+                      final color = _hexToColor(item['color'] ?? '#0F766E');
                       final percentage = item['percentage'] ?? 0;
                       return PieChartSectionData(
                         color: color,
@@ -60,7 +60,7 @@ class DonutChart extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: data.map((item) {
-                    final color = _hexToColor(item['color'] ?? '#B8422E');
+                    final color = _hexToColor(item['color'] ?? '#0F766E');
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                       child: Row(
