@@ -67,7 +67,9 @@ class AnalysisHelper {
   }
 
   /// Đếm số lượng bài báo theo từng năm xuất bản
-  static Map<int, int> getPublicationCountByYear(List<Publication> publications) {
+  static Map<int, int> getPublicationCountByYear(
+    List<Publication> publications,
+  ) {
     final yearCounts = <int, int>{};
 
     for (final pub in publications) {

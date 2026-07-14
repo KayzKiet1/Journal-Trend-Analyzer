@@ -129,6 +129,49 @@ void main() {
       expect(requestedUrl!.queryParameters.containsKey('per_page'), isFalse);
     });
 
+    test('searchWorks searches journal publications by query', () async {
+      Uri? requestedUrl;
+      final service = OpenAlexService(
+        minRequestInterval: Duration.zero,
+        client: MockClient((request) async {
+          requestedUrl = request.url;
+          return _jsonResponse({
+            'meta': {'count': 1},
+            'results': [
+              {
+                'id': 'https://openalex.org/W1',
+                'display_name': 'AI in journals',
+                'publication_year': 2025,
+                'publication_date': '2025-01-01',
+                'cited_by_count': 7,
+                'authorships': [],
+                'primary_location': {
+                  'source': {
+                    'id': 'https://openalex.org/S1',
+                    'display_name': 'Journal AI',
+                  },
+                },
+              },
+            ],
+          });
+        }),
+      );
+
+      final result = await service.searchWorks(
+        query: 'artificial intelligence',
+        topicIds: ['https://openalex.org/T1'],
+      );
+
+      expect(result['total_count'], 1);
+      expect(result['results'].single.title, 'AI in journals');
+      expect(requestedUrl!.path, endsWith('/works'));
+      expect(
+        requestedUrl!.queryParameters['filter'],
+        'primary_location.source.type:journal,title_and_abstract.search:artificial intelligence,primary_topic.id:T1',
+      );
+      expect(requestedUrl!.queryParameters.containsKey('search'), isFalse);
+    });
+
     test('searchTopics sorts suggestions by works count descending', () async {
       final service = OpenAlexService(
         minRequestInterval: Duration.zero,
@@ -468,8 +511,47 @@ void main() {
           requestedUrl!.queryParameters['filter'],
           'primary_location.source.id:S1,primary_topic.id:T1|T2',
         );
+        expect(requestedUrl!.queryParameters['per_page'], '200');
       },
     );
+
+    test('getJournalCitationSumsByYear sums current works citations', () async {
+      final requestedUrls = <Uri>[];
+      final service = OpenAlexService(
+        minRequestInterval: Duration.zero,
+        client: MockClient((request) async {
+          requestedUrls.add(request.url);
+          final year =
+              request.url.queryParameters['filter']!.contains(
+                'publication_year:2024',
+              )
+              ? 2024
+              : 2025;
+          return _jsonResponse({
+            'meta': {'cited_by_count_sum': year == 2024 ? 12 : 30},
+            'results': [
+              {'id': 'https://openalex.org/W$year'},
+            ],
+          });
+        }),
+      );
+
+      final sums = await service.getJournalCitationSumsByYear(
+        'https://openalex.org/S1',
+        [2025, 2024],
+        topicIds: ['https://openalex.org/T1'],
+      );
+
+      expect(sums, {2024: 12, 2025: 30});
+      expect(requestedUrls, hasLength(2));
+      expect(
+        requestedUrls.first.queryParameters['filter'],
+        'primary_location.source.id:S1,publication_year:2024,primary_topic.id:T1',
+      );
+      expect(requestedUrls.first.queryParameters['cited_by_count_sum'], 'true');
+      expect(requestedUrls.first.queryParameters['select'], 'id');
+      expect(requestedUrls.first.queryParameters['per_page'], '1');
+    });
 
     test(
       'getJournalTopTopics falls back to concepts when primary topics are empty',
@@ -606,6 +688,192 @@ void main() {
       expect(calls, 2);
       expect(journal.name, 'Recovered Journal');
     });
+
+    test('covers work search keyword and topic analytics endpoints', () async {
+      final requestedUrls = <Uri>[];
+      final service = OpenAlexService(
+        minRequestInterval: Duration.zero,
+        client: MockClient((request) async {
+          requestedUrls.add(request.url);
+          final params = request.url.queryParameters;
+          if (params['group_by'] != null) {
+            return _jsonResponse(_groupByPayload(params['group_by']!));
+          }
+          return _jsonResponse({
+            'meta': {'count': 1},
+            'results': [_workJson()],
+          });
+        }),
+      );
+
+      expect(
+        await service.getWorkSearchPublicationTrend(query: 'ai'),
+        hasLength(2),
+      );
+      expect(await service.getWorkSearchTopKeywords(query: 'ai'), hasLength(1));
+      expect(
+        await service.getWorkSearchTrendingKeywords(
+          query: 'ai',
+          fromYear: 2024,
+        ),
+        hasLength(1),
+      );
+      final workKeywordTrends = await service.getWorkSearchKeywordTrends(
+        query: 'ai',
+        keywordIds: ['https://openalex.org/keywords/deep-learning'],
+        fromYear: 2024,
+      );
+      expect(workKeywordTrends['deep-learning'], hasLength(2));
+      expect(
+        await service.getWorkSearchKeywordPublicationTrend(
+          query: 'ai',
+          keywordId: 'deep-learning',
+          fromYear: 2024,
+        ),
+        hasLength(2),
+      );
+      expect(
+        await service.getWorkSearchKeywordTopJournals(
+          query: 'ai',
+          keywordId: 'deep-learning',
+          fromYear: 2024,
+        ),
+        hasLength(1),
+      );
+      expect(
+        await service.getWorkSearchKeywordTopAuthors(
+          query: 'ai',
+          keywordId: 'deep-learning',
+          fromYear: 2024,
+        ),
+        hasLength(1),
+      );
+      expect(
+        (await service.getWorksBySearchKeyword(
+          query: 'ai',
+          keywordId: 'deep-learning',
+          fromYear: 2024,
+        ))['total_count'],
+        1,
+      );
+
+      expect((await service.getWorksByTopics([]))['total_count'], 0);
+      expect((await service.getWorksByTopics(['T1']))['total_count'], 1);
+      expect(await service.getTopicPublicationTrend([]), isEmpty);
+      expect(await service.getTopicPublicationTrend(['T1']), hasLength(2));
+      expect(await service.getTopicTopAuthors(['T1']), {'Ada': 3});
+      expect(await service.getTopicTopJournals(['T1']), {'Journal AI': 4});
+      expect(await service.getTopicTrendingKeywords(['T1'], fromYear: 2024), [
+        {
+          'id': 'https://openalex.org/keywords/deep-learning',
+          'name': 'Deep learning',
+          'count': 5,
+        },
+      ]);
+      expect(
+        await service.getKeywordPublicationTrend(
+          ['T1'],
+          'deep-learning',
+          fromYear: 2024,
+        ),
+        hasLength(2),
+      );
+      expect(
+        await service.getKeywordTopJournals(
+          ['T1'],
+          'deep-learning',
+          fromYear: 2024,
+        ),
+        hasLength(1),
+      );
+      expect(
+        await service.getKeywordTopAuthors(
+          ['T1'],
+          'deep-learning',
+          fromYear: 2024,
+        ),
+        hasLength(1),
+      );
+      expect(
+        (await service.getWorksByKeyword(
+          ['T1'],
+          'deep-learning',
+          fromYear: 2024,
+        ))['total_count'],
+        1,
+      );
+
+      expect(
+        requestedUrls.any(
+          (url) =>
+              url.queryParameters['filter']?.contains(
+                'keywords.id:deep-learning',
+              ) ??
+              false,
+        ),
+        isTrue,
+      );
+      expect(
+        requestedUrls
+            .where(
+              (url) =>
+                  url.queryParameters['filter']?.contains(
+                    'keywords.id:deep-learning',
+                  ) ??
+                  false,
+            )
+            .every(
+              (url) =>
+                  url.queryParameters['filter']?.contains(
+                    'from_publication_date:2024-01-01',
+                  ) ??
+                  false,
+            ),
+        isTrue,
+      );
+    });
+
+    test('loads journal topic evolution and grouped author counts', () async {
+      final service = OpenAlexService(
+        minRequestInterval: Duration.zero,
+        client: MockClient((request) async {
+          final params = request.url.queryParameters;
+          if (params['group_by'] == 'primary_topic.id') {
+            return _jsonResponse({
+              'group_by': [
+                {
+                  'key': 'https://openalex.org/T1',
+                  'key_display_name': 'Artificial intelligence',
+                  'count': 8,
+                },
+                {
+                  'key': 'https://openalex.org/T2',
+                  'key_display_name': 'Health data',
+                  'count': 4,
+                },
+              ],
+            });
+          }
+          if (params['group_by'] == 'publication_year') {
+            return _jsonResponse(_groupByPayload('publication_year'));
+          }
+          if (params['group_by'] == 'authorships.author.id') {
+            return _jsonResponse(_groupByPayload('authorships.author.id'));
+          }
+          return _jsonResponse({'group_by': []});
+        }),
+      );
+
+      final evolution = await service.getJournalTopicEvolution('S1');
+      final authors = await service.getJournalTopAuthors(
+        'S1',
+        topicIds: ['T1'],
+      );
+
+      expect(evolution.keys, contains('Artificial intelligence'));
+      expect(evolution['Artificial intelligence'], hasLength(2));
+      expect(authors.single['name'], 'Ada');
+    });
   });
 }
 
@@ -633,4 +901,49 @@ Map<String, dynamic> _workJson() {
       },
     ],
   };
+}
+
+Map<String, dynamic> _groupByPayload(String groupBy) {
+  switch (groupBy) {
+    case 'publication_year':
+      return {
+        'group_by': [
+          {'key': '2025', 'count': 3},
+          {'key': '2024', 'count': 2},
+        ],
+      };
+    case 'keywords.id':
+      return {
+        'group_by': [
+          {
+            'key': 'https://openalex.org/keywords/deep-learning',
+            'key_display_name': 'Deep learning',
+            'count': 5,
+          },
+          {'key': 'unknown', 'key_display_name': 'Unknown', 'count': 1},
+        ],
+      };
+    case 'primary_location.source.id':
+      return {
+        'group_by': [
+          {
+            'key': 'https://openalex.org/S1',
+            'key_display_name': 'Journal AI',
+            'count': 4,
+          },
+        ],
+      };
+    case 'authorships.author.id':
+      return {
+        'group_by': [
+          {
+            'key': 'https://openalex.org/A1',
+            'key_display_name': 'Ada',
+            'count': 3,
+          },
+        ],
+      };
+    default:
+      return {'group_by': []};
+  }
 }

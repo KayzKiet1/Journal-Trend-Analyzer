@@ -9,7 +9,8 @@ void main() {
     await pumpTestApp($);
     await openKeywordsTab($);
 
-    expect(find.text('Keyword Intelligence'), findsOneWidget);
+    expect(find.text('Search Keywords'), findsOneWidget);
+    expect(find.text('Top Keywords'), findsOneWidget);
     expect(find.text('Keyword Occurrences'), findsOneWidget);
     expect(find.text('machine learning'), findsOneWidget);
   });

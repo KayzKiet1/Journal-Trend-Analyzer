@@ -16,9 +16,9 @@ void main() {
     }
     await waitForFinder($, find.text('Firebase Remote Config'));
 
-    expect(find.text('Max journals displayed'), findsOneWidget);
-    expect(find.text('Max keywords displayed'), findsOneWidget);
-    expect(find.text('Report export enabled'), findsOneWidget);
+    expect(find.text('Journal cards limit'), findsOneWidget);
+    expect(find.text('Keyword rows limit'), findsOneWidget);
+    expect(find.text('PDF export feature'), findsOneWidget);
     expect(find.textContaining('Status:'), findsOneWidget);
   });
 }

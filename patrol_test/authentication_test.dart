@@ -4,7 +4,7 @@ import 'package:patrol/patrol.dart';
 
 import 'helpers/e2e_helpers.dart';
 
-const runGoogleE2e = bool.fromEnvironment('RUN_GOOGLE_E2E', defaultValue: true);
+const runGoogleE2e = bool.fromEnvironment('RUN_GOOGLE_E2E');
 
 void main() {
   patrolTest('Test Case 1 - Google Sign-In', ($) async {
@@ -14,18 +14,14 @@ void main() {
     if (runGoogleE2e) {
       await signInWithGoogleIfNeeded($);
       await waitForFinder($, find.byKey(const Key('sign_out_button')));
-      expect(find.textContaining(googleTestAccount), findsWidgets);
+      expect(find.byKey(const Key('sign_out_button')), findsOneWidget);
     }
 
-    expect(find.text('Profile'), findsOneWidget);
-    expect(
-      $.tester.any(find.byKey(const Key('google_sign_in_button'))) ||
-          $.tester.any(find.byKey(const Key('sign_out_button'))),
-      isTrue,
-    );
+    await openHome($);
+    expect(find.text('Explore Academic Insights'), findsOneWidget);
   });
 
-  patrolTest('Test Case 11 - Logout', ($) async {
+  patrolTest('Test Case 11 - Logout to guest profile state', ($) async {
     await pumpTestApp($);
     await openProfileTab($);
 

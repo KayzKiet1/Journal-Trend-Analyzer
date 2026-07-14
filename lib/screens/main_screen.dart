@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../controllers/publication_controller.dart';
+import '../viewmodels/publication_view_model.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
-import 'home_screen.dart';
-import 'search_result_screen.dart';
-import 'dashboard_screen.dart';
-import 'profile_screen.dart';
+import 'journals/journals_screen.dart';
+import 'home/home_screen.dart';
+import 'keywords/keywords_screen.dart';
+import 'profile/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,7 +17,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   void _onItemTapped(int index) {
-    final controller = context.read<PublicationController>();
+    final controller = context.read<PublicationViewModel>();
 
     if (index == 1 &&
         controller.journalSources.isEmpty &&
@@ -30,13 +30,13 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<PublicationController>();
+    final controller = context.watch<PublicationViewModel>();
     final int selectedIndex = controller.selectedTabIndex;
 
     final List<Widget> screens = [
       const HomeScreen(),
-      const SearchResultScreen(topic: '', category: 'Sources'),
-      const DashboardScreen(route: 'keywords'),
+      const JournalsScreen(),
+      const KeywordsScreen(),
       const ProfileScreen(),
     ];
 

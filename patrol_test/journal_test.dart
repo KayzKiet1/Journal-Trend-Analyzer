@@ -9,7 +9,7 @@ void main() {
     await pumpTestApp($);
     await openJournalsTab($);
 
-    expect(find.text('OPENALEX JOURNAL SOURCES'), findsOneWidget);
+    expect(find.text('SEARCH JOURNAL SOURCES'), findsOneWidget);
     expect(
       find.textContaining('Showing popular journal sources'),
       findsOneWidget,
@@ -26,7 +26,7 @@ void main() {
     await waitForFinder($, find.byKey(const Key('journal_detail_content')));
 
     expect(find.text('Key Metrics'), findsOneWidget);
-    expect(find.text('Publication Trend'), findsWidgets);
+    expect(find.text('Total Publications'), findsWidgets);
     expect(find.text('Journal Metadata'), findsOneWidget);
   });
 }

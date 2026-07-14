@@ -18,8 +18,9 @@ class Author {
   factory Author.fromJson(Map<String, dynamic> json) {
     // Xử lý cả trường hợp author nằm trong authorship hoặc là entity độc lập
     final dynamic authorField = json['author'];
-    final Map<String, dynamic> authorData = (authorField is Map<String, dynamic>) ? authorField : json;
-    
+    final Map<String, dynamic> authorData =
+        (authorField is Map<String, dynamic>) ? authorField : json;
+
     return Author(
       id: authorData['id'] ?? '',
       name: authorData['display_name'] ?? 'Unknown Author',

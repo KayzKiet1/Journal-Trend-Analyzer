@@ -26,13 +26,20 @@ class AppTheme {
 
       // AppBar: Research workspace style (Lab Mist background, Scholar Ink text)
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.surface,
         foregroundColor: AppColors.primary,
         elevation: 0,
         scrolledUnderElevation: 0,
+        surfaceTintColor: AppColors.surface,
         centerTitle: true,
         titleTextStyle: AppTextStyles.h2,
         iconTheme: const IconThemeData(color: AppColors.primary),
+        shape: Border(
+          bottom: BorderSide(
+            color: AppColors.accent.withValues(alpha: 0.18),
+            width: 1.2,
+          ),
+        ),
       ),
 
       // Text Theme

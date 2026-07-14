@@ -11,6 +11,7 @@ void main() {
 
     expect(find.byKey(const Key('profile_content')), findsOneWidget);
     expect(find.text('Guest researcher'), findsOneWidget);
+    expect(find.text('Receive notifications'), findsOneWidget);
     expect(find.text('REPORT EXPORT'), findsOneWidget);
     expect(find.text('REMOTE CONFIG'), findsOneWidget);
   });

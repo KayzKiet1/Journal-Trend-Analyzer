@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'controllers/publication_controller.dart';
-import 'controllers/journal_library_controller.dart';
-import 'controllers/firebase_demo_controller.dart';
-import 'controllers/notification_controller.dart';
-import 'controllers/user_controller.dart';
 import 'firebase/firebase_initializer.dart';
 import 'screens/main_screen.dart';
 import 'utils/app_theme.dart';
+import 'viewmodels/firebase_view_model.dart';
+import 'viewmodels/journal_library_view_model.dart';
+import 'viewmodels/keywords_view_model.dart';
+import 'viewmodels/notification_view_model.dart';
+import 'viewmodels/publication_view_model.dart';
+import 'viewmodels/user_view_model.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,25 +25,35 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => UserController()),
-        ChangeNotifierProxyProvider<UserController, PublicationController>(
-          create: (_) => PublicationController(),
-          update: (_, userController, publicationController) {
-            final controller =
-                publicationController ?? PublicationController();
-            final contactEmail = userController.authEmail.isNotEmpty
-                ? userController.authEmail
-                : userController.email;
+        ChangeNotifierProvider(create: (_) => UserViewModel()),
+        ChangeNotifierProxyProvider<UserViewModel, PublicationViewModel>(
+          create: (_) => PublicationViewModel(),
+          update: (_, userViewModel, publicationViewModel) {
+            final controller = publicationViewModel ?? PublicationViewModel();
+            final contactEmail = userViewModel.authEmail.isNotEmpty
+                ? userViewModel.authEmail
+                : userViewModel.email;
             controller.syncApiService(
               contactEmail,
-              apiKey: userController.apiKey,
+              apiKey: userViewModel.apiKey,
             );
             return controller;
           },
         ),
-        ChangeNotifierProvider(create: (_) => JournalLibraryController()),
-        ChangeNotifierProvider(create: (_) => FirebaseDemoController()),
-        ChangeNotifierProvider(create: (_) => NotificationController()),
+        ChangeNotifierProxyProvider<UserViewModel, KeywordsViewModel>(
+          create: (_) => KeywordsViewModel(),
+          update: (_, userViewModel, keywordsViewModel) {
+            final controller = keywordsViewModel ?? KeywordsViewModel();
+            final contactEmail = userViewModel.authEmail.isNotEmpty
+                ? userViewModel.authEmail
+                : userViewModel.email;
+            controller.syncApiService(contactEmail);
+            return controller;
+          },
+        ),
+        ChangeNotifierProvider(create: (_) => JournalLibraryViewModel()),
+        ChangeNotifierProvider(create: (_) => FirebaseViewModel()),
+        ChangeNotifierProvider(create: (_) => NotificationViewModel()),
       ],
       child: MaterialApp(
         title: 'Journal Trend Analyzer',

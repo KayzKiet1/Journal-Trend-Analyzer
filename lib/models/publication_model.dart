@@ -44,7 +44,7 @@ class Publication {
 
     // Xử lý abstract từ inverted index
     String parsedAbstract = AbstractParser.parseInvertedIndex(
-      json['abstract_inverted_index'] as Map<String, dynamic>?
+      json['abstract_inverted_index'] as Map<String, dynamic>?,
     );
 
     // Lấy danh sách topics hoặc concepts làm fallback

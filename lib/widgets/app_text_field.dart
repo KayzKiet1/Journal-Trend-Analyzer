@@ -43,6 +43,12 @@ class AppTextField extends StatelessWidget {
         controller: controller,
         style: AppTextStyles.bodyLarge,
         cursorColor: AppColors.accent,
+        keyboardType: TextInputType.text,
+        textInputAction: TextInputAction.search,
+        enableSuggestions: true,
+        autocorrect: false,
+        smartDashesType: SmartDashesType.disabled,
+        smartQuotesType: SmartQuotesType.disabled,
         onChanged: onChanged,
         onSubmitted: (_) => onSubmitted?.call(),
         decoration: InputDecoration(

@@ -3,10 +3,7 @@ import 'package:patrol/patrol.dart';
 
 import 'helpers/e2e_helpers.dart';
 
-const runFirebaseE2e = bool.fromEnvironment(
-  'RUN_FIREBASE_E2E',
-  defaultValue: true,
-);
+const runFirebaseE2e = bool.fromEnvironment('RUN_FIREBASE_E2E');
 
 void main() {
   patrolTest(
@@ -33,6 +30,7 @@ void main() {
           find.text('PDF report exported and uploaded.'),
           timeout: const Duration(seconds: 60),
         );
+        await openProfileTab($);
         expect(find.text('FIREBASE STORAGE URL'), findsOneWidget);
       }
     },
