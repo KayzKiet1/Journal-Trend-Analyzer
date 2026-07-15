@@ -111,7 +111,7 @@ class JournalDetailViewModel extends ChangeNotifier {
 
       final journal = results[0] as Journal;
       _journal = journal;
-      _publicationTrends = results[1] as List<TrendData>;
+      _publicationTrends = _dedupeTrendData(results[1] as List<TrendData>);
       _topTopics = results[2] as List<Map<String, dynamic>>;
       _topAuthors = results[3] as List<Map<String, dynamic>>;
       final worksData = results[4] as Map<String, dynamic>;
@@ -122,10 +122,12 @@ class JournalDetailViewModel extends ChangeNotifier {
         publicationTrends: _publicationTrends,
         startYear: chartStartYear,
       );
-      _citationTrends = _yearlyData
-          .where((data) => data.citedByCount > 0)
-          .map((data) => TrendData(year: data.year, count: data.citedByCount))
-          .toList();
+      _citationTrends = _dedupeTrendData(
+        _yearlyData
+            .where((data) => data.citedByCount > 0)
+            .map((data) => TrendData(year: data.year, count: data.citedByCount))
+            .toList(),
+      );
     } catch (error) {
       _errorMessage = 'Could not load journal: $error';
     } finally {
@@ -150,10 +152,12 @@ class JournalDetailViewModel extends ChangeNotifier {
         publicationTrends: _publicationTrends,
         startYear: startYear,
       );
-      _citationTrends = _yearlyData
-          .where((data) => data.citedByCount > 0)
-          .map((data) => TrendData(year: data.year, count: data.citedByCount))
-          .toList();
+      _citationTrends = _dedupeTrendData(
+        _yearlyData
+            .where((data) => data.citedByCount > 0)
+            .map((data) => TrendData(year: data.year, count: data.citedByCount))
+            .toList(),
+      );
     } catch (error) {
       _errorMessage = 'Could not update chart range: $error';
     } finally {
@@ -206,22 +210,20 @@ class JournalDetailViewModel extends ChangeNotifier {
     required int startYear,
   }) {
     final currentYear = DateTime.now().year;
-    final visiblePublicationTrends =
-        publicationTrends
-            .where(
-              (trend) =>
-                  trend.year >= startYear &&
-                  trend.year <= currentYear &&
-                  trend.count > 0,
-            )
-            .toList()
-          ..sort((a, b) => a.year.compareTo(b.year));
+    final visiblePublicationTrends = _dedupeTrendData(
+      publicationTrends
+          .where(
+            (trend) =>
+                trend.year >= startYear &&
+                trend.year <= currentYear &&
+                trend.count > 0,
+          )
+          .toList(),
+    );
 
     if (visiblePublicationTrends.isEmpty) return const [];
 
-    final sourceYearData = {
-      for (final item in journal.countsByYear) item.year: item,
-    };
+    final sourceYearData = _dedupeYearlyData(journal.countsByYear);
     return visiblePublicationTrends.map((trend) {
       final sourceData = sourceYearData[trend.year];
       return JournalYearlyData(
@@ -243,7 +245,34 @@ class JournalDetailViewModel extends ChangeNotifier {
         )
         .map((data) => TrendData(year: data.year, count: data.citedByCount))
         .toList();
-    trends.sort((a, b) => a.year.compareTo(b.year));
-    return trends;
+    return _dedupeTrendData(trends);
+  }
+
+  List<TrendData> _dedupeTrendData(List<TrendData> trends) {
+    final byYear = <int, int>{};
+    for (final trend in trends) {
+      if (trend.year <= 0) continue;
+      byYear[trend.year] = (byYear[trend.year] ?? 0) + trend.count;
+    }
+    return byYear.entries
+        .map((entry) => TrendData(year: entry.key, count: entry.value))
+        .toList()
+      ..sort((a, b) => a.year.compareTo(b.year));
+  }
+
+  Map<int, JournalYearlyData> _dedupeYearlyData(
+    List<JournalYearlyData> yearlyData,
+  ) {
+    final byYear = <int, JournalYearlyData>{};
+    for (final item in yearlyData) {
+      if (item.year <= 0) continue;
+      final existing = byYear[item.year];
+      byYear[item.year] = JournalYearlyData(
+        year: item.year,
+        worksCount: (existing?.worksCount ?? 0) + item.worksCount,
+        citedByCount: (existing?.citedByCount ?? 0) + item.citedByCount,
+      );
+    }
+    return byYear;
   }
 }

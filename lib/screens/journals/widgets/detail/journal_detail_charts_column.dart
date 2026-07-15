@@ -8,7 +8,6 @@ import '../../../../utils/app_text_styles.dart';
 import '../../../../widgets/horizontal_bar_chart.dart';
 import '../../../../widgets/journal_impact_charts.dart';
 import '../../../../widgets/year_trend_chart.dart';
-import 'journal_detail_chart_range_chip.dart';
 
 class JournalDetailChartsColumn extends StatelessWidget {
   final Journal? journal;
@@ -52,24 +51,18 @@ class JournalDetailChartsColumn extends StatelessWidget {
           onChanged: onStartYearChanged,
         ),
         const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            JournalDetailChartRangeChip(rangeLabel: rangeLabel),
-            if (isYearlyDataLoading) ...[
-              const SizedBox(width: AppSpacing.sm),
-              const SizedBox(
-                width: 72,
-                child: LinearProgressIndicator(minHeight: 3),
-              ),
-            ],
-          ],
-        ),
+        if (isYearlyDataLoading)
+          const SizedBox(
+            width: 72,
+            child: LinearProgressIndicator(minHeight: 3),
+          ),
         const SizedBox(height: AppSpacing.md),
         YearTrendChart(
           trends: publicationTrends,
           forceLineChart: true,
           referenceLineStyle: true,
           startYear: startYear,
+          rangeLabel: rangeLabel,
           title: 'Total Publications',
           valueLabel: 'publications',
         ),
@@ -79,6 +72,7 @@ class JournalDetailChartsColumn extends StatelessWidget {
           forceLineChart: true,
           referenceLineStyle: true,
           startYear: startYear,
+          rangeLabel: rangeLabel,
           title: 'Total Citations',
           valueLabel: 'citations',
         ),
@@ -86,11 +80,13 @@ class JournalDetailChartsColumn extends StatelessWidget {
         PublicationCitationTrendChart(
           yearlyData: yearlyData,
           startYear: startYear,
+          rangeLabel: rangeLabel,
         ),
         const SizedBox(height: AppSpacing.lg),
         CitationsPerPublicationChart(
           yearlyData: yearlyData,
           startYear: startYear,
+          rangeLabel: rangeLabel,
         ),
         if (includeAuthors) ...[
           const SizedBox(height: AppSpacing.lg),

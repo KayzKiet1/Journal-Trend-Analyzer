@@ -26,19 +26,16 @@ class AppTheme {
 
       // AppBar: Research workspace style (Lab Mist background, Scholar Ink text)
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.background,
         foregroundColor: AppColors.primary,
         elevation: 0,
         scrolledUnderElevation: 0,
-        surfaceTintColor: AppColors.surface,
-        centerTitle: true,
+        surfaceTintColor: AppColors.background,
+        centerTitle: false,
         titleTextStyle: AppTextStyles.h2,
         iconTheme: const IconThemeData(color: AppColors.primary),
-        shape: Border(
-          bottom: BorderSide(
-            color: AppColors.accent.withValues(alpha: 0.18),
-            width: 1.2,
-          ),
+        shape: const Border(
+          bottom: BorderSide(color: AppColors.border, width: 1),
         ),
       ),
 
@@ -58,6 +55,38 @@ class AppTheme {
           foregroundColor: AppColors.textInverted,
           textStyle: AppTextStyles.buttonText,
           elevation: 0,
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.md,
+            horizontal: AppSpacing.lg,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+        ),
+      ),
+
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.accent,
+          foregroundColor: AppColors.textInverted,
+          textStyle: AppTextStyles.buttonText,
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.md,
+            horizontal: AppSpacing.lg,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+        ),
+      ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          textStyle: AppTextStyles.buttonText.copyWith(
+            color: AppColors.primary,
+          ),
+          side: const BorderSide(color: AppColors.border),
           padding: const EdgeInsets.symmetric(
             vertical: AppSpacing.md,
             horizontal: AppSpacing.lg,

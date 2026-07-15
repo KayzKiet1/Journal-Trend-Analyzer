@@ -116,7 +116,7 @@ class HomeTopicDashboard extends StatelessWidget {
                 mainAxisSpacing: AppSpacing.sm,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: isWide ? 1.45 : 1.25,
+                childAspectRatio: isWide ? 1.45 : 1.12,
                 children: cards,
               );
             },

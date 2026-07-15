@@ -24,7 +24,7 @@ class FeatureHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         gradient: const LinearGradient(
@@ -43,12 +43,12 @@ class FeatureHeroCard extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            right: -18,
-            top: -22,
+            right: -20,
+            top: -24,
             child: Icon(
               icon,
-              size: 112,
-              color: AppColors.surface.withValues(alpha: 0.08),
+              size: 118,
+              color: AppColors.surface.withValues(alpha: 0.07),
             ),
           ),
           Column(
@@ -89,6 +89,8 @@ class FeatureHeroCard extends StatelessWidget {
                   color: AppColors.surface.withValues(alpha: 0.86),
                   height: 1.45,
                 ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
               if (badges.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),

@@ -38,7 +38,15 @@ class HomeRankSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: AppColors.accent, size: 18),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                ),
+                child: Icon(icon, color: AppColors.accent, size: 17),
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(child: Text(title, style: AppTextStyles.h2)),
             ],
@@ -52,6 +60,15 @@ class HomeRankSection extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: Row(
                   children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: AppColors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         entry.key,

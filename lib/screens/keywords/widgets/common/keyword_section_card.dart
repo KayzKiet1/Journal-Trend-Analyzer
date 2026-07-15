@@ -38,7 +38,15 @@ class KeywordSectionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: AppColors.accent),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                ),
+                child: Icon(icon, size: 18, color: AppColors.accent),
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(child: Text(title, style: AppTextStyles.h2)),
             ],

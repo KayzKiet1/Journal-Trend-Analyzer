@@ -34,19 +34,34 @@ class HomeMetricTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: AppColors.accent, size: 20),
-          Text(
-            value,
-            style: AppTextStyles.h2,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            ),
+            child: Icon(icon, color: AppColors.accent, size: 19),
           ),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            child: FittedBox(
+              alignment: Alignment.centerLeft,
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: AppTextStyles.h2.copyWith(fontSize: 20, height: 1.15),
+                maxLines: 1,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             label,
             style: AppTextStyles.labelCaps,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ],
