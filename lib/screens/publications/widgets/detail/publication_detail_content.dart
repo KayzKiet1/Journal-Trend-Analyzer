@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../models/publication_model.dart';
+import '../../../../utils/app_colors.dart';
 import '../../../../utils/app_spacing.dart';
 import '../../../../utils/app_text_styles.dart';
 import 'publication_authors_row.dart';
@@ -49,6 +50,29 @@ class PublicationDetailContent extends StatelessWidget {
             value: publication.citedByCount.toString(),
           ),
           PublicationDoiRow(doi: publication.doi, onOpenDoi: onOpenDoi),
+          if (publication.keywords.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xl),
+            Text('KEYWORDS', style: AppTextStyles.labelCaps),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: publication.keywords
+                  .map(
+                    (keyword) => Chip(
+                      label: Text(keyword),
+                      labelStyle: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.accentDark,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      backgroundColor: AppColors.accentLight,
+                      side: const BorderSide(color: AppColors.border),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
           const SizedBox(height: AppSpacing.xl * 2),
           Text('ABSTRACT', style: AppTextStyles.labelCaps),
           const SizedBox(height: AppSpacing.md),

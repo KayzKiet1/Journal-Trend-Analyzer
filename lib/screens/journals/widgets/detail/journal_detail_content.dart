@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../models/journal_model.dart';
+import '../../../../models/publication_model.dart';
 import '../../../../models/trend_data_model.dart';
 import '../../../../utils/app_spacing.dart';
+import '../../../../viewmodels/journal_detail_view_model.dart';
 import '../../../../widgets/horizontal_bar_chart.dart';
 import 'journal_detail_charts_column.dart';
 import 'journal_detail_header.dart';
@@ -10,6 +12,7 @@ import 'journal_detail_metadata_card.dart';
 import 'journal_detail_scope_banner.dart';
 import 'journal_detail_stats_card.dart';
 import 'journal_detail_topic_list.dart';
+import 'journal_publications_section.dart';
 
 class JournalDetailContent extends StatelessWidget {
   final Journal? journal;
@@ -20,12 +23,21 @@ class JournalDetailContent extends StatelessWidget {
   final List<JournalYearlyData> yearlyData;
   final List<Map<String, dynamic>> topTopics;
   final List<Map<String, dynamic>> topAuthors;
+  final List<Publication> publications;
+  final int publicationsTotalCount;
+  final JournalPublicationSort publicationSort;
+  final bool isPublicationsLoading;
+  final String publicationsErrorMessage;
   final int chartStartYear;
   final String chartRangeLabel;
   final int fullChartStartYear;
   final int lastTenChartStartYear;
   final bool isYearlyDataLoading;
   final ValueChanged<int> onChartStartYearChanged;
+  final ValueChanged<JournalPublicationSort> onPublicationSortChanged;
+  final ValueChanged<Publication> onPublicationTap;
+  final bool Function(String publicationId) isPublicationBookmarked;
+  final ValueChanged<Publication> onPublicationBookmarkToggle;
   final bool isFavorite;
   final ValueChanged<Journal> onToggleFavorite;
   final ValueChanged<String?> onOpenLink;
@@ -40,12 +52,21 @@ class JournalDetailContent extends StatelessWidget {
     required this.yearlyData,
     required this.topTopics,
     required this.topAuthors,
+    required this.publications,
+    required this.publicationsTotalCount,
+    required this.publicationSort,
+    required this.isPublicationsLoading,
+    required this.publicationsErrorMessage,
     required this.chartStartYear,
     required this.chartRangeLabel,
     required this.fullChartStartYear,
     required this.lastTenChartStartYear,
     required this.isYearlyDataLoading,
     required this.onChartStartYearChanged,
+    required this.onPublicationSortChanged,
+    required this.onPublicationTap,
+    required this.isPublicationBookmarked,
+    required this.onPublicationBookmarkToggle,
     required this.isFavorite,
     required this.onToggleFavorite,
     required this.onOpenLink,
@@ -144,6 +165,18 @@ class JournalDetailContent extends StatelessWidget {
               ],
             );
           },
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        JournalPublicationsSection(
+          publications: publications,
+          totalCount: publicationsTotalCount,
+          selectedSort: publicationSort,
+          isLoading: isPublicationsLoading,
+          errorMessage: publicationsErrorMessage,
+          onSortChanged: onPublicationSortChanged,
+          onPublicationTap: onPublicationTap,
+          isPublicationBookmarked: isPublicationBookmarked,
+          onBookmarkToggle: onPublicationBookmarkToggle,
         ),
       ],
     );

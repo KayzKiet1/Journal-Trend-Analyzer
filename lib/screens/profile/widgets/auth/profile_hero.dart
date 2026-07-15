@@ -96,13 +96,6 @@ class ProfileHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Firebase Authentication manages Google sign-in, while this tab shows Messaging, Storage, Remote Config, and Crashlytics readiness in one place.',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: Colors.white.withValues(alpha: 0.86),
-            ),
-          ),
           const SizedBox(height: AppSpacing.lg),
           SizedBox(
             width: double.infinity,

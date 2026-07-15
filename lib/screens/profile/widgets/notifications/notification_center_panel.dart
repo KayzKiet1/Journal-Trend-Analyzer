@@ -55,12 +55,7 @@ class NotificationCenterPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Choose whether this device should receive Firebase Cloud Messaging notifications.',
-            style: AppTextStyles.bodySmall,
-          ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           _NotificationStatusRow(
             permissionStatus: permissionStatus,
             compactToken: compactToken,
@@ -192,12 +187,6 @@ class _NotificationEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const examples = [
-      'Trending research topic',
-      'High citation alert',
-      'Research trend update',
-    ];
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -209,25 +198,7 @@ class _NotificationEmptyState extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'No Firebase Cloud Messaging notifications yet.',
-            style: AppTextStyles.bodySmall,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          ...examples.map(
-            (example) => Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Row(
-                children: [
-                  const Icon(Icons.circle, size: 6, color: AppColors.accent),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(example, style: AppTextStyles.bodySmall),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          Text('No notifications yet.', style: AppTextStyles.bodySmall),
         ],
       ),
     );

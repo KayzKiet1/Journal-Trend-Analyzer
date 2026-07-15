@@ -34,7 +34,8 @@ class _OpenAlexHttpException implements Exception {
 class OpenAlexService {
   static const String _workSelectFields =
       'id,display_name,title,publication_year,publication_date,cited_by_count,'
-      'authorships,primary_location,doi,abstract_inverted_index,topics,concepts';
+      'authorships,primary_location,doi,abstract_inverted_index,topics,concepts,'
+      'keywords';
 
   final String? userEmail;
   final String? apiKey;

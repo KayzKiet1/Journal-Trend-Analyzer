@@ -8,7 +8,6 @@ import '../../../../utils/app_spacing.dart';
 import '../../../../utils/app_text_styles.dart';
 import '../../../../viewmodels/publication_bookmark_view_model.dart';
 import '../../../../widgets/publication_card.dart';
-import '../../../../widgets/year_trend_chart.dart';
 import '../home_formatters.dart';
 import 'home_metric_tile.dart';
 import 'home_notice.dart';
@@ -26,6 +25,8 @@ class HomeTopicDashboard extends StatelessWidget {
   final Map<String, int> topJournals;
   final int maxJournalsDisplay;
   final ValueChanged<Publication> onPublicationTap;
+  final VoidCallback onViewKeywords;
+  final VoidCallback onExploreJournals;
 
   const HomeTopicDashboard({
     super.key,
@@ -40,6 +41,8 @@ class HomeTopicDashboard extends StatelessWidget {
     required this.topJournals,
     required this.maxJournalsDisplay,
     required this.onPublicationTap,
+    required this.onViewKeywords,
+    required this.onExploreJournals,
   });
 
   @override
@@ -119,12 +122,39 @@ class HomeTopicDashboard extends StatelessWidget {
             },
           ),
           const SizedBox(height: AppSpacing.lg),
-          YearTrendChart(
-            trends: trends,
-            forceLineChart: true,
-            startYear: 1995,
-            rangeLabel: '1995-${DateTime.now().year}',
-            title: 'Publication Trend Over Time',
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 560;
+              final keywordButton = FilledButton.icon(
+                onPressed: onViewKeywords,
+                icon: const Icon(Icons.analytics_outlined),
+                label: const Text('View keyword analysis'),
+              );
+              final journalButton = OutlinedButton.icon(
+                onPressed: onExploreJournals,
+                icon: const Icon(Icons.book_outlined),
+                label: const Text('Explore journals'),
+              );
+
+              if (!isWide) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    keywordButton,
+                    const SizedBox(height: AppSpacing.sm),
+                    journalButton,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: keywordButton),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: journalButton),
+                ],
+              );
+            },
           ),
           const SizedBox(height: AppSpacing.lg),
           LayoutBuilder(

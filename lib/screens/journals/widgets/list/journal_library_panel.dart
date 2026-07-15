@@ -5,7 +5,7 @@ import '../../../../utils/app_colors.dart';
 import '../../../../utils/app_spacing.dart';
 import '../../../../utils/app_text_styles.dart';
 
-class JournalLibraryPanel extends StatelessWidget {
+class JournalLibraryPanel extends StatefulWidget {
   final List<Journal> favorites;
   final List<Journal> recentViewed;
   final VoidCallback onClearRecentViewed;
@@ -20,37 +20,118 @@ class JournalLibraryPanel extends StatelessWidget {
   });
 
   @override
+  State<JournalLibraryPanel> createState() => _JournalLibraryPanelState();
+}
+
+class _JournalLibraryPanelState extends State<JournalLibraryPanel> {
+  bool _isExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    if (favorites.isEmpty && recentViewed.isEmpty) {
+    if (widget.favorites.isEmpty && widget.recentViewed.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (favorites.isNotEmpty) ...[
-          _JournalStrip(
-            title: 'FAVORITE JOURNALS',
-            journals: favorites,
-            icon: Icons.star,
-            onOpenJournal: onOpenJournal,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-        ],
-        if (recentViewed.isNotEmpty) ...[
-          _JournalStrip(
-            title: 'RECENTLY VIEWED',
-            journals: recentViewed,
-            icon: Icons.history,
-            onOpenJournal: onOpenJournal,
-            trailing: TextButton(
-              onPressed: onClearRecentViewed,
-              child: const Text('Clear'),
+    final totalItems = widget.favorites.length + widget.recentViewed.length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.collections_bookmark_outlined,
+                      color: AppColors.accent,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Saved journal shelf', style: AppTextStyles.h2),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            '${widget.favorites.length} favorites • ${widget.recentViewed.length} recent',
+                            style: AppTextStyles.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      totalItems.toString(),
+                      style: AppTextStyles.h2.copyWith(color: AppColors.accent),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.favorites.isNotEmpty) ...[
+                    _JournalStrip(
+                      title: 'FAVORITE JOURNALS',
+                      journals: widget.favorites,
+                      icon: Icons.star,
+                      onOpenJournal: widget.onOpenJournal,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                  if (widget.recentViewed.isNotEmpty)
+                    _JournalStrip(
+                      title: 'RECENTLY VIEWED',
+                      journals: widget.recentViewed,
+                      icon: Icons.history,
+                      onOpenJournal: widget.onOpenJournal,
+                      trailing: TextButton(
+                        onPressed: widget.onClearRecentViewed,
+                        child: const Text('Clear'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
+          ),
         ],
-      ],
+      ),
     );
   }
 }

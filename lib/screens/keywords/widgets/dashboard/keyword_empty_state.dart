@@ -6,8 +6,13 @@ import '../../../../utils/app_text_styles.dart';
 
 class KeywordEmptyState extends StatelessWidget {
   final String lastSearchText;
+  final VoidCallback onGoHome;
 
-  const KeywordEmptyState({super.key, required this.lastSearchText});
+  const KeywordEmptyState({
+    super.key,
+    required this.lastSearchText,
+    required this.onGoHome,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -46,9 +51,15 @@ class KeywordEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Search journal articles in Home first, then return here.',
+                'Search a topic on Home to analyze keyword frequency, growth, related journals, and publications.',
                 style: AppTextStyles.bodySmall,
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              FilledButton.icon(
+                onPressed: onGoHome,
+                icon: const Icon(Icons.home_outlined),
+                label: const Text('Search on Home'),
               ),
               if (lastSearchText.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),

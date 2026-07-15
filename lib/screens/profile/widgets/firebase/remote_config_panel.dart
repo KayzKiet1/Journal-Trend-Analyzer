@@ -52,11 +52,6 @@ class RemoteConfigPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Fetch live feature settings from Firebase Console. Change these values in Remote Config, then tap fetch to update the app without rebuilding.',
-            style: AppTextStyles.bodySmall,
-          ),
           const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -68,17 +63,17 @@ class RemoteConfigPanel extends StatelessWidget {
             child: Column(
               children: [
                 _ConfigRow(
-                  title: 'Journal cards limit',
+                  title: 'Home journal summary',
                   value: maxJournalsDisplay.toString(),
                   icon: Icons.book_outlined,
                 ),
                 _ConfigRow(
-                  title: 'Keyword rows limit',
+                  title: 'Keyword rows',
                   value: maxKeywordsDisplay.toString(),
                   icon: Icons.analytics_outlined,
                 ),
                 _ConfigRow(
-                  title: 'PDF export feature',
+                  title: 'PDF export',
                   value: enableReportExport ? 'Enabled' : 'Disabled',
                   icon: Icons.picture_as_pdf_outlined,
                 ),

@@ -73,6 +73,18 @@ class _HomeScreenState extends State<HomeScreen> {
     controller.loadWorkSearchDashboard(search.label);
   }
 
+  void _openKeywordAnalysis() {
+    context.read<PublicationViewModel>().setSelectedIndex(2);
+  }
+
+  void _openJournalExplorer() {
+    final controller = context.read<PublicationViewModel>();
+    if (controller.journalSources.isEmpty && !controller.isLoadingJournals) {
+      controller.searchJournals('');
+    }
+    controller.setSelectedIndex(1);
+  }
+
   @override
   void dispose() {
     _viewModel.dispose();
@@ -179,6 +191,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 );
                               },
+                              onViewKeywords: _openKeywordAnalysis,
+                              onExploreJournals: _openJournalExplorer,
                             ),
                           ],
                         );

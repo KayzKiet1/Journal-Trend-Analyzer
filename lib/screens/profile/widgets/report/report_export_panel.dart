@@ -67,11 +67,6 @@ class ReportExportPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Export Home and Keywords dashboard analytics as a PDF report, upload it to Firebase Storage, then display the file URL.',
-            style: AppTextStyles.bodySmall,
-          ),
           const SizedBox(height: AppSpacing.md),
           _ReportScope(
             currentTopic: currentTopic,
@@ -88,14 +83,14 @@ class ReportExportPanel extends StatelessWidget {
             value: isSignedIn ? authEmail : 'Required for Storage',
           ),
           _ExportRequirement(
-            label: 'HOME dashboard data',
+            label: 'Dashboard data',
             isReady: hasDashboardData,
             value: hasDashboardData
                 ? '$totalPublications publications'
                 : 'Search and select a topic first',
           ),
           _ExportRequirement(
-            label: 'Remote Config export flag',
+            label: 'Export flag',
             isReady: exportEnabled,
             value: exportEnabled ? 'Enabled' : 'Disabled',
           ),

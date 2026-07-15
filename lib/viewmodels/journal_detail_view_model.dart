@@ -2,8 +2,23 @@ import 'package:flutter/foundation.dart';
 
 import '../firebase/firebase_analytics_service.dart';
 import '../models/journal_model.dart';
+import '../models/publication_model.dart';
 import '../models/trend_data_model.dart';
 import '../services/openalex_service.dart';
+
+enum JournalPublicationSort {
+  newest,
+  mostCited;
+
+  String get label {
+    switch (this) {
+      case JournalPublicationSort.newest:
+        return 'Newest';
+      case JournalPublicationSort.mostCited:
+        return 'Most cited';
+    }
+  }
+}
 
 class JournalDetailViewModel extends ChangeNotifier {
   JournalDetailViewModel({
@@ -17,23 +32,33 @@ class JournalDetailViewModel extends ChangeNotifier {
 
   bool _isLoading = true;
   bool _isLoadingYearlyData = false;
+  bool _isLoadingPublications = false;
   String _errorMessage = '';
+  String _publicationsErrorMessage = '';
   Journal? _journal;
   List<TrendData> _publicationTrends = [];
   List<TrendData> _citationTrends = [];
   List<JournalYearlyData> _yearlyData = [];
   List<Map<String, dynamic>> _topTopics = [];
   List<Map<String, dynamic>> _topAuthors = [];
+  List<Publication> _publications = [];
+  int _publicationsTotalCount = 0;
+  JournalPublicationSort _publicationSort = JournalPublicationSort.newest;
 
   bool get isLoading => _isLoading;
   bool get isLoadingYearlyData => _isLoadingYearlyData;
+  bool get isLoadingPublications => _isLoadingPublications;
   String get errorMessage => _errorMessage;
+  String get publicationsErrorMessage => _publicationsErrorMessage;
   Journal? get journal => _journal;
   List<TrendData> get publicationTrends => _publicationTrends;
   List<TrendData> get citationTrends => _citationTrends;
   List<JournalYearlyData> get yearlyData => _yearlyData;
   List<Map<String, dynamic>> get topTopics => _topTopics;
   List<Map<String, dynamic>> get topAuthors => _topAuthors;
+  List<Publication> get publications => _publications;
+  int get publicationsTotalCount => _publicationsTotalCount;
+  JournalPublicationSort get publicationSort => _publicationSort;
 
   Future<void> load({
     required String journalId,
@@ -59,6 +84,8 @@ class JournalDetailViewModel extends ChangeNotifier {
         {'name': 'Ada Lovelace', 'count': 8},
         {'name': 'Alan Turing', 'count': 6},
       ];
+      _publications = const [];
+      _publicationsTotalCount = 0;
       _isLoading = false;
       notifyListeners();
       return;
@@ -74,6 +101,12 @@ class JournalDetailViewModel extends ChangeNotifier {
         _apiService.getJournalYearlyTrend(journalId, topicIds: topicIds),
         _apiService.getJournalTopTopics(journalId),
         _apiService.getJournalTopAuthors(journalId, topicIds: topicIds),
+        _apiService.getWorksByJournal(
+          journalId,
+          topicIds: topicIds,
+          sortField: _sortFieldFor(_publicationSort),
+          descending: true,
+        ),
       ]);
 
       final journal = results[0] as Journal;
@@ -81,10 +114,12 @@ class JournalDetailViewModel extends ChangeNotifier {
       _publicationTrends = results[1] as List<TrendData>;
       _topTopics = results[2] as List<Map<String, dynamic>>;
       _topAuthors = results[3] as List<Map<String, dynamic>>;
-      _yearlyData = await _buildCurrentYearlyData(
+      final worksData = results[4] as Map<String, dynamic>;
+      _publications = worksData['results'] as List<Publication>;
+      _publicationsTotalCount = worksData['total_count'] as int? ?? 0;
+      _yearlyData = _buildCurrentYearlyData(
         journal: journal,
         publicationTrends: _publicationTrends,
-        topicIds: topicIds,
         startYear: chartStartYear,
       );
       _citationTrends = _yearlyData
@@ -110,10 +145,9 @@ class JournalDetailViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _yearlyData = await _buildCurrentYearlyData(
+      _yearlyData = _buildCurrentYearlyData(
         journal: journal,
         publicationTrends: _publicationTrends,
-        topicIds: topicIds,
         startYear: startYear,
       );
       _citationTrends = _yearlyData
@@ -128,12 +162,49 @@ class JournalDetailViewModel extends ChangeNotifier {
     }
   }
 
-  Future<List<JournalYearlyData>> _buildCurrentYearlyData({
+  Future<void> loadPublications({
+    required String journalId,
+    required List<String> topicIds,
+    required JournalPublicationSort sort,
+  }) async {
+    if (_isLoadingPublications && sort == _publicationSort) return;
+
+    _publicationSort = sort;
+    _isLoadingPublications = true;
+    _publicationsErrorMessage = '';
+    notifyListeners();
+
+    try {
+      final data = await _apiService.getWorksByJournal(
+        journalId,
+        topicIds: topicIds,
+        sortField: _sortFieldFor(sort),
+        descending: true,
+      );
+      _publications = data['results'] as List<Publication>;
+      _publicationsTotalCount = data['total_count'] as int? ?? 0;
+    } catch (error) {
+      _publicationsErrorMessage = 'Could not load publications: $error';
+    } finally {
+      _isLoadingPublications = false;
+      notifyListeners();
+    }
+  }
+
+  String? _sortFieldFor(JournalPublicationSort sort) {
+    switch (sort) {
+      case JournalPublicationSort.newest:
+        return null;
+      case JournalPublicationSort.mostCited:
+        return 'cited_by_count';
+    }
+  }
+
+  List<JournalYearlyData> _buildCurrentYearlyData({
     required Journal journal,
     required List<TrendData> publicationTrends,
-    required List<String> topicIds,
     required int startYear,
-  }) async {
+  }) {
     final currentYear = DateTime.now().year;
     final visiblePublicationTrends =
         publicationTrends
@@ -148,35 +219,17 @@ class JournalDetailViewModel extends ChangeNotifier {
 
     if (visiblePublicationTrends.isEmpty) return const [];
 
-    try {
-      final citationSums = await _apiService.getJournalCitationSumsByYear(
-        journal.id,
-        visiblePublicationTrends.map((trend) => trend.year),
-        topicIds: topicIds,
+    final sourceYearData = {
+      for (final item in journal.countsByYear) item.year: item,
+    };
+    return visiblePublicationTrends.map((trend) {
+      final sourceData = sourceYearData[trend.year];
+      return JournalYearlyData(
+        year: trend.year,
+        worksCount: trend.count,
+        citedByCount: sourceData?.citedByCount ?? 0,
       );
-
-      return visiblePublicationTrends
-          .map(
-            (trend) => JournalYearlyData(
-              year: trend.year,
-              worksCount: trend.count,
-              citedByCount: citationSums[trend.year] ?? 0,
-            ),
-          )
-          .toList();
-    } catch (_) {
-      final sourceYearData = {
-        for (final item in journal.countsByYear) item.year: item,
-      };
-      return visiblePublicationTrends.map((trend) {
-        final sourceData = sourceYearData[trend.year];
-        return JournalYearlyData(
-          year: trend.year,
-          worksCount: trend.count,
-          citedByCount: sourceData?.citedByCount ?? 0,
-        );
-      }).toList();
-    }
+    }).toList();
   }
 
   List<TrendData> _buildCitationTrends(Journal journal) {

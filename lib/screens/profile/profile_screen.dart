@@ -232,8 +232,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         FirebaseStatusOverview(items: statusItems),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text('SAVED BOOKMARKS', style: AppTextStyles.labelCaps),
                         const SizedBox(height: AppSpacing.md),
                         SavedBookmarksPanel(
                           publications: publicationBookmarks.bookmarks,
@@ -244,105 +242,119 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onOpenJournal: _openBookmarkedJournal,
                           onRemoveJournal: journalLibrary.toggleFavorite,
                         ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text(
-                          'NOTIFICATION CENTER',
-                          style: AppTextStyles.labelCaps,
-                        ),
                         const SizedBox(height: AppSpacing.md),
-                        NotificationCenterPanel(
-                          permissionStatus:
-                              notificationController.permissionStatus,
-                          compactToken: notificationController.compactToken(),
-                          hasToken: notificationController.hasToken,
-                          isNotificationReady:
-                              notificationController.isNotificationReady,
-                          wantsNotifications:
-                              notificationController.wantsNotifications,
-                          isLoading: notificationController.isLoading,
-                          errorMessage: notificationController.errorMessage,
-                          notifications: notificationController.notifications,
-                          onNotificationsEnabledChanged:
-                              notificationController.setNotificationsEnabled,
-                          onClearNotifications:
-                              notificationController.clearNotifications,
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text('REPORT EXPORT', style: AppTextStyles.labelCaps),
-                        const SizedBox(height: AppSpacing.md),
-                        AnimatedBuilder(
-                          animation: _viewModel,
-                          builder: (context, _) => ReportExportPanel(
-                            isUploading: _viewModel.isReportUploading,
-                            uploadedReportUrl: _viewModel.uploadedReportUrl,
-                            currentTopic: publicationController.currentTopic,
-                            totalPublications:
-                                publicationController.topicDashboardTotalWorks,
-                            trendPointCount: publicationController
-                                .topicDashboardTrends
-                                .length,
-                            journalCount: publicationController
-                                .topicDashboardTopJournals
-                                .length,
-                            keywordCount: keywordsController.topKeywords.length,
-                            keywordGrowthCount:
-                                keywordsController.keywordGrowth.length,
-                            hasDashboardData: hasDashboardData,
-                            isSignedIn: userController.isSignedIn,
-                            authEmail: userController.authEmail,
-                            exportEnabled: remoteConfig.enableReportExport,
-                            onExport: () => _exportAndUploadReport(
-                              publicationController,
-                              keywordsController,
-                              userController,
-                            ),
-                            onCopyUrl: _copyUploadedReportUrl,
-                            onOpenUrl: _openUploadedReportUrl,
+                        _ProfileSection(
+                          title: 'Notifications',
+                          icon: Icons.notifications_outlined,
+                          child: NotificationCenterPanel(
+                            permissionStatus:
+                                notificationController.permissionStatus,
+                            compactToken: notificationController.compactToken(),
+                            hasToken: notificationController.hasToken,
+                            isNotificationReady:
+                                notificationController.isNotificationReady,
+                            wantsNotifications:
+                                notificationController.wantsNotifications,
+                            isLoading: notificationController.isLoading,
+                            errorMessage: notificationController.errorMessage,
+                            notifications: notificationController.notifications,
+                            onNotificationsEnabledChanged:
+                                notificationController.setNotificationsEnabled,
+                            onClearNotifications:
+                                notificationController.clearNotifications,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text('REMOTE CONFIG', style: AppTextStyles.labelCaps),
                         const SizedBox(height: AppSpacing.md),
-                        RemoteConfigPanel(
-                          maxJournalsDisplay: remoteConfig.maxJournalsDisplay,
-                          maxKeywordsDisplay: remoteConfig.maxKeywordsDisplay,
-                          enableReportExport: remoteConfig.enableReportExport,
-                          status: firebaseController.remoteConfigStatus,
-                          error: firebaseController.remoteConfigError,
-                          isLoading: firebaseController.isRemoteConfigLoading,
-                          onFetch: firebaseController.fetchRemoteConfig,
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text(
-                          'CRASHLYTICS DEMO',
-                          style: AppTextStyles.labelCaps,
+                        _ProfileSection(
+                          title: 'Report export',
+                          icon: Icons.picture_as_pdf_outlined,
+                          child: AnimatedBuilder(
+                            animation: _viewModel,
+                            builder: (context, _) => ReportExportPanel(
+                              isUploading: _viewModel.isReportUploading,
+                              uploadedReportUrl: _viewModel.uploadedReportUrl,
+                              currentTopic: publicationController.currentTopic,
+                              totalPublications: publicationController
+                                  .topicDashboardTotalWorks,
+                              trendPointCount: publicationController
+                                  .topicDashboardTrends
+                                  .length,
+                              journalCount: publicationController
+                                  .topicDashboardTopJournals
+                                  .length,
+                              keywordCount:
+                                  keywordsController.topKeywords.length,
+                              keywordGrowthCount:
+                                  keywordsController.keywordGrowth.length,
+                              hasDashboardData: hasDashboardData,
+                              isSignedIn: userController.isSignedIn,
+                              authEmail: userController.authEmail,
+                              exportEnabled: remoteConfig.enableReportExport,
+                              onExport: () => _exportAndUploadReport(
+                                publicationController,
+                                keywordsController,
+                                userController,
+                              ),
+                              onCopyUrl: _copyUploadedReportUrl,
+                              onOpenUrl: _openUploadedReportUrl,
+                            ),
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        CrashlyticsPanel(
-                          isLoading: firebaseController.isCrashlyticsLoading,
-                          message: firebaseController.crashlyticsMessage,
-                          onRecordHandledException:
-                              firebaseController.recordHandledException,
-                          onConfirmTestCrash: () =>
-                              _confirmTestCrash(firebaseController),
+                        _ProfileSection(
+                          title: 'Firebase tools',
+                          icon: Icons.tune_outlined,
+                          child: Column(
+                            children: [
+                              RemoteConfigPanel(
+                                maxJournalsDisplay:
+                                    remoteConfig.maxJournalsDisplay,
+                                maxKeywordsDisplay:
+                                    remoteConfig.maxKeywordsDisplay,
+                                enableReportExport:
+                                    remoteConfig.enableReportExport,
+                                status: firebaseController.remoteConfigStatus,
+                                error: firebaseController.remoteConfigError,
+                                isLoading:
+                                    firebaseController.isRemoteConfigLoading,
+                                onFetch: firebaseController.fetchRemoteConfig,
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              CrashlyticsPanel(
+                                isLoading:
+                                    firebaseController.isCrashlyticsLoading,
+                                message: firebaseController.crashlyticsMessage,
+                                onRecordHandledException:
+                                    firebaseController.recordHandledException,
+                                onConfirmTestCrash: () =>
+                                    _confirmTestCrash(firebaseController),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text('ABOUT APP', style: AppTextStyles.labelCaps),
                         const SizedBox(height: AppSpacing.md),
-                        const ProfileInfoCard(
-                          title: 'Version',
-                          value: '1.0.0 (PRM393 Lab 03)',
+                        const _ProfileSection(
+                          title: 'About',
                           icon: Icons.info_outline,
-                        ),
-                        const ProfileInfoCard(
-                          title: 'Data source',
-                          value: 'OpenAlex API',
-                          icon: Icons.cloud_outlined,
-                        ),
-                        const ProfileInfoCard(
-                          title: 'Design',
-                          value: 'Research Analytics Design System',
-                          icon: Icons.palette_outlined,
+                          child: Column(
+                            children: [
+                              ProfileInfoCard(
+                                title: 'Version',
+                                value: '1.0.0 (PRM393 Lab 03)',
+                                icon: Icons.info_outline,
+                              ),
+                              ProfileInfoCard(
+                                title: 'Data source',
+                                value: 'OpenAlex API',
+                                icon: Icons.cloud_outlined,
+                              ),
+                              ProfileInfoCard(
+                                title: 'Design',
+                                value: 'Research Analytics Design System',
+                                icon: Icons.palette_outlined,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -376,5 +388,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (confirmed == true) {
       await controller.triggerTestCrash();
     }
+  }
+}
+
+class _ProfileSection extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  const _ProfileSection({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        leading: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          ),
+          child: Icon(icon, color: AppColors.accent, size: 20),
+        ),
+        title: Text(title, style: AppTextStyles.h2),
+        children: [child],
+      ),
+    );
   }
 }

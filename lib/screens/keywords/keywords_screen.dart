@@ -56,7 +56,11 @@ class _KeywordsScreenState extends State<KeywordsScreen> {
     }
 
     if (query.isEmpty) {
-      return KeywordEmptyState(lastSearchText: controller.lastSearchText);
+      return KeywordEmptyState(
+        lastSearchText: controller.lastSearchText,
+        onGoHome: () =>
+            context.read<PublicationViewModel>().setSelectedIndex(0),
+      );
     }
 
     final topicKey = '${query.toLowerCase()}|${topicIds.join('|')}';

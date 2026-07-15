@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/journal_model.dart';
+import '../../models/publication_model.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_spacing.dart';
+import '../../viewmodels/publication_bookmark_view_model.dart';
 import '../../viewmodels/journal_library_view_model.dart';
 import '../../viewmodels/journal_detail_view_model.dart';
 import '../../widgets/loading_widget.dart';
+import '../publications/publication_detail_screen.dart';
 import 'widgets/detail/journal_detail_content.dart';
 
 class JournalDetailScreen extends StatefulWidget {
@@ -102,6 +105,24 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
     _viewModel.loadChartRange(startYear: startYear, topicIds: widget.topicIds);
   }
 
+  void _handlePublicationSortChanged(JournalPublicationSort sort) {
+    if (sort == _viewModel.publicationSort) return;
+    _viewModel.loadPublications(
+      journalId: widget.journalId,
+      topicIds: widget.topicIds,
+      sort: sort,
+    );
+  }
+
+  void _openPublication(Publication publication) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PublicationDetailScreen(publication: publication),
+      ),
+    );
+  }
+
   Future<void> _launchUrl(String? urlString) async {
     if (urlString == null) return;
     final Uri url = Uri.parse(urlString);
@@ -136,6 +157,8 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
 
         final journal = _viewModel.journal;
         final library = context.watch<JournalLibraryViewModel>();
+        final publicationBookmarks = context
+            .watch<PublicationBookmarkViewModel>();
         final isFavorite = journal != null && library.isFavorite(journal.id);
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -173,12 +196,22 @@ class _JournalDetailScreenState extends State<JournalDetailScreen> {
                   yearlyData: _viewModel.yearlyData,
                   topTopics: _viewModel.topTopics,
                   topAuthors: _viewModel.topAuthors,
+                  publications: _viewModel.publications,
+                  publicationsTotalCount: _viewModel.publicationsTotalCount,
+                  publicationSort: _viewModel.publicationSort,
+                  isPublicationsLoading: _viewModel.isLoadingPublications,
+                  publicationsErrorMessage: _viewModel.publicationsErrorMessage,
                   chartStartYear: _chartStartYear,
                   chartRangeLabel: _chartRangeLabel,
                   fullChartStartYear: _minimumChartYear,
                   lastTenChartStartYear: _lastTenStartYear,
                   isYearlyDataLoading: _viewModel.isLoadingYearlyData,
                   onChartStartYearChanged: _handleChartStartYearChanged,
+                  onPublicationSortChanged: _handlePublicationSortChanged,
+                  onPublicationTap: _openPublication,
+                  isPublicationBookmarked: publicationBookmarks.isBookmarked,
+                  onPublicationBookmarkToggle:
+                      publicationBookmarks.toggleBookmark,
                   isFavorite: isFavorite,
                   onToggleFavorite: library.toggleFavorite,
                   onOpenLink: _launchUrl,

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_spacing.dart';
-import '../../viewmodels/firebase_view_model.dart';
 import '../../viewmodels/journal_library_view_model.dart';
 import '../../viewmodels/publication_view_model.dart';
 import '../../widgets/loading_widget.dart';
@@ -13,7 +12,6 @@ import 'widgets/list/journal_card.dart';
 import 'widgets/list/journal_compare_bar.dart';
 import 'widgets/list/journal_feedback.dart';
 import 'widgets/list/journal_hero_header.dart';
-import 'widgets/list/journal_library_panel.dart';
 import 'widgets/list/journal_search_panel.dart';
 
 class JournalsScreen extends StatefulWidget {
@@ -70,8 +68,8 @@ class _JournalsScreenState extends State<JournalsScreen> {
           overflow: TextOverflow.ellipsis,
         ),
       ),
-      body: Consumer2<PublicationViewModel, FirebaseViewModel>(
-        builder: (context, controller, firebaseController, child) {
+      body: Consumer<PublicationViewModel>(
+        builder: (context, controller, child) {
           final isCurrentResultEmpty = controller.journalSources.isEmpty;
           final isLoading = controller.isLoadingJournals;
           final errorMessage = controller.journalErrorMessage;
@@ -94,10 +92,7 @@ class _JournalsScreenState extends State<JournalsScreen> {
               constraints: const BoxConstraints(
                 maxWidth: AppSpacing.maxContentWidth,
               ),
-              child: _buildResultList(
-                controller,
-                firebaseController.remoteConfigValues.maxJournalsDisplay,
-              ),
+              child: _buildResultList(controller),
             ),
           );
         },
@@ -105,14 +100,9 @@ class _JournalsScreenState extends State<JournalsScreen> {
     );
   }
 
-  Widget _buildResultList(PublicationViewModel controller, int displayLimit) {
+  Widget _buildResultList(PublicationViewModel controller) {
     final library = context.watch<JournalLibraryViewModel>();
-    final safeDisplayLimit = displayLimit < 1 ? 1 : displayLimit;
-    final visibleSources = controller.journalSources
-        .take(safeDisplayLimit)
-        .toList();
-    final isLimitedByRemoteConfig =
-        visibleSources.length < controller.journalSources.length;
+    final visibleSources = controller.journalSources;
 
     if (controller.journalSources.isEmpty && !controller.isLoadingJournals) {
       return ListView(
@@ -122,13 +112,6 @@ class _JournalsScreenState extends State<JournalsScreen> {
           const SizedBox(height: AppSpacing.lg),
           _buildJournalSearchPanel(controller),
           _buildCompareBar(),
-          const SizedBox(height: AppSpacing.lg),
-          JournalLibraryPanel(
-            favorites: library.favorites,
-            recentViewed: library.recentViewed,
-            onClearRecentViewed: library.clearRecentViewed,
-            onOpenJournal: _openJournal,
-          ),
           JournalEmptyState(
             hasQuery: _journalSearchController.text.trim().isNotEmpty,
             onClear: _clearJournalSearch,
@@ -143,7 +126,7 @@ class _JournalsScreenState extends State<JournalsScreen> {
       itemCount:
           visibleSources.length +
           1 +
-          (isLimitedByRemoteConfig || controller.hasMoreJournalSources ? 1 : 0),
+          (controller.hasMoreJournalSources ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == 0) {
           return Column(
@@ -154,31 +137,12 @@ class _JournalsScreenState extends State<JournalsScreen> {
               _buildJournalSearchPanel(controller),
               _buildCompareBar(),
               const SizedBox(height: AppSpacing.lg),
-              JournalLibraryPanel(
-                favorites: library.favorites,
-                recentViewed: library.recentViewed,
-                onClearRecentViewed: library.clearRecentViewed,
-                onOpenJournal: _openJournal,
-              ),
             ],
           );
         }
 
         final sourceIndex = index - 1;
         if (sourceIndex == visibleSources.length) {
-          if (isLimitedByRemoteConfig) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              child: Center(
-                child: Text(
-                  'Remote Config limit: showing ${visibleSources.length}/${controller.journalSources.length} loaded journals',
-                  style: Theme.of(context).textTheme.bodySmall,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Center(

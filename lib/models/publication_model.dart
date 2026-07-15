@@ -14,6 +14,7 @@ class Publication {
   final String doi;
   final String abstractText;
   final List<String> topics;
+  final List<String> keywords;
 
   Publication({
     required this.id,
@@ -27,6 +28,7 @@ class Publication {
     required this.doi,
     required this.abstractText,
     required this.topics,
+    this.keywords = const [],
   });
 
   /// Chuyển đổi từ dữ liệu JSON của OpenAlex sang đối tượng Publication
@@ -61,6 +63,12 @@ class Publication {
           .toList();
     }
 
+    final keywordsJson = json['keywords'] as List? ?? [];
+    final keywordsList = keywordsJson
+        .map((keyword) => keyword['display_name'] as String? ?? '')
+        .where((name) => name.isNotEmpty)
+        .toList();
+
     return Publication(
       id: json['id'] ?? '',
       title: json['display_name'] ?? 'Untitled',
@@ -73,6 +81,7 @@ class Publication {
       doi: json['doi'] ?? '',
       abstractText: parsedAbstract,
       topics: topicsList,
+      keywords: keywordsList,
     );
   }
 
@@ -98,6 +107,11 @@ class Publication {
               ?.map((topic) => topic.toString())
               .toList() ??
           [],
+      keywords:
+          (json['keywords'] as List?)
+              ?.map((keyword) => keyword.toString())
+              .toList() ??
+          [],
     );
   }
 
@@ -114,6 +128,7 @@ class Publication {
       'doi': doi,
       'abstract_text': abstractText,
       'topics': topics,
+      'keywords': keywords,
     };
   }
 

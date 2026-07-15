@@ -36,11 +36,6 @@ class CrashlyticsPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Record a handled exception or trigger a deliberate test crash for Firebase Crashlytics validation.',
-            style: AppTextStyles.bodySmall,
-          ),
           const SizedBox(height: AppSpacing.md),
           Container(
             width: double.infinity,
@@ -62,7 +57,7 @@ class CrashlyticsPanel extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    'Test crash intentionally closes the app. Use it only while demoing Crashlytics.',
+                    'Test crash closes the app.',
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.error,
                     ),
