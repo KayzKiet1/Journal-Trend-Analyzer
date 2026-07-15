@@ -26,6 +26,13 @@ Future<void> pumpTestApp(PatrolIntegrationTester $) async {
   await $.pumpAndSettle();
 }
 
+Future<void> pumpRealApp(PatrolIntegrationTester $) async {
+  await initializeFirebase();
+  await $.pumpWidgetAndSettle(const JournalTrendAnalyzerApp());
+  await waitForFinder($, find.text('Journal Trend Analyzer'));
+  await $.pumpAndSettle();
+}
+
 PublicationViewModel controllerOf(PatrolIntegrationTester $) {
   final context = $.tester.element(find.byType(MainScreen));
   return Provider.of<PublicationViewModel>(context, listen: false);

@@ -76,6 +76,47 @@ class Publication {
     );
   }
 
+  factory Publication.fromStoredJson(Map<String, dynamic> json) {
+    return Publication(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Untitled',
+      publicationYear: json['publication_year'] as int? ?? 0,
+      publicationDate: json['publication_date']?.toString() ?? '',
+      citedByCount: json['cited_by_count'] as int? ?? 0,
+      journalId: json['journal_id']?.toString() ?? '',
+      journalName: json['journal_name']?.toString() ?? 'Unknown Source',
+      authors:
+          (json['authors'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(Author.fromStoredJson)
+              .toList() ??
+          [],
+      doi: json['doi']?.toString() ?? '',
+      abstractText: json['abstract_text']?.toString() ?? '',
+      topics:
+          (json['topics'] as List?)
+              ?.map((topic) => topic.toString())
+              .toList() ??
+          [],
+    );
+  }
+
+  Map<String, dynamic> toStoredJson() {
+    return {
+      'id': id,
+      'title': title,
+      'publication_year': publicationYear,
+      'publication_date': publicationDate,
+      'cited_by_count': citedByCount,
+      'journal_id': journalId,
+      'journal_name': journalName,
+      'authors': authors.map((author) => author.toStoredJson()).toList(),
+      'doi': doi,
+      'abstract_text': abstractText,
+      'topics': topics,
+    };
+  }
+
   /// Trả về chuỗi danh sách tên các tác giả cách nhau bởi dấu phẩy
   String get authorsString => authors.map((a) => a.name).join(', ');
 }

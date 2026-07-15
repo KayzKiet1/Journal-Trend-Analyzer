@@ -29,4 +29,24 @@ class Author {
       lastKnownInstitution: json['last_known_institution']?['display_name'],
     );
   }
+
+  factory Author.fromStoredJson(Map<String, dynamic> json) {
+    return Author(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown Author',
+      worksCount: json['works_count'] as int? ?? 0,
+      citedByCount: json['cited_by_count'] as int? ?? 0,
+      lastKnownInstitution: json['last_known_institution']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toStoredJson() {
+    return {
+      'id': id,
+      'name': name,
+      'works_count': worksCount,
+      'cited_by_count': citedByCount,
+      'last_known_institution': lastKnownInstitution,
+    };
+  }
 }

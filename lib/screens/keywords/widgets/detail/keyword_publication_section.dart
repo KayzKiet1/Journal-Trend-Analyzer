@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../models/publication_model.dart';
+import '../../../../viewmodels/publication_bookmark_view_model.dart';
 import '../../../../widgets/publication_card.dart';
 import '../common/keyword_notice.dart';
 import '../common/keyword_section_card.dart';
@@ -25,17 +27,22 @@ class KeywordPublicationSection extends StatelessWidget {
               message: 'No related publications found for this search.',
               plain: true,
             )
-          : Column(
-              children: publications.map((publication) {
-                return PublicationCard(
-                  title: publication.title,
-                  year: publication.publicationYear.toString(),
-                  journal: publication.journalName,
-                  authors: publication.authorsString,
-                  citations: publication.citedByCount,
-                  onTap: () => onPublicationTap(publication),
-                );
-              }).toList(),
+          : Consumer<PublicationBookmarkViewModel>(
+              builder: (context, bookmarks, _) => Column(
+                children: publications.map((publication) {
+                  return PublicationCard(
+                    title: publication.title,
+                    year: publication.publicationYear.toString(),
+                    journal: publication.journalName,
+                    authors: publication.authorsString,
+                    citations: publication.citedByCount,
+                    isBookmarked: bookmarks.isBookmarked(publication.id),
+                    onBookmarkToggle: () =>
+                        bookmarks.toggleBookmark(publication),
+                    onTap: () => onPublicationTap(publication),
+                  );
+                }).toList(),
+              ),
             ),
     );
   }

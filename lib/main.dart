@@ -7,6 +7,7 @@ import 'viewmodels/firebase_view_model.dart';
 import 'viewmodels/journal_library_view_model.dart';
 import 'viewmodels/keywords_view_model.dart';
 import 'viewmodels/notification_view_model.dart';
+import 'viewmodels/publication_bookmark_view_model.dart';
 import 'viewmodels/publication_view_model.dart';
 import 'viewmodels/user_view_model.dart';
 
@@ -52,6 +53,7 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => JournalLibraryViewModel()),
+        ChangeNotifierProvider(create: (_) => PublicationBookmarkViewModel()),
         ChangeNotifierProvider(create: (_) => FirebaseViewModel()),
         ChangeNotifierProvider(create: (_) => NotificationViewModel()),
       ],

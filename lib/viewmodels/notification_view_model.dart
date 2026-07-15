@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../firebase/firebase_messaging_service.dart';
+import '../firebase/local_notification_service.dart';
 import '../models/app_notification_model.dart';
 
 class NotificationPreference {
@@ -21,8 +22,12 @@ class NotificationPreference {
 }
 
 class NotificationViewModel extends ChangeNotifier {
-  NotificationViewModel({FirebaseMessagingService? messagingService})
-    : _messagingService = messagingService ?? FirebaseMessagingService();
+  NotificationViewModel({
+    FirebaseMessagingService? messagingService,
+    LocalNotificationService? localNotificationService,
+  }) : _messagingService = messagingService ?? FirebaseMessagingService(),
+       _localNotificationService =
+           localNotificationService ?? LocalNotificationService();
 
   static const String _notificationsKey = 'fcm_received_notifications';
   static const String _topicsKey = 'fcm_subscribed_topics';
@@ -47,6 +52,7 @@ class NotificationViewModel extends ChangeNotifier {
   ];
 
   final FirebaseMessagingService _messagingService;
+  final LocalNotificationService _localNotificationService;
   final List<AppNotification> _notifications = [];
   final Set<String> _subscribedTopics = {};
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
@@ -78,6 +84,7 @@ class NotificationViewModel extends ChangeNotifier {
 
     try {
       await _loadStoredState();
+      await _localNotificationService.initialize();
       await _refreshPermissionAndToken();
       _listenToMessages();
       await _loadInitialMessage();
@@ -94,6 +101,7 @@ class NotificationViewModel extends ChangeNotifier {
     try {
       _notificationsEnabled = true;
       final settings = await _messagingService.requestPermission();
+      await _localNotificationService.requestPermission();
       _permissionStatus = _statusLabel(settings.authorizationStatus);
       _fcmToken = await _messagingService.getToken();
       await _saveNotificationsEnabled();
@@ -187,6 +195,7 @@ class NotificationViewModel extends ChangeNotifier {
   Future<void> _addRemoteMessage(RemoteMessage message) async {
     if (!_notificationsEnabled) return;
     final notification = _messagingService.notificationFromMessage(message);
+    await _localNotificationService.showNotification(notification);
     _notifications.insert(0, notification);
     if (_notifications.length > 20) {
       _notifications.removeRange(20, _notifications.length);

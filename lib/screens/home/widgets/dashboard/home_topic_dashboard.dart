@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../models/publication_model.dart';
 import '../../../../models/trend_data_model.dart';
 import '../../../../utils/app_colors.dart';
 import '../../../../utils/app_spacing.dart';
 import '../../../../utils/app_text_styles.dart';
+import '../../../../viewmodels/publication_bookmark_view_model.dart';
 import '../../../../widgets/publication_card.dart';
 import '../../../../widgets/year_trend_chart.dart';
 import '../home_formatters.dart';
@@ -178,18 +180,26 @@ class HomeTopicDashboard extends StatelessWidget {
               icon: Icons.article,
             )
           else
-            ...publications
-                .take(5)
-                .map(
-                  (publication) => PublicationCard(
-                    title: publication.title,
-                    year: publication.publicationYear.toString(),
-                    journal: publication.journalName,
-                    authors: publication.authorsString,
-                    citations: publication.citedByCount,
-                    onTap: () => onPublicationTap(publication),
-                  ),
-                ),
+            Consumer<PublicationBookmarkViewModel>(
+              builder: (context, bookmarks, _) => Column(
+                children: publications
+                    .take(5)
+                    .map(
+                      (publication) => PublicationCard(
+                        title: publication.title,
+                        year: publication.publicationYear.toString(),
+                        journal: publication.journalName,
+                        authors: publication.authorsString,
+                        citations: publication.citedByCount,
+                        isBookmarked: bookmarks.isBookmarked(publication.id),
+                        onBookmarkToggle: () =>
+                            bookmarks.toggleBookmark(publication),
+                        onTap: () => onPublicationTap(publication),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
         ],
       ),
     );

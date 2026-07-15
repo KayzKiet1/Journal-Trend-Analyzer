@@ -11,6 +11,8 @@ class PublicationCard extends StatelessWidget {
   final String authors;
   final int citations;
   final VoidCallback onTap;
+  final bool isBookmarked;
+  final VoidCallback? onBookmarkToggle;
 
   const PublicationCard({
     super.key,
@@ -20,6 +22,8 @@ class PublicationCard extends StatelessWidget {
     required this.authors,
     required this.citations,
     required this.onTap,
+    this.isBookmarked = false,
+    this.onBookmarkToggle,
   });
 
   @override
@@ -33,23 +37,50 @@ class PublicationCard extends StatelessWidget {
           color: AppColors.surface,
           // Level 1: surface cards with 1px secondary border, no shadow
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(
-            color: AppColors.secondary,
-            width: 1.0,
-          ),
+          border: Border.all(color: AppColors.secondary, width: 1.0),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Tiêu đề bài báo
-            Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.h2,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.h2,
+                  ),
+                ),
+                if (onBookmarkToggle != null) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Tooltip(
+                    message: isBookmarked
+                        ? 'Remove publication bookmark'
+                        : 'Bookmark publication',
+                    child: IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
+                      onPressed: onBookmarkToggle,
+                      icon: Icon(
+                        isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                        color: isBookmarked
+                            ? AppColors.accent
+                            : AppColors.secondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            
+
             // Tác giả
             Text(
               authors,
@@ -58,7 +89,7 @@ class PublicationCard extends StatelessWidget {
               style: AppTextStyles.bodySmall,
             ),
             const SizedBox(height: AppSpacing.md),
-            
+
             // Hàng thông tin phụ: Tạp chí, Số trích dẫn, Năm
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -68,11 +99,13 @@ class PublicationCard extends StatelessWidget {
                     journal,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
+                    style: AppTextStyles.labelCaps.copyWith(
+                      color: AppColors.accent,
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                
+
                 // Hiển thị số lượng trích dẫn
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -85,22 +118,25 @@ class PublicationCard extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.format_quote, size: 14, color: AppColors.accent),
+                      const Icon(
+                        Icons.format_quote,
+                        size: 14,
+                        color: AppColors.accent,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '$citations',
-                        style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
+                        style: AppTextStyles.labelCaps.copyWith(
+                          color: AppColors.accent,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                
+
                 // Năm xuất bản
-                Text(
-                  year,
-                  style: AppTextStyles.labelCaps,
-                ),
+                Text(year, style: AppTextStyles.labelCaps),
               ],
             ),
           ],

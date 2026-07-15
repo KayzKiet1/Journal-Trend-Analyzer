@@ -2,16 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../models/journal_model.dart';
+import '../../models/publication_model.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_spacing.dart';
 import '../../utils/app_text_styles.dart';
 import '../../viewmodels/firebase_view_model.dart';
+import '../../viewmodels/journal_library_view_model.dart';
 import '../../viewmodels/keywords_view_model.dart';
 import '../../viewmodels/notification_view_model.dart';
+import '../../viewmodels/publication_bookmark_view_model.dart';
 import '../../viewmodels/profile_view_model.dart';
 import '../../viewmodels/publication_view_model.dart';
 import '../../viewmodels/user_view_model.dart';
+import '../journals/journal_detail_screen.dart';
+import '../publications/publication_detail_screen.dart';
 import 'widgets/auth/profile_hero.dart';
+import 'widgets/bookmarks/saved_bookmarks_panel.dart';
 import 'widgets/common/profile_info_card.dart';
 import 'widgets/firebase/crashlytics_panel.dart';
 import 'widgets/firebase/firebase_status_overview.dart';
@@ -122,6 +129,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _openBookmarkedPublication(Publication publication) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PublicationDetailScreen(publication: publication),
+      ),
+    );
+  }
+
+  void _openBookmarkedJournal(Journal journal) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => JournalDetailScreen(
+          journalId: journal.id,
+          journalName: journal.name,
+          journalForTesting: journal,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,6 +174,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ) {
                   final remoteConfig = firebaseController.remoteConfigValues;
                   final keywordsController = context.watch<KeywordsViewModel>();
+                  final journalLibrary = context
+                      .watch<JournalLibraryViewModel>();
+                  final publicationBookmarks = context
+                      .watch<PublicationBookmarkViewModel>();
                   final hasDashboardData =
                       publicationController.topicDashboardTotalWorks > 0 ||
                       publicationController
@@ -199,6 +232,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         FirebaseStatusOverview(items: statusItems),
+                        const SizedBox(height: AppSpacing.xl),
+                        Text('SAVED BOOKMARKS', style: AppTextStyles.labelCaps),
+                        const SizedBox(height: AppSpacing.md),
+                        SavedBookmarksPanel(
+                          publications: publicationBookmarks.bookmarks,
+                          journals: journalLibrary.favorites,
+                          onOpenPublication: _openBookmarkedPublication,
+                          onRemovePublication:
+                              publicationBookmarks.toggleBookmark,
+                          onOpenJournal: _openBookmarkedJournal,
+                          onRemoveJournal: journalLibrary.toggleFavorite,
+                        ),
                         const SizedBox(height: AppSpacing.xl),
                         Text(
                           'NOTIFICATION CENTER',

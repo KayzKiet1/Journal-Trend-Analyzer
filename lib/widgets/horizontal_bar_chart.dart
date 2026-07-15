@@ -23,7 +23,9 @@ class HorizontalBarChart extends StatelessWidget {
     if (data.isEmpty) return const SizedBox.shrink();
 
     // Tìm giá trị lớn nhất để tính toán tỷ lệ thanh
-    final int maxValue = data.map((e) => (e[valueKey] as num).toInt()).reduce((a, b) => a > b ? a : b);
+    final int maxValue = data
+        .map((e) => (e[valueKey] as num).toInt())
+        .reduce((a, b) => a > b ? a : b);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,14 +56,19 @@ class HorizontalBarChart extends StatelessWidget {
                         Expanded(
                           child: Text(
                             label,
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Text(
                           value.toString(),
-                          style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
+                          style: AppTextStyles.labelCaps.copyWith(
+                            color: AppColors.accent,
+                          ),
                         ),
                       ],
                     ),

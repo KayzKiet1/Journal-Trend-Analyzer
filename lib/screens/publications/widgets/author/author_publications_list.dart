@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../models/publication_model.dart';
 import '../../../../utils/app_colors.dart';
 import '../../../../utils/app_spacing.dart';
+import '../../../../viewmodels/publication_bookmark_view_model.dart';
 import '../../../../widgets/publication_card.dart';
 
 class AuthorPublicationsList extends StatelessWidget {
@@ -42,13 +44,17 @@ class AuthorPublicationsList extends StatelessWidget {
             }
 
             final publication = publications[index];
-            return PublicationCard(
-              title: publication.title,
-              authors: publication.authorsString,
-              journal: publication.journalName,
-              year: publication.publicationYear.toString(),
-              citations: publication.citedByCount,
-              onTap: () => onPublicationTap(publication),
+            return Consumer<PublicationBookmarkViewModel>(
+              builder: (context, bookmarks, _) => PublicationCard(
+                title: publication.title,
+                authors: publication.authorsString,
+                journal: publication.journalName,
+                year: publication.publicationYear.toString(),
+                citations: publication.citedByCount,
+                isBookmarked: bookmarks.isBookmarked(publication.id),
+                onBookmarkToggle: () => bookmarks.toggleBookmark(publication),
+                onTap: () => onPublicationTap(publication),
+              ),
             );
           },
         ),
