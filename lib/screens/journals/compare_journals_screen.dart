@@ -58,7 +58,7 @@ class _CompareJournalsScreenState extends State<CompareJournalsScreen> {
     }
 
     if (_viewModel.details.length < 2) {
-      return const Center(child: Text('Cần chọn 2 journal để so sánh.'));
+      return const Center(child: Text('Select 2 journals to compare.'));
     }
 
     return CompareJournalsContent(

@@ -48,7 +48,7 @@ class CompareJournalsContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('TỔNG QUAN SO SÁNH', style: AppTextStyles.labelCaps),
+              Text('COMPARISON OVERVIEW', style: AppTextStyles.labelCaps),
               const SizedBox(height: AppSpacing.md),
               CompareSummaryTable(
                 left: left,

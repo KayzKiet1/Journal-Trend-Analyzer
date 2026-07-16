@@ -31,13 +31,13 @@ class KeywordFrequencyTable extends StatelessWidget {
         .fold<int>(0, (max, count) => count > max ? count : max);
 
     return KeywordSectionCard(
-      title: 'Keyword Occurrences',
+      title: 'Keyword Frequency',
       icon: Icons.format_list_numbered,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tap a keyword to inspect journals, authors, trends, and related publications for the selected search.',
+            'Each number is the amount of matching journal articles tagged with that keyword. Tap a row to inspect related publications, journals, authors, and trends.',
             style: AppTextStyles.bodySmall,
           ),
           const SizedBox(height: AppSpacing.md),

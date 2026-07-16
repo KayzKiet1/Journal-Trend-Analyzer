@@ -68,7 +68,7 @@ class _TopicCard extends StatelessWidget {
           Text(journalName, style: AppTextStyles.h2),
           const SizedBox(height: AppSpacing.md),
           if (topics.isEmpty)
-            Text('Không có dữ liệu topic.', style: AppTextStyles.bodySmall)
+            Text('No topic data available.', style: AppTextStyles.bodySmall)
           else
             ...topics.map(
               (topic) => Padding(

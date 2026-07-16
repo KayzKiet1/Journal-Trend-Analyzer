@@ -56,11 +56,6 @@ class HomeSearchSection extends StatelessWidget {
           onSubmitted: onSearch,
         ),
         const SizedBox(height: AppSpacing.md),
-        HomeRecentSearches(
-          history: recentSearches,
-          onRecentSearchTap: onRecentSearchTap,
-        ),
-        const SizedBox(height: AppSpacing.lg),
         HomeTopicSuggestions(
           searchController: searchController,
           selectedTopics: selectedTopics,
@@ -69,7 +64,11 @@ class HomeSearchSection extends StatelessWidget {
           onClearSelectedTopics: onClearSelectedTopics,
           onToggleTopic: onToggleTopic,
         ),
-        const SizedBox(height: AppSpacing.lg),
+        HomeSelectedTopics(
+          selectedTopics: selectedTopics,
+          onToggleTopic: onToggleTopic,
+        ),
+        const SizedBox(height: AppSpacing.md),
         HomeSearchButton(
           searchController: searchController,
           selectedTopicCount: selectedTopics.length,
@@ -80,10 +79,13 @@ class HomeSearchSection extends StatelessWidget {
           searchController: searchController,
           hasSelectedTopics: selectedTopics.isNotEmpty,
         ),
-        HomeSelectedTopics(
-          selectedTopics: selectedTopics,
-          onToggleTopic: onToggleTopic,
-        ),
+        if (recentSearches.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          HomeRecentSearches(
+            history: recentSearches,
+            onRecentSearchTap: onRecentSearchTap,
+          ),
+        ],
       ],
     );
   }

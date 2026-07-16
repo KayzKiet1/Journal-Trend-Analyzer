@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../firebase/firebase_analytics_service.dart';
 import '../firebase/firebase_storage_service.dart';
@@ -21,16 +22,23 @@ class ProfileViewModel extends ChangeNotifier {
     FirebaseStorageService? storageService,
   }) : _analyticsService = analyticsService ?? FirebaseAnalyticsService(),
        _reportService = reportService ?? DashboardReportService(),
-       _storageService = storageService ?? FirebaseStorageService();
+       _storageService = storageService ?? FirebaseStorageService() {
+    _loadExportStats();
+  }
+
+  static const String _exportedPdfCountKey = 'profile_exported_pdf_count';
 
   final FirebaseAnalyticsService _analyticsService;
   final DashboardReportService _reportService;
   final FirebaseStorageService _storageService;
 
   bool _isReportUploading = false;
+  bool _isDisposed = false;
+  int _exportedPdfCount = 0;
   String? _uploadedReportUrl;
 
   bool get isReportUploading => _isReportUploading;
+  int get exportedPdfCount => _exportedPdfCount;
   String? get uploadedReportUrl => _uploadedReportUrl;
 
   Future<ProfileActionResult> signInWithGoogle(
@@ -110,6 +118,7 @@ class ProfileViewModel extends ChangeNotifier {
 
       await _analyticsService.logExportPdf(topic: topic);
       _uploadedReportUrl = downloadUrl;
+      await _incrementExportedPdfCount();
       return const ProfileActionResult(
         isSuccess: true,
         message: 'PDF report exported and uploaded.',
@@ -135,5 +144,24 @@ class ProfileViewModel extends ChangeNotifier {
         .replaceAll(RegExp(r'^_|_$'), '');
     if (normalized.isEmpty) return 'research_topic';
     return normalized.length > 40 ? normalized.substring(0, 40) : normalized;
+  }
+
+  Future<void> _loadExportStats() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_isDisposed) return;
+    _exportedPdfCount = prefs.getInt(_exportedPdfCountKey) ?? 0;
+    notifyListeners();
+  }
+
+  Future<void> _incrementExportedPdfCount() async {
+    _exportedPdfCount += 1;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_exportedPdfCountKey, _exportedPdfCount);
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 }

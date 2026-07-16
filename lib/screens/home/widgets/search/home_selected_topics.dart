@@ -26,7 +26,7 @@ class HomeSelectedTopics extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'SELECTED TOPICS',
+            'ACTIVE FILTERS',
             style: AppTextStyles.labelCaps.copyWith(color: AppColors.success),
           ),
           const SizedBox(height: AppSpacing.sm),

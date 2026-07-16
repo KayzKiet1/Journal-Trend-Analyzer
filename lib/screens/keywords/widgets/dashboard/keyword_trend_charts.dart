@@ -46,11 +46,17 @@ class _KeywordTrendChartsState extends State<KeywordTrendCharts> {
       for (final keyword in widget.keywordGrowth) keyword.id: keyword.name,
     };
 
-    final visibleTrends = widget.keywordTrends.entries.take(3).toList();
+    final visibleTrends = widget.keywordTrends.entries.toList()
+      ..sort((a, b) {
+        final aTotal = a.value.fold<int>(0, (sum, trend) => sum + trend.count);
+        final bTotal = b.value.fold<int>(0, (sum, trend) => sum + trend.count);
+        return bTotal.compareTo(aTotal);
+      });
+    final topVisibleTrends = visibleTrends.take(3).toList();
     final rangeLabel = '$_startYear-$currentYear';
 
     return KeywordSectionCard(
-      title: 'Keyword Trends Over Time',
+      title: 'Keyword Activity by Year',
       icon: Icons.show_chart,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,11 +69,11 @@ class _KeywordTrendChartsState extends State<KeywordTrendCharts> {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Showing ${visibleTrends.length} keyword trend lines for $rangeLabel.',
+            'Showing yearly article counts for the ${topVisibleTrends.length} keywords with the strongest available trend data in $rangeLabel.',
             style: AppTextStyles.bodySmall,
           ),
           const SizedBox(height: AppSpacing.md),
-          ...visibleTrends.map(
+          ...topVisibleTrends.map(
             (entry) => Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.lg),
               child: YearTrendChart(

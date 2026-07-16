@@ -89,7 +89,7 @@ void main() {
 
       expect(controller.isLoading, isFalse);
       expect(controller.sources, isEmpty);
-      expect(controller.errorMessage, contains('OpenAlex phản hồi quá lâu'));
+      expect(controller.errorMessage, contains('OpenAlex took too long'));
     });
 
     test('search shows friendly message when OpenAlex rate limits', () async {
@@ -100,7 +100,7 @@ void main() {
       await controller.search('military', 'Sources');
 
       expect(controller.isLoading, isFalse);
-      expect(controller.errorMessage, contains('giới hạn số lần truy cập'));
+      expect(controller.errorMessage, contains('rate limiting requests'));
     });
 
     test('cancelActiveSearch stops a hanging search immediately', () async {
@@ -138,7 +138,7 @@ void main() {
 
         expect(controller.isLoading, isFalse);
         expect(controller.sources, isEmpty);
-        expect(controller.errorMessage, contains('Không nhận được phản hồi'));
+        expect(controller.errorMessage, contains('No response from OpenAlex'));
       },
     );
 
@@ -286,16 +286,13 @@ void main() {
 
         await controller.loadTopicSuggestions('missing');
         expect(controller.topicSuggestions, isEmpty);
-        expect(
-          controller.topicSuggestionError,
-          'Không tìm thấy topic phù hợp.',
-        );
+        expect(controller.topicSuggestionError, 'No matching topics found.');
 
         final failing = PublicationViewModel(
           apiService: _FailingTopicsOpenAlexService(),
         );
         await failing.loadTopicSuggestions('network');
-        expect(failing.topicSuggestionError, contains('Đã xảy ra lỗi'));
+        expect(failing.topicSuggestionError, contains('Search failed'));
       },
     );
 
@@ -313,7 +310,7 @@ void main() {
         apiService: _EmptyWorksOpenAlexService(),
       );
       await empty.loadWorkSearchDashboard('unknown');
-      expect(empty.topicDashboardError, contains('Không tìm thấy'));
+      expect(empty.topicDashboardError, contains('No journal publications'));
       expect(empty.topicDashboardTopPublication, isNull);
       expect(empty.topicDashboardPeakYear, isNull);
 
@@ -321,7 +318,7 @@ void main() {
         apiService: _FailingWorksOpenAlexService(),
       );
       await failing.loadWorkSearchDashboard('broken');
-      expect(failing.topicDashboardError, contains('Đã xảy ra lỗi'));
+      expect(failing.topicDashboardError, contains('Search failed'));
     });
 
     test(
@@ -357,12 +354,15 @@ void main() {
         expect(controller.isLoading, isFalse);
 
         await controller.search('anything', 'Unsupported');
-        expect(controller.errorMessage, contains('Danh mục tìm kiếm'));
+        expect(
+          controller.errorMessage,
+          contains('Unsupported search category'),
+        );
 
         await controller.searchByAuthor('A1', 'Nobody');
         expect(
           controller.errorMessage,
-          'Không tìm thấy bài báo nào của tác giả này.',
+          'No publications found for this author.',
         );
         expect(controller.hasMore, isFalse);
       },

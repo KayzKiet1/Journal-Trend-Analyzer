@@ -18,8 +18,8 @@ class ApiConstants {
   static const int maxRetries = 3;
 
   /// Khoảng cách tối thiểu giữa 2 request OpenAlex trong toàn app.
-  /// Vẫn thấp hơn đáng kể so với rate limit công bố và có retry/backoff khi gặp 429.
-  static const int minRequestIntervalMs = 400;
+  /// Keeps app traffic below conservative public limits while reducing wait time.
+  static const int minRequestIntervalMs = 250;
 
   /// Timeout cho mỗi request để app không treo quá lâu khi mạng yếu.
   static const int requestTimeoutSeconds = 20;

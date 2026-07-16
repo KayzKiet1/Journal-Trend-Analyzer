@@ -15,7 +15,7 @@ class TopicEvolutionChart extends StatelessWidget {
     if (data.isEmpty) {
       return const SizedBox(
         height: 250,
-        child: Center(child: Text("Không có dữ liệu tiến hóa chủ đề")),
+        child: Center(child: Text('No topic evolution data available')),
       );
     }
 

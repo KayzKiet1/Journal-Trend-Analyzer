@@ -53,7 +53,7 @@ class CompareJournalsViewModel extends ChangeNotifier {
         ..clear()
         ..addAll(topicsByJournal);
     } catch (error) {
-      _errorMessage = 'Không thể tải dữ liệu so sánh: $error';
+      _errorMessage = 'Could not load comparison data: $error';
     } finally {
       _isLoading = false;
       notifyListeners();

@@ -4,7 +4,6 @@ import '../../../../models/keyword_dashboard_model.dart';
 import '../../../../utils/app_colors.dart';
 import '../../../../utils/app_spacing.dart';
 import '../../../../utils/app_text_styles.dart';
-import '../common/keyword_formatters.dart';
 import '../common/keyword_notice.dart';
 
 class KeywordGrowthList extends StatelessWidget {
@@ -22,92 +21,135 @@ class KeywordGrowthList extends StatelessWidget {
     if (growth.isEmpty) {
       return const KeywordNotice(
         message:
-            'Not enough year-by-year keyword data to calculate positive growth for this search.',
+            'No year-by-year keyword activity is available for this search yet. Try a broader topic or more general keyword.',
       );
     }
 
-    final maxGrowth = growth
-        .map((keyword) => keyword.growthRate)
-        .fold<double>(0, (max, value) => value > max ? value : max);
-
     return Column(
-      children: growth.asMap().entries.map((entry) {
-        final rank = entry.key + 1;
-        final keyword = entry.value;
-        final ratio = maxGrowth <= 0 ? 0.0 : keyword.growthRate / maxGrowth;
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...growth.asMap().entries.map((entry) {
+          final rank = entry.key + 1;
+          final keyword = entry.value;
+          final status = _momentumStatus(keyword);
+          final statusColor = _momentumColor(keyword);
+          final rangeLabel = keyword.endYear == keyword.startYear
+              ? '${keyword.endYear}'
+              : '${keyword.startYear}-${keyword.endYear}';
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: Material(
-            color: AppColors.surfaceTint,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            child: InkWell(
-              onTap: () => onKeywordTap({
-                'id': keyword.id,
-                'name': keyword.name,
-                'count': keyword.totalCount,
-              }),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Material(
+              color: statusColor.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _RankBadge(rank: rank),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            keyword.name,
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
+              child: InkWell(
+                onTap: () => onKeywordTap({
+                  'id': keyword.id,
+                  'name': keyword.name,
+                  'count': keyword.totalCount,
+                }),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    border: Border(
+                      left: BorderSide(color: statusColor, width: 4),
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Row(
+                    children: [
+                      _RankBadge(rank: rank, color: statusColor),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              keyword.name,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$rangeLabel · ${status.description}',
+                              style: AppTextStyles.bodySmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          '+${keyword.growthRate.toStringAsFixed(1)}%',
-                          style: AppTextStyles.labelCaps.copyWith(
-                            color: AppColors.accent,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      '${keyword.startYear}: ${compactCount(keyword.startCount)} -> '
-                      '${keyword.endYear}: ${compactCount(keyword.endCount)}',
-                      style: AppTextStyles.bodySmall,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                      child: LinearProgressIndicator(
-                        minHeight: 6,
-                        value: ratio.clamp(0.0, 1.0),
-                        color: AppColors.accent,
-                        backgroundColor: AppColors.accentLight,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: AppSpacing.sm),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                          vertical: AppSpacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusSm,
+                          ),
+                        ),
+                        child: Text(
+                          status.label,
+                          style: AppTextStyles.labelCaps.copyWith(
+                            color: statusColor,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: AppColors.secondary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }),
+      ],
     );
   }
 }
 
+class _MomentumStatus {
+  final String label;
+  final String description;
+
+  const _MomentumStatus(this.label, this.description);
+}
+
+_MomentumStatus _momentumStatus(KeywordGrowthData keyword) {
+  if (keyword.endCount > keyword.startCount) {
+    return const _MomentumStatus('Rising', 'more active recently');
+  }
+  if (keyword.endCount == keyword.startCount) {
+    return const _MomentumStatus('Steady', 'similar recent activity');
+  }
+  return const _MomentumStatus('Cooling', 'less active recently');
+}
+
+Color _momentumColor(KeywordGrowthData keyword) {
+  if (keyword.endCount > keyword.startCount) return AppColors.accent;
+  if (keyword.endCount == keyword.startCount) return AppColors.secondary;
+  return AppColors.warning;
+}
+
 class _RankBadge extends StatelessWidget {
   final int rank;
+  final Color color;
 
-  const _RankBadge({required this.rank});
+  const _RankBadge({required this.rank, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -116,12 +158,12 @@ class _RankBadge extends StatelessWidget {
       height: 28,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.accentLight,
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
       ),
       child: Text(
         '$rank',
-        style: AppTextStyles.labelCaps.copyWith(color: AppColors.accent),
+        style: AppTextStyles.labelCaps.copyWith(color: color),
       ),
     );
   }

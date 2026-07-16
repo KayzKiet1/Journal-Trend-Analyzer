@@ -295,7 +295,7 @@ class PublicationViewModel extends ChangeNotifier {
           .timeout(
             searchTimeout,
             onTimeout: () => throw TimeoutException(
-              'OpenAlex phản hồi quá lâu. Vui lòng kiểm tra mạng hoặc thử lại sau.',
+              'OpenAlex took too long to respond. Check your connection and try again.',
             ),
           );
       final results = data['results'] as List<Journal>;
@@ -312,9 +312,8 @@ class PublicationViewModel extends ChangeNotifier {
       _journalSourcesTotal = total;
 
       if (!loadMore && _journalSources.isEmpty) {
-        final label = trimmedQuery.isEmpty ? 'journal phổ biến' : trimmedQuery;
-        _journalErrorMessage =
-            'Không tìm thấy journal nào cho "$label" trên OpenAlex.';
+        final label = trimmedQuery.isEmpty ? 'popular journals' : trimmedQuery;
+        _journalErrorMessage = 'No journals found for "$label" on OpenAlex.';
       }
     } catch (e) {
       if (requestId != _journalSearchRequestId) return;
@@ -413,7 +412,7 @@ class PublicationViewModel extends ChangeNotifier {
               .timeout(
                 searchTimeout,
                 onTimeout: () => throw TimeoutException(
-                  'OpenAlex phản hồi quá lâu. Vui lòng kiểm tra mạng hoặc thử lại sau.',
+                  'OpenAlex took too long to respond. Check your connection and try again.',
                 ),
               );
           final List<Journal> results = data['results'];
@@ -428,12 +427,11 @@ class PublicationViewModel extends ChangeNotifier {
           }
           break;
         default:
-          throw Exception('Danh mục tìm kiếm không được hỗ trợ: $category');
+          throw Exception('Unsupported search category: $category');
       }
 
       if (!loadMore && _isResultsEmpty(category)) {
-        _errorMessage =
-            'Không tìm thấy kết quả nào cho "$query" trong mục $category.';
+        _errorMessage = 'No results found for "$query" in $category.';
       }
 
       if (!loadMore) {
@@ -499,7 +497,7 @@ class PublicationViewModel extends ChangeNotifier {
       _lastTopicSuggestionQuery = cacheKey;
       _topicSuggestions = cachedTopics;
       _topicSuggestionError = cachedTopics.isEmpty
-          ? 'Không tìm thấy topic phù hợp.'
+          ? 'No matching topics found.'
           : '';
       _isLoadingTopicSuggestions = false;
       notifyListeners();
@@ -536,9 +534,7 @@ class PublicationViewModel extends ChangeNotifier {
       _lastTopicSuggestionQuery = cacheKey;
       _topicSuggestionCache[cacheKey] = topics;
       _topicSuggestions = topics;
-      if (topics.isEmpty) {
-        _topicSuggestionError = 'Không tìm thấy topic phù hợp.';
-      }
+      if (topics.isEmpty) _topicSuggestionError = 'No matching topics found.';
     } catch (e) {
       if (requestId != _topicSuggestionRequestId) return;
       _topicSuggestions = [];
@@ -628,7 +624,7 @@ class PublicationViewModel extends ChangeNotifier {
           .timeout(
             searchTimeout,
             onTimeout: () => throw TimeoutException(
-              'OpenAlex phản hồi quá lâu khi tìm works. Vui lòng thử lại sau.',
+              'OpenAlex took too long while searching works. Please try again.',
             ),
           );
 
@@ -655,7 +651,7 @@ class PublicationViewModel extends ChangeNotifier {
 
       if (_topicDashboardTotalWorks == 0) {
         _topicDashboardError =
-            'Không tìm thấy journal publications cho "$trimmedQuery".';
+            'No journal publications found for "$trimmedQuery".';
       }
     } catch (e) {
       if (requestId != _searchRequestId) return;
@@ -773,7 +769,7 @@ class PublicationViewModel extends ChangeNotifier {
           .timeout(
             searchTimeout,
             onTimeout: () => throw TimeoutException(
-              'OpenAlex phản hồi quá lâu khi tải công bố theo topic. Vui lòng thử lại sau.',
+              'OpenAlex took too long while loading topic publications. Please try again.',
             ),
           );
 
@@ -812,7 +808,7 @@ class PublicationViewModel extends ChangeNotifier {
       _topicDashboardPeakYear = _peakYear(trends);
 
       if (_topicDashboardTotalWorks == 0) {
-        _topicDashboardError = 'Không tìm thấy công bố cho topic đã chọn.';
+        _topicDashboardError = 'No publications found for the selected topic.';
       }
     } catch (e) {
       if (requestId != _searchRequestId) return;
@@ -873,10 +869,10 @@ class PublicationViewModel extends ChangeNotifier {
       }
 
       if (!loadMore && _publications.isEmpty) {
-        _errorMessage = 'Không tìm thấy bài báo nào của tác giả này.';
+        _errorMessage = 'No publications found for this author.';
       }
     } catch (e) {
-      _errorMessage = 'Lỗi khi tải bài báo của tác giả: ${e.toString()}';
+      _errorMessage = 'Could not load author publications: ${e.toString()}';
     } finally {
       _isLoading = false;
       _isLoadingMore = false;
@@ -958,7 +954,7 @@ class PublicationViewModel extends ChangeNotifier {
         counts[name] = (counts[name] ?? 0) + 1;
       }
     }
-    return _topEntries(counts, limit: 5);
+    return _sortedEntries(counts);
   }
 
   Map<String, int> _rankJournalsFromPublications(
@@ -972,17 +968,17 @@ class PublicationViewModel extends ChangeNotifier {
       }
       counts[journal] = (counts[journal] ?? 0) + 1;
     }
-    return _topEntries(counts, limit: 5);
+    return _sortedEntries(counts);
   }
 
-  Map<String, int> _topEntries(Map<String, int> values, {required int limit}) {
+  Map<String, int> _sortedEntries(Map<String, int> values) {
     final entries = values.entries.toList()
       ..sort((a, b) {
         final byCount = b.value.compareTo(a.value);
         if (byCount != 0) return byCount;
         return a.key.compareTo(b.key);
       });
-    return Map.fromEntries(entries.take(limit));
+    return Map.fromEntries(entries);
   }
 
   List<Journal> _journalsFromPublications(List<Publication> publications) {
@@ -998,7 +994,7 @@ class PublicationViewModel extends ChangeNotifier {
       );
     }
 
-    return _topEntries(counts, limit: 10).entries.map((entry) {
+    return _sortedEntries(counts).entries.map((entry) {
       final journal = journalsByName[entry.key]!;
       return Journal(
         id: journal.id,
@@ -1012,18 +1008,17 @@ class PublicationViewModel extends ChangeNotifier {
   String _formatSearchError(Object error) {
     if (error is TimeoutException) {
       return error.message ??
-          'OpenAlex phản hồi quá lâu. Vui lòng kiểm tra mạng hoặc thử lại sau.';
+          'OpenAlex took too long to respond. Check your connection and try again.';
     }
 
     final message = error.toString();
     if (message.contains('429') ||
         message.toLowerCase().contains('too many requests') ||
-        message.toLowerCase().contains('rate limit') ||
-        message.toLowerCase().contains('giới hạn tốc độ')) {
-      return 'OpenAlex đang giới hạn số lần truy cập. Vui lòng đợi một chút rồi thử lại.';
+        message.toLowerCase().contains('rate limit')) {
+      return 'OpenAlex is rate limiting requests. Please wait a moment and try again.';
     }
 
-    return 'Đã xảy ra lỗi khi tìm kiếm: ${error.toString()}';
+    return 'Search failed: ${error.toString()}';
   }
 
   void _startSearchWatchdog(int requestId, String query) {
@@ -1035,7 +1030,7 @@ class PublicationViewModel extends ChangeNotifier {
 
       cancelActiveSearch(
         message:
-            'Không nhận được phản hồi từ OpenAlex cho "$query". Hãy kiểm tra Internet hoặc quyền mạng của ứng dụng rồi thử lại.',
+            'No response from OpenAlex for "$query". Check your internet connection or app network permission, then try again.',
       );
     });
   }

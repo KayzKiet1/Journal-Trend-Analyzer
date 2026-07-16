@@ -123,7 +123,7 @@ class AuthorTopicHeatmap extends StatelessWidget {
                         child: Padding(
                           padding: EdgeInsets.all(4.0),
                           child: Text(
-                            'Tác giả',
+                            'Author',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
@@ -225,7 +225,7 @@ class AuthorTopicHeatmap extends StatelessWidget {
               const Divider(color: AppColors.secondary, thickness: 0.3),
               const SizedBox(height: AppSpacing.xs),
               const Text(
-                'Chú giải Chủ đề (Topics Key):',
+                'Topic key:',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,

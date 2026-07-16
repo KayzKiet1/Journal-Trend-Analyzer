@@ -76,6 +76,19 @@ class HomeTopicDashboard extends StatelessWidget {
     final visibleTopJournals = Map<String, int>.fromEntries(
       topJournals.entries.take(maxJournalsDisplay),
     );
+    final visibleTopAuthors = Map<String, int>.fromEntries(
+      topAuthors.entries.take(maxJournalsDisplay),
+    );
+    final journalSubtitle = _visibleSummary(
+      visibleTopJournals.length,
+      topJournals.length,
+      'journals',
+    );
+    final authorSubtitle = _visibleSummary(
+      visibleTopAuthors.length,
+      topAuthors.length,
+      'authors',
+    );
 
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xl),
@@ -163,11 +176,13 @@ class HomeTopicDashboard extends StatelessWidget {
               final sections = [
                 HomeRankSection(
                   title: 'Top contributing authors',
-                  data: topAuthors,
+                  subtitle: authorSubtitle,
+                  data: visibleTopAuthors,
                   icon: Icons.person_outline,
                 ),
                 HomeRankSection(
-                  title: 'Top journals (limit $maxJournalsDisplay)',
+                  title: 'Top journals',
+                  subtitle: journalSubtitle,
                   data: visibleTopJournals,
                   icon: Icons.book_outlined,
                 ),
@@ -206,7 +221,7 @@ class HomeTopicDashboard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           if (topPublication == null)
             const HomeNotice(
-              message: 'Không có dữ liệu công bố.',
+              message: 'No publication data available.',
               icon: Icons.article,
             )
           else
@@ -233,5 +248,11 @@ class HomeTopicDashboard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _visibleSummary(int visibleCount, int totalCount, String label) {
+    if (totalCount == 0) return 'No $label found';
+    if (visibleCount >= totalCount) return 'Showing all $totalCount $label';
+    return 'Showing $visibleCount of $totalCount $label';
   }
 }

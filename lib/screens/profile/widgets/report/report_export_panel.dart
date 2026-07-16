@@ -45,107 +45,87 @@ class ReportExportPanel extends StatelessWidget {
     final canExport =
         hasDashboardData && isSignedIn && exportEnabled && !isUploading;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1.0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ReportScope(
+          currentTopic: currentTopic,
+          totalPublications: totalPublications,
+          trendPointCount: trendPointCount,
+          journalCount: journalCount,
+          keywordCount: keywordCount,
+          keywordGrowthCount: keywordGrowthCount,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _ExportRequirement(
+          label: 'Google sign-in',
+          isReady: isSignedIn,
+          value: isSignedIn ? authEmail : 'Required for Storage',
+        ),
+        _ExportRequirement(
+          label: 'Dashboard data',
+          isReady: hasDashboardData,
+          value: hasDashboardData
+              ? '$totalPublications publications'
+              : 'Search and select a topic first',
+        ),
+        _ExportRequirement(
+          label: 'Export flag',
+          isReady: exportEnabled,
+          value: exportEnabled ? 'Enabled' : 'Disabled',
+        ),
+        const _ExportRequirement(
+          label: 'Export format',
+          isReady: true,
+          value: 'PDF report',
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            key: const Key('export_pdf_button'),
+            onPressed: canExport ? onExport : null,
+            icon: isUploading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cloud_upload_outlined),
+            label: Text(
+              isUploading
+                  ? 'GENERATING AND UPLOADING...'
+                  : 'EXPORT PDF & UPLOAD',
+            ),
+          ),
+        ),
+        if (uploadedReportUrl != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text('FIREBASE STORAGE URL', style: AppTextStyles.labelCaps),
+          const SizedBox(height: AppSpacing.xs),
+          SelectableText(
+            uploadedReportUrl!,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
             children: [
-              const Icon(
-                Icons.picture_as_pdf_outlined,
-                color: AppColors.accent,
+              OutlinedButton.icon(
+                onPressed: onCopyUrl,
+                icon: const Icon(Icons.copy, size: 18),
+                label: const Text('COPY URL'),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text('Research Trend PDF', style: AppTextStyles.h2),
+              OutlinedButton.icon(
+                onPressed: onOpenUrl,
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('OPEN'),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          _ReportScope(
-            currentTopic: currentTopic,
-            totalPublications: totalPublications,
-            trendPointCount: trendPointCount,
-            journalCount: journalCount,
-            keywordCount: keywordCount,
-            keywordGrowthCount: keywordGrowthCount,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _ExportRequirement(
-            label: 'Google sign-in',
-            isReady: isSignedIn,
-            value: isSignedIn ? authEmail : 'Required for Storage',
-          ),
-          _ExportRequirement(
-            label: 'Dashboard data',
-            isReady: hasDashboardData,
-            value: hasDashboardData
-                ? '$totalPublications publications'
-                : 'Search and select a topic first',
-          ),
-          _ExportRequirement(
-            label: 'Export flag',
-            isReady: exportEnabled,
-            value: exportEnabled ? 'Enabled' : 'Disabled',
-          ),
-          const _ExportRequirement(
-            label: 'Export format',
-            isReady: true,
-            value: 'PDF report',
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              key: const Key('export_pdf_button'),
-              onPressed: canExport ? onExport : null,
-              icon: isUploading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.cloud_upload_outlined),
-              label: Text(
-                isUploading
-                    ? 'GENERATING AND UPLOADING...'
-                    : 'EXPORT PDF & UPLOAD',
-              ),
-            ),
-          ),
-          if (uploadedReportUrl != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text('FIREBASE STORAGE URL', style: AppTextStyles.labelCaps),
-            const SizedBox(height: AppSpacing.xs),
-            SelectableText(
-              uploadedReportUrl!,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: onCopyUrl,
-                  icon: const Icon(Icons.copy, size: 18),
-                  label: const Text('COPY URL'),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                OutlinedButton.icon(
-                  onPressed: onOpenUrl,
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: const Text('OPEN'),
-                ),
-              ],
-            ),
-          ],
         ],
-      ),
+      ],
     );
   }
 }

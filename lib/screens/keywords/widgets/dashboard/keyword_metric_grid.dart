@@ -21,37 +21,53 @@ class KeywordMetricGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final metrics = [
       _KeywordMetricData(
-        'Top Keywords',
+        'Keywords found',
         compactCount(topKeywordCount),
         Icons.sell_outlined,
       ),
       _KeywordMetricData(
-        'Growth Leaders',
+        'Tracked',
         compactCount(growthLeaderCount),
         Icons.trending_up,
       ),
       _KeywordMetricData(
-        'Trend Lines',
+        'Trend charts',
         compactCount(trendLineCount),
         Icons.show_chart,
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 620;
-        return GridView.count(
-          crossAxisCount: isWide ? 3 : 1,
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.sm,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: isWide ? 2.4 : 3.6,
-          children: metrics
-              .map((metric) => _KeywordMetricTile(metric))
-              .toList(),
-        );
-      },
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          for (var index = 0; index < metrics.length; index++) ...[
+            Expanded(child: _KeywordMetricTile(metrics[index])),
+            if (index != metrics.length - 1)
+              Container(
+                width: 1,
+                height: 56,
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                color: AppColors.border,
+              ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -63,42 +79,42 @@ class _KeywordMetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    return SizedBox(
+      height: 68,
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 30,
+            height: 30,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.accentLight,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
-            child: Icon(metric.icon, color: AppColors.accent, size: 22),
+            child: Icon(metric.icon, color: AppColors.accent, size: 17),
           ),
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(metric.value, style: AppTextStyles.h2),
-                const SizedBox(height: AppSpacing.xs),
-                Text(metric.label, style: AppTextStyles.labelCaps),
+                Text(
+                  metric.value,
+                  style: AppTextStyles.h2.copyWith(fontSize: 17),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    metric.label,
+                    style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
+                    maxLines: 1,
+                  ),
+                ),
               ],
             ),
           ),

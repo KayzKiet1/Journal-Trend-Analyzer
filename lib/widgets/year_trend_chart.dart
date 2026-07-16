@@ -23,7 +23,7 @@ class YearTrendChart extends StatelessWidget {
     this.startYear,
     this.rangeLabel,
     this.title,
-    this.valueLabel = 'bài',
+    this.valueLabel = 'articles',
   });
 
   @override
@@ -42,7 +42,7 @@ class YearTrendChart extends StatelessWidget {
     if (visibleTrends.isEmpty) {
       return const SizedBox(
         height: 250,
-        child: Center(child: Text("Không có dữ liệu biểu đồ")),
+        child: Center(child: Text('No chart data available')),
       );
     }
 
@@ -72,9 +72,7 @@ class YearTrendChart extends StatelessWidget {
           referenceLineStyle
               ? _buildReferenceHeader(
                   title ??
-                      (useLineChart
-                          ? 'Publication Trend'
-                          : 'Số lượng bài báo theo năm'),
+                      (useLineChart ? 'Publication Trend' : 'Articles by Year'),
                 )
               : Row(
                   children: [
@@ -83,7 +81,7 @@ class YearTrendChart extends StatelessWidget {
                         title ??
                             (useLineChart
                                 ? 'Publication Trend'
-                                : 'Số lượng bài báo theo năm'),
+                                : 'Articles by Year'),
                         style: AppTextStyles.h2,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

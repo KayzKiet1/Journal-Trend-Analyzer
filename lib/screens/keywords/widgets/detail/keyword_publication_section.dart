@@ -20,11 +20,11 @@ class KeywordPublicationSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return KeywordSectionCard(
-      title: 'Related Publications',
+      title: 'Articles to Open',
       icon: Icons.article_outlined,
       child: publications.isEmpty
           ? const KeywordNotice(
-              message: 'No related publications found for this search.',
+              message: 'No matching articles found for this keyword.',
               plain: true,
             )
           : Consumer<PublicationBookmarkViewModel>(

@@ -26,105 +26,78 @@ class RemoteConfigPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.border, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceTint,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            border: Border.all(color: AppColors.border),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Column(
             children: [
-              const Icon(Icons.tune_outlined, color: AppColors.accent),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text('Firebase Remote Config', style: AppTextStyles.h2),
+              _ConfigRow(
+                title: 'Journal cards limit',
+                value: maxJournalsDisplay.toString(),
+                icon: Icons.book_outlined,
+              ),
+              _ConfigRow(
+                title: 'Keyword rows limit',
+                value: maxKeywordsDisplay.toString(),
+                icon: Icons.analytics_outlined,
+              ),
+              _ConfigRow(
+                title: 'PDF export feature',
+                value: enableReportExport ? 'Enabled' : 'Disabled',
+                icon: Icons.picture_as_pdf_outlined,
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceTint,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                _ConfigRow(
-                  title: 'Home journal summary',
-                  value: maxJournalsDisplay.toString(),
-                  icon: Icons.book_outlined,
-                ),
-                _ConfigRow(
-                  title: 'Keyword rows',
-                  value: maxKeywordsDisplay.toString(),
-                  icon: Icons.analytics_outlined,
-                ),
-                _ConfigRow(
-                  title: 'PDF export',
-                  value: enableReportExport ? 'Enabled' : 'Disabled',
-                  icon: Icons.picture_as_pdf_outlined,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Status: $status',
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            'Status: $status',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),
-          ),
-          if (error != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              error!,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              key: const Key('fetch_remote_config_button'),
-              onPressed: isLoading ? null : onFetch,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: AppColors.textInverted,
-                disabledBackgroundColor: AppColors.accent.withValues(
-                  alpha: 0.65,
-                ),
-                disabledForegroundColor: AppColors.textInverted,
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                ),
-              ),
-              icon: isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.textInverted,
-                      ),
-                    )
-                  : const Icon(Icons.cloud_download_outlined),
-              label: Text(isLoading ? 'FETCHING CONFIG...' : 'FETCH CONFIG'),
-            ),
+            error!,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
           ),
         ],
-      ),
+        const SizedBox(height: AppSpacing.lg),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            key: const Key('fetch_remote_config_button'),
+            onPressed: isLoading ? null : onFetch,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: AppColors.textInverted,
+              disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.65),
+              disabledForegroundColor: AppColors.textInverted,
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+            ),
+            icon: isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.textInverted,
+                    ),
+                  )
+                : const Icon(Icons.cloud_download_outlined),
+            label: Text(isLoading ? 'FETCHING CONFIG...' : 'FETCH CONFIG'),
+          ),
+        ),
+      ],
     );
   }
 }

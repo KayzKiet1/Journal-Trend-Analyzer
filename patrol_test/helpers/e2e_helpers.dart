@@ -119,7 +119,7 @@ Future<void> openJournalsTab(PatrolIntegrationTester $) async {
 
 Future<void> openKeywordsTab(PatrolIntegrationTester $) async {
   await $(#nav_keywords).tap();
-  await waitForFinder($, find.text('Search Keywords'));
+  await waitForFinder($, find.text('Keyword Insights'));
 }
 
 Future<void> openProfileTab(PatrolIntegrationTester $) async {

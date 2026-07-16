@@ -34,12 +34,12 @@ class KeywordFixtureDashboard extends StatelessWidget {
             children: [
               KeywordHero(
                 eyebrow: 'JOURNAL ARTICLE KEYWORDS',
-                title: 'Search Keywords',
+                title: 'Keyword Insights',
                 subtitle: scopeLabel,
                 badges: [
                   '${topicIds.length} topic filters',
                   '${keywords.length} top keywords',
-                  '0 growth leaders',
+                  'sample dataset',
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -50,7 +50,7 @@ class KeywordFixtureDashboard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               KeywordSectionCard(
-                title: 'Keyword Occurrences',
+                title: 'Keyword Frequency',
                 icon: Icons.format_list_numbered,
                 child: Column(
                   children: keywords.asMap().entries.map((entry) {
