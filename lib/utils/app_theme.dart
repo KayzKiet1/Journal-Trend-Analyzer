@@ -30,9 +30,13 @@ class AppTheme {
         foregroundColor: AppColors.primary,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: true,
+        surfaceTintColor: AppColors.background,
+        centerTitle: false,
         titleTextStyle: AppTextStyles.h2,
         iconTheme: const IconThemeData(color: AppColors.primary),
+        shape: const Border(
+          bottom: BorderSide(color: AppColors.border, width: 1),
+        ),
       ),
 
       // Text Theme
@@ -51,6 +55,38 @@ class AppTheme {
           foregroundColor: AppColors.textInverted,
           textStyle: AppTextStyles.buttonText,
           elevation: 0,
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.md,
+            horizontal: AppSpacing.lg,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+        ),
+      ),
+
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.accent,
+          foregroundColor: AppColors.textInverted,
+          textStyle: AppTextStyles.buttonText,
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.md,
+            horizontal: AppSpacing.lg,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+        ),
+      ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          textStyle: AppTextStyles.buttonText.copyWith(
+            color: AppColors.primary,
+          ),
+          side: const BorderSide(color: AppColors.border),
           padding: const EdgeInsets.symmetric(
             vertical: AppSpacing.md,
             horizontal: AppSpacing.lg,

@@ -86,9 +86,7 @@ class FirebaseAuthService {
     } on AuthServiceException {
       rethrow;
     } on FirebaseAuthException catch (error) {
-      throw AuthServiceException(
-        _firebaseAuthErrorMessage(error),
-      );
+      throw AuthServiceException(_firebaseAuthErrorMessage(error));
     } on GoogleSignInException catch (error) {
       throw AuthServiceException(_googleSignInErrorMessage(error));
     } catch (error) {

@@ -14,6 +14,7 @@ class Publication {
   final String doi;
   final String abstractText;
   final List<String> topics;
+  final List<String> keywords;
 
   Publication({
     required this.id,
@@ -27,6 +28,7 @@ class Publication {
     required this.doi,
     required this.abstractText,
     required this.topics,
+    this.keywords = const [],
   });
 
   /// Chuyển đổi từ dữ liệu JSON của OpenAlex sang đối tượng Publication
@@ -44,7 +46,7 @@ class Publication {
 
     // Xử lý abstract từ inverted index
     String parsedAbstract = AbstractParser.parseInvertedIndex(
-      json['abstract_inverted_index'] as Map<String, dynamic>?
+      json['abstract_inverted_index'] as Map<String, dynamic>?,
     );
 
     // Lấy danh sách topics hoặc concepts làm fallback
@@ -61,6 +63,12 @@ class Publication {
           .toList();
     }
 
+    final keywordsJson = json['keywords'] as List? ?? [];
+    final keywordsList = keywordsJson
+        .map((keyword) => keyword['display_name'] as String? ?? '')
+        .where((name) => name.isNotEmpty)
+        .toList();
+
     return Publication(
       id: json['id'] ?? '',
       title: json['display_name'] ?? 'Untitled',
@@ -73,7 +81,55 @@ class Publication {
       doi: json['doi'] ?? '',
       abstractText: parsedAbstract,
       topics: topicsList,
+      keywords: keywordsList,
     );
+  }
+
+  factory Publication.fromStoredJson(Map<String, dynamic> json) {
+    return Publication(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Untitled',
+      publicationYear: json['publication_year'] as int? ?? 0,
+      publicationDate: json['publication_date']?.toString() ?? '',
+      citedByCount: json['cited_by_count'] as int? ?? 0,
+      journalId: json['journal_id']?.toString() ?? '',
+      journalName: json['journal_name']?.toString() ?? 'Unknown Source',
+      authors:
+          (json['authors'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(Author.fromStoredJson)
+              .toList() ??
+          [],
+      doi: json['doi']?.toString() ?? '',
+      abstractText: json['abstract_text']?.toString() ?? '',
+      topics:
+          (json['topics'] as List?)
+              ?.map((topic) => topic.toString())
+              .toList() ??
+          [],
+      keywords:
+          (json['keywords'] as List?)
+              ?.map((keyword) => keyword.toString())
+              .toList() ??
+          [],
+    );
+  }
+
+  Map<String, dynamic> toStoredJson() {
+    return {
+      'id': id,
+      'title': title,
+      'publication_year': publicationYear,
+      'publication_date': publicationDate,
+      'cited_by_count': citedByCount,
+      'journal_id': journalId,
+      'journal_name': journalName,
+      'authors': authors.map((author) => author.toStoredJson()).toList(),
+      'doi': doi,
+      'abstract_text': abstractText,
+      'topics': topics,
+      'keywords': keywords,
+    };
   }
 
   /// Trả về chuỗi danh sách tên các tác giả cách nhau bởi dấu phẩy

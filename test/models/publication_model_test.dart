@@ -62,6 +62,10 @@ void main() {
           {'display_name': 'Bibliometrics'},
           {'display_name': 'Scholarly Communication'},
         ],
+        'keywords': [
+          {'display_name': 'Journal trends'},
+          {'display_name': 'Research analytics'},
+        ],
       });
 
       expect(publication.id, 'https://openalex.org/W1');
@@ -73,6 +77,7 @@ void main() {
       expect(publication.authorsString, 'Ada, Grace');
       expect(publication.abstractText, 'Journal trend analysis');
       expect(publication.topics, contains('Bibliometrics'));
+      expect(publication.keywords, contains('Journal trends'));
     });
 
     test('uses concepts when topics are not available', () {

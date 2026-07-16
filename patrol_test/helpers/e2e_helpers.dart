@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:journal_trend_analyzer/controllers/publication_controller.dart';
+import 'package:journal_trend_analyzer/viewmodels/publication_view_model.dart';
 import 'package:journal_trend_analyzer/firebase/firebase_initializer.dart';
 import 'package:journal_trend_analyzer/main.dart';
 import 'package:journal_trend_analyzer/models/author_model.dart';
@@ -26,9 +26,16 @@ Future<void> pumpTestApp(PatrolIntegrationTester $) async {
   await $.pumpAndSettle();
 }
 
-PublicationController controllerOf(PatrolIntegrationTester $) {
+Future<void> pumpRealApp(PatrolIntegrationTester $) async {
+  await initializeFirebase();
+  await $.pumpWidgetAndSettle(const JournalTrendAnalyzerApp());
+  await waitForFinder($, find.text('Journal Trend Analyzer'));
+  await $.pumpAndSettle();
+}
+
+PublicationViewModel controllerOf(PatrolIntegrationTester $) {
   final context = $.tester.element(find.byType(MainScreen));
-  return Provider.of<PublicationController>(context, listen: false);
+  return Provider.of<PublicationViewModel>(context, listen: false);
 }
 
 void seedFixtures(PatrolIntegrationTester $) {
@@ -112,7 +119,7 @@ Future<void> openJournalsTab(PatrolIntegrationTester $) async {
 
 Future<void> openKeywordsTab(PatrolIntegrationTester $) async {
   await $(#nav_keywords).tap();
-  await waitForFinder($, find.text('Keyword Intelligence'));
+  await waitForFinder($, find.text('Search Keywords'));
 }
 
 Future<void> openProfileTab(PatrolIntegrationTester $) async {
@@ -122,25 +129,6 @@ Future<void> openProfileTab(PatrolIntegrationTester $) async {
 
 Future<void> searchTopicAndShowPublications(PatrolIntegrationTester $) async {
   await $(#home_topic_search_field).enterText(defaultTopic);
-
-  await controllerOf($).loadTopicSuggestions(defaultTopic);
-  await $.pump();
-  await waitForFinder(
-    $,
-    find.text('RELATED TOPICS'),
-    timeout: const Duration(seconds: 10),
-  );
-
-  await $(Icon)
-      .which<Icon>((icon) => icon.icon == Icons.radio_button_unchecked)
-      .at(0)
-      .tap();
-  await waitForFinder(
-    $,
-    find.text('SELECTED TOPICS'),
-    timeout: const Duration(seconds: 10),
-  );
-
   await $(#home_search_button).tap();
   await waitForFinder(
     $,

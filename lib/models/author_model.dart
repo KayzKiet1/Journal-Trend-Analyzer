@@ -18,8 +18,9 @@ class Author {
   factory Author.fromJson(Map<String, dynamic> json) {
     // Xử lý cả trường hợp author nằm trong authorship hoặc là entity độc lập
     final dynamic authorField = json['author'];
-    final Map<String, dynamic> authorData = (authorField is Map<String, dynamic>) ? authorField : json;
-    
+    final Map<String, dynamic> authorData =
+        (authorField is Map<String, dynamic>) ? authorField : json;
+
     return Author(
       id: authorData['id'] ?? '',
       name: authorData['display_name'] ?? 'Unknown Author',
@@ -27,5 +28,25 @@ class Author {
       citedByCount: json['cited_by_count'] ?? 0,
       lastKnownInstitution: json['last_known_institution']?['display_name'],
     );
+  }
+
+  factory Author.fromStoredJson(Map<String, dynamic> json) {
+    return Author(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown Author',
+      worksCount: json['works_count'] as int? ?? 0,
+      citedByCount: json['cited_by_count'] as int? ?? 0,
+      lastKnownInstitution: json['last_known_institution']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toStoredJson() {
+    return {
+      'id': id,
+      'name': name,
+      'works_count': worksCount,
+      'cited_by_count': citedByCount,
+      'last_known_institution': lastKnownInstitution,
+    };
   }
 }

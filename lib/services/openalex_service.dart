@@ -34,7 +34,8 @@ class _OpenAlexHttpException implements Exception {
 class OpenAlexService {
   static const String _workSelectFields =
       'id,display_name,title,publication_year,publication_date,cited_by_count,'
-      'authorships,primary_location,doi,abstract_inverted_index,topics,concepts';
+      'authorships,primary_location,doi,abstract_inverted_index,topics,concepts,'
+      'keywords';
 
   final String? userEmail;
   final String? apiKey;
@@ -421,6 +422,275 @@ class OpenAlexService {
     return 'primary_topic.id:$topicFilter,primary_location.source.type:journal';
   }
 
+  String _journalWorkSearchFilter(
+    List<String> topicIds, {
+    String? query,
+    String? extraFilter,
+  }) {
+    final filters = <String>['primary_location.source.type:journal'];
+    final titleAbstractFilter = _titleAndAbstractSearchFilter(query);
+    if (titleAbstractFilter != null) {
+      filters.add(titleAbstractFilter);
+    }
+    final topicFilter = _topicFilterValue(topicIds: topicIds);
+    if (topicFilter != null && topicFilter.isNotEmpty) {
+      filters.add('primary_topic.id:$topicFilter');
+    }
+    if (extraFilter != null && extraFilter.isNotEmpty) {
+      filters.add(extraFilter);
+    }
+    return filters.join(',');
+  }
+
+  String? _titleAndAbstractSearchFilter(String? query) {
+    final normalized = query
+        ?.trim()
+        .replaceAll(',', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized == null || normalized.length < 2) return null;
+    return 'title_and_abstract.search:$normalized';
+  }
+
+  Map<String, String> _workSearchParams({
+    required String query,
+    required List<String> topicIds,
+    String? extraFilter,
+  }) {
+    final trimmedQuery = query.trim();
+    final params = <String, String>{
+      'filter': _journalWorkSearchFilter(
+        topicIds,
+        query: trimmedQuery,
+        extraFilter: extraFilter,
+      ),
+    };
+    return params;
+  }
+
+  Future<Map<String, dynamic>> searchWorks({
+    required String query,
+    List<String> topicIds = const [],
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) {
+      return {'results': <Publication>[], 'total_count': 0};
+    }
+
+    final params = _workSearchParams(query: trimmedQuery, topicIds: topicIds)
+      ..addAll({
+        'sort': 'cited_by_count:desc',
+        'page': page.toString(),
+        'per_page': perPage.toString(),
+        'select': _workSelectFields,
+      });
+
+    final Uri url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+    ).replace(queryParameters: params);
+
+    try {
+      final data = await _getWithRetryAndCache(url);
+      final List results = data['results'] ?? [];
+      final int totalCount = data['meta']?['count'] ?? 0;
+
+      return {
+        'results': results.map((json) => Publication.fromJson(json)).toList(),
+        'total_count': totalCount,
+      };
+    } catch (e) {
+      throw Exception('Lỗi khi tìm works theo journal source: $e');
+    }
+  }
+
+  Future<List<TrendData>> getWorkSearchPublicationTrend({
+    required String query,
+    List<String> topicIds = const [],
+  }) async {
+    if (query.trim().length < 2) return [];
+
+    final params = _workSearchParams(query: query, topicIds: topicIds)
+      ..addAll({'group_by': 'publication_year', 'per_page': '200'});
+
+    final Uri url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+    ).replace(queryParameters: params);
+
+    try {
+      final data = await _getWithRetryAndCache(url);
+      final List groups = data['group_by'] ?? [];
+      final trends = groups
+          .map((json) => TrendData.fromJson(json))
+          .where((trend) => trend.year > 0)
+          .toList();
+      trends.sort((a, b) => a.year.compareTo(b.year));
+      return trends;
+    } catch (e) {
+      throw Exception('Lỗi khi tải xu hướng works search: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getWorkSearchTopKeywords({
+    required String query,
+    List<String> topicIds = const [],
+    int? fromYear,
+    int perPage = 10,
+  }) {
+    return _getWorkSearchKeywordGroups(
+      query: query,
+      topicIds: topicIds,
+      extraFilter: fromYear == null
+          ? null
+          : 'from_publication_date:$fromYear-01-01',
+      perPage: perPage,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getWorkSearchTrendingKeywords({
+    required String query,
+    List<String> topicIds = const [],
+    required int fromYear,
+    int perPage = 10,
+  }) {
+    return _getWorkSearchKeywordGroups(
+      query: query,
+      topicIds: topicIds,
+      extraFilter: 'from_publication_date:$fromYear-01-01',
+      perPage: perPage,
+    );
+  }
+
+  Future<Map<String, List<TrendData>>> getWorkSearchKeywordTrends({
+    required String query,
+    required List<String> keywordIds,
+    List<String> topicIds = const [],
+    int? fromYear,
+    int perKeyword = 3,
+  }) async {
+    if (query.trim().length < 2) return {};
+
+    final trends = <String, List<TrendData>>{};
+    for (final rawKeywordId in keywordIds.take(perKeyword)) {
+      final keywordId = _openAlexKeywordId(rawKeywordId);
+      if (keywordId.isEmpty) continue;
+
+      final params = _workSearchParams(
+        query: query,
+        topicIds: topicIds,
+        extraFilter: _keywordYearFilter(keywordId, fromYear: fromYear),
+      )..addAll({'group_by': 'publication_year', 'per_page': '200'});
+
+      final Uri url = Uri.parse(
+        '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+      ).replace(queryParameters: params);
+
+      final data = await _getWithRetryAndCache(url);
+      final List groups = data['group_by'] ?? [];
+      final keywordTrends =
+          groups
+              .map((json) => TrendData.fromJson(json))
+              .where((trend) => trend.year > 0)
+              .toList()
+            ..sort((a, b) => a.year.compareTo(b.year));
+      trends[keywordId] = keywordTrends;
+    }
+
+    return trends;
+  }
+
+  Future<List<TrendData>> getWorkSearchKeywordPublicationTrend({
+    required String query,
+    required String keywordId,
+    List<String> topicIds = const [],
+    int? fromYear,
+  }) async {
+    final trends = await getWorkSearchKeywordTrends(
+      query: query,
+      keywordIds: [keywordId],
+      topicIds: topicIds,
+      fromYear: fromYear,
+      perKeyword: 1,
+    );
+    return trends[_openAlexKeywordId(keywordId)] ?? [];
+  }
+
+  Future<List<Map<String, dynamic>>> getWorkSearchKeywordTopJournals({
+    required String query,
+    required String keywordId,
+    List<String> topicIds = const [],
+    int? fromYear,
+    int perPage = 8,
+  }) {
+    return _getWorkSearchKeywordGroupedCounts(
+      query: query,
+      keywordId: keywordId,
+      topicIds: topicIds,
+      groupBy: 'primary_location.source.id',
+      fromYear: fromYear,
+      perPage: perPage,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getWorkSearchKeywordTopAuthors({
+    required String query,
+    required String keywordId,
+    List<String> topicIds = const [],
+    int? fromYear,
+    int perPage = 8,
+  }) {
+    return _getWorkSearchKeywordGroupedCounts(
+      query: query,
+      keywordId: keywordId,
+      topicIds: topicIds,
+      groupBy: 'authorships.author.id',
+      fromYear: fromYear,
+      perPage: perPage,
+    );
+  }
+
+  Future<Map<String, dynamic>> getWorksBySearchKeyword({
+    required String query,
+    required String keywordId,
+    List<String> topicIds = const [],
+    int? fromYear,
+    int page = 1,
+    int perPage = 10,
+  }) async {
+    final normalizedKeywordId = _openAlexKeywordId(keywordId);
+    if (query.trim().length < 2 || normalizedKeywordId.isEmpty) {
+      return {'results': <Publication>[], 'total_count': 0};
+    }
+
+    final params =
+        _workSearchParams(
+          query: query,
+          topicIds: topicIds,
+          extraFilter: _keywordYearFilter(
+            normalizedKeywordId,
+            fromYear: fromYear,
+          ),
+        )..addAll({
+          'sort': 'cited_by_count:desc',
+          'page': page.toString(),
+          'per_page': perPage.toString(),
+          'select': _workSelectFields,
+        });
+
+    final Uri url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+    ).replace(queryParameters: params);
+
+    final data = await _getWithRetryAndCache(url);
+    final List results = data['results'] ?? [];
+    final int totalCount = data['meta']?['count'] ?? 0;
+
+    return {
+      'results': results.map((json) => Publication.fromJson(json)).toList(),
+      'total_count': totalCount,
+    };
+  }
+
   Future<Map<String, dynamic>> getWorksByTopics(
     List<String> topicIds, {
     int page = 1,
@@ -517,6 +787,7 @@ class OpenAlexService {
   Future<Map<String, List<TrendData>>> getTopicKeywordTrends(
     List<String> topicIds,
     List<String> keywordIds, {
+    int? fromYear,
     int perKeyword = 3,
   }) async {
     final filter = _topicWorksFilter(topicIds);
@@ -532,7 +803,8 @@ class OpenAlexService {
             '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
           ).replace(
             queryParameters: {
-              'filter': '$filter,keywords.id:$keywordId',
+              'filter':
+                  '$filter,${_keywordYearFilter(keywordId, fromYear: fromYear)}',
               'group_by': 'publication_year',
               'per_page': '200',
             },
@@ -554,23 +826,29 @@ class OpenAlexService {
 
   Future<List<TrendData>> getKeywordPublicationTrend(
     List<String> topicIds,
-    String keywordId,
-  ) async {
-    final trends = await getTopicKeywordTrends(topicIds, [
-      keywordId,
-    ], perKeyword: 1);
+    String keywordId, {
+    int? fromYear,
+  }) async {
+    final trends = await getTopicKeywordTrends(
+      topicIds,
+      [keywordId],
+      fromYear: fromYear,
+      perKeyword: 1,
+    );
     return trends[_openAlexKeywordId(keywordId)] ?? [];
   }
 
   Future<List<Map<String, dynamic>>> getKeywordTopJournals(
     List<String> topicIds,
     String keywordId, {
+    int? fromYear,
     int perPage = 8,
   }) {
     return _getKeywordGroupedCounts(
       topicIds,
       keywordId,
       'primary_location.source.id',
+      fromYear: fromYear,
       perPage: perPage,
     );
   }
@@ -578,12 +856,14 @@ class OpenAlexService {
   Future<List<Map<String, dynamic>>> getKeywordTopAuthors(
     List<String> topicIds,
     String keywordId, {
+    int? fromYear,
     int perPage = 8,
   }) {
     return _getKeywordGroupedCounts(
       topicIds,
       keywordId,
       'authorships.author.id',
+      fromYear: fromYear,
       perPage: perPage,
     );
   }
@@ -591,10 +871,11 @@ class OpenAlexService {
   Future<Map<String, dynamic>> getWorksByKeyword(
     List<String> topicIds,
     String keywordId, {
+    int? fromYear,
     int page = 1,
     int perPage = 10,
   }) async {
-    final filter = _keywordWorksFilter(topicIds, keywordId);
+    final filter = _keywordWorksFilter(topicIds, keywordId, fromYear: fromYear);
     if (filter == null) return {'results': <Publication>[], 'total_count': 0};
 
     final Uri url =
@@ -624,9 +905,10 @@ class OpenAlexService {
     List<String> topicIds,
     String keywordId,
     String groupBy, {
+    int? fromYear,
     int perPage = 8,
   }) async {
-    final filter = _keywordWorksFilter(topicIds, keywordId);
+    final filter = _keywordWorksFilter(topicIds, keywordId, fromYear: fromYear);
     if (filter == null) return [];
 
     final Uri url =
@@ -657,11 +939,61 @@ class OpenAlexService {
         .toList();
   }
 
-  String? _keywordWorksFilter(List<String> topicIds, String keywordId) {
+  Future<List<Map<String, dynamic>>> _getWorkSearchKeywordGroupedCounts({
+    required String query,
+    required String keywordId,
+    required List<String> topicIds,
+    required String groupBy,
+    int? fromYear,
+    int perPage = 8,
+  }) async {
+    final normalizedKeywordId = _openAlexKeywordId(keywordId);
+    if (query.trim().length < 2 || normalizedKeywordId.isEmpty) return [];
+
+    final params = _workSearchParams(
+      query: query,
+      topicIds: topicIds,
+      extraFilter: _keywordYearFilter(normalizedKeywordId, fromYear: fromYear),
+    )..addAll({'group_by': groupBy, 'per_page': perPage.toString()});
+
+    final Uri url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+    ).replace(queryParameters: params);
+
+    final data = await _getWithRetryAndCache(url);
+    final List groups = data['group_by'] ?? [];
+    return groups
+        .where((group) {
+          final name = group['key_display_name']?.toString() ?? '';
+          return name.isNotEmpty && name.toLowerCase() != 'unknown';
+        })
+        .map(
+          (group) => {
+            'id': group['key']?.toString() ?? '',
+            'name': group['key_display_name']?.toString() ?? '',
+            'count': (group['count'] as num?)?.toInt() ?? 0,
+          },
+        )
+        .toList();
+  }
+
+  String? _keywordWorksFilter(
+    List<String> topicIds,
+    String keywordId, {
+    int? fromYear,
+  }) {
     final baseFilter = _topicWorksFilter(topicIds);
     final normalizedKeywordId = _openAlexKeywordId(keywordId);
     if (baseFilter == null || normalizedKeywordId.isEmpty) return null;
-    return '$baseFilter,keywords.id:$normalizedKeywordId';
+    return '$baseFilter,${_keywordYearFilter(normalizedKeywordId, fromYear: fromYear)}';
+  }
+
+  String _keywordYearFilter(String keywordId, {int? fromYear}) {
+    final filters = ['keywords.id:$keywordId'];
+    if (fromYear != null) {
+      filters.add('from_publication_date:$fromYear-01-01');
+    }
+    return filters.join(',');
   }
 
   Future<List<Map<String, dynamic>>> _getTopicKeywordGroups(
@@ -685,6 +1017,41 @@ class OpenAlexService {
             'per_page': perPage.toString(),
           },
         );
+
+    final data = await _getWithRetryAndCache(url);
+    final List groups = data['group_by'] ?? [];
+    return groups
+        .where((group) {
+          final name = group['key_display_name']?.toString() ?? '';
+          return name.isNotEmpty && name.toLowerCase() != 'unknown';
+        })
+        .map(
+          (group) => {
+            'id': group['key']?.toString() ?? '',
+            'name': group['key_display_name']?.toString() ?? '',
+            'count': (group['count'] as num?)?.toInt() ?? 0,
+          },
+        )
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _getWorkSearchKeywordGroups({
+    required String query,
+    required List<String> topicIds,
+    String? extraFilter,
+    int perPage = 10,
+  }) async {
+    if (query.trim().length < 2) return [];
+
+    final params = _workSearchParams(
+      query: query,
+      topicIds: topicIds,
+      extraFilter: extraFilter,
+    )..addAll({'group_by': 'keywords.id', 'per_page': perPage.toString()});
+
+    final Uri url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+    ).replace(queryParameters: params);
 
     final data = await _getWithRetryAndCache(url);
     final List groups = data['group_by'] ?? [];
@@ -848,7 +1215,11 @@ class OpenAlexService {
         Uri.parse(
           '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
         ).replace(
-          queryParameters: {'filter': filter, 'group_by': 'publication_year'},
+          queryParameters: {
+            'filter': filter,
+            'group_by': 'publication_year',
+            'per_page': '200',
+          },
         );
 
     try {
@@ -863,6 +1234,44 @@ class OpenAlexService {
     } catch (e) {
       return [];
     }
+  }
+
+  Future<Map<int, int>> getJournalCitationSumsByYear(
+    String journalId,
+    Iterable<int> years, {
+    List<String>? topicIds,
+  }) async {
+    final sourceId = _openAlexId(journalId);
+    final topicFilter = _topicFilterValue(topicIds: topicIds);
+    final sums = <int, int>{};
+
+    for (final year in years.toSet().toList()..sort()) {
+      if (year <= 0 || year > DateTime.now().year) continue;
+
+      final filters = <String>[
+        'primary_location.source.id:$sourceId',
+        'publication_year:$year',
+        if (topicFilter != null && topicFilter.isNotEmpty)
+          'primary_topic.id:$topicFilter',
+      ];
+
+      final Uri url =
+          Uri.parse(
+            '${ApiConstants.baseUrl}${ApiConstants.worksEndpoint}',
+          ).replace(
+            queryParameters: {
+              'filter': filters.join(','),
+              'cited_by_count_sum': 'true',
+              'per_page': '1',
+              'select': 'id',
+            },
+          );
+
+      final data = await _getWithRetryAndCache(url);
+      sums[year] = (data['meta']?['cited_by_count_sum'] as num?)?.toInt() ?? 0;
+    }
+
+    return sums;
   }
 
   /// Lấy sự thay đổi của các chủ đề theo thời gian (Topic Evolution)

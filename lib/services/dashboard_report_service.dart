@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../models/journal_model.dart';
+import '../models/keyword_dashboard_model.dart';
 import '../models/publication_model.dart';
 import '../models/trend_data_model.dart';
 import '../utils/analysis_helper.dart';
@@ -19,6 +20,8 @@ class DashboardReportService {
     required Map<String, int> topJournals,
     required List<TrendData> publicationTrends,
     required List<Publication> influentialPublications,
+    List<Map<String, dynamic>> topKeywords = const [],
+    List<KeywordGrowthData> keywordGrowth = const [],
   }) async {
     final document = pw.Document();
     final generatedAt = DateTime.now().toLocal();
@@ -88,6 +91,20 @@ class DashboardReportService {
           pw.SizedBox(height: 18),
           _sectionTitle('Most Influential Publications'),
           _paperTable(influentialPublications.take(8).toList()),
+          pw.SizedBox(height: 18),
+          _sectionTitle('Keywords Dashboard'),
+          if (topKeywords.isEmpty && keywordGrowth.isEmpty)
+            pw.Text(
+              'No Keywords dashboard data was loaded when this report was exported.',
+              style: const pw.TextStyle(fontSize: 10),
+            )
+          else ...[
+            _keywordTable(topKeywords.take(8).toList()),
+            if (keywordGrowth.isNotEmpty) ...[
+              pw.SizedBox(height: 12),
+              _keywordGrowthTable(keywordGrowth.take(8).toList()),
+            ],
+          ],
           pw.SizedBox(height: 18),
           _sectionTitle('Notes'),
           pw.Text(
@@ -260,6 +277,52 @@ class DashboardReportService {
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
       cellStyle: const pw.TextStyle(fontSize: 9),
+      cellAlignment: pw.Alignment.centerLeft,
+      border: pw.TableBorder.all(color: PdfColors.grey500, width: 0.5),
+    );
+  }
+
+  pw.Widget _keywordTable(List<Map<String, dynamic>> keywords) {
+    if (keywords.isEmpty) {
+      return pw.Text(
+        'No top keyword data available.',
+        style: const pw.TextStyle(fontSize: 10),
+      );
+    }
+
+    return pw.TableHelper.fromTextArray(
+      headers: ['Keyword', 'Matching works'],
+      data: keywords
+          .map(
+            (keyword) => [
+              keyword['name']?.toString() ?? 'Unknown keyword',
+              ((keyword['count'] as num?)?.toInt() ?? 0).toString(),
+            ],
+          )
+          .toList(),
+      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+      cellStyle: const pw.TextStyle(fontSize: 10),
+      cellAlignment: pw.Alignment.centerLeft,
+      border: pw.TableBorder.all(color: PdfColors.grey500, width: 0.5),
+    );
+  }
+
+  pw.Widget _keywordGrowthTable(List<KeywordGrowthData> growthRows) {
+    return pw.TableHelper.fromTextArray(
+      headers: ['Trending keyword', 'Year range', 'Growth'],
+      data: growthRows
+          .map(
+            (growth) => [
+              growth.name,
+              '${growth.startYear}-${growth.endYear}',
+              '${growth.growthRate.toStringAsFixed(1)}%',
+            ],
+          )
+          .toList(),
+      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+      cellStyle: const pw.TextStyle(fontSize: 10),
       cellAlignment: pw.Alignment.centerLeft,
       border: pw.TableBorder.all(color: PdfColors.grey500, width: 0.5),
     );
