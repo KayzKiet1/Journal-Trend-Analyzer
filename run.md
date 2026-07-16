@@ -60,7 +60,6 @@ Nếu repo nội bộ của nhóm có thể chia sẻ Firebase project chung, h�
    ```powershell
    flutter run
    ```
-
 ### Lựa chọn C: Chạy trên Web (Dành cho máy cấu hình yếu)
 Lưu ý: Firebase hiện mới thấy cấu hình Android qua `google-services.json`. Nếu chạy Web mà gặp lỗi Firebase options, cần cấu hình FlutterFire cho Web trước.
 ```powershell
