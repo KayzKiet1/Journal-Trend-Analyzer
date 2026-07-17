@@ -176,6 +176,18 @@ void main() {
       expect(publication.topics, ['Machine learning', '2026']);
       expect(publication.keywords, ['ai', 'null']);
     });
+
+    test('restores empty topic, keyword and author lists from missing data', () {
+      final publication = Publication.fromStoredJson({
+        'id': 'W-empty-lists',
+        'journal_name': 'Journal of Sparse Records',
+      });
+
+      expect(publication.id, 'W-empty-lists');
+      expect(publication.authors, isEmpty);
+      expect(publication.topics, isEmpty);
+      expect(publication.keywords, isEmpty);
+    });
   });
 
   group('TrendData', () {
