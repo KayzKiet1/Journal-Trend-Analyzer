@@ -28,6 +28,34 @@ void main() {
       expect(author.worksCount, 0);
       expect(author.citedByCount, 0);
     });
+
+    test('stores and restores author snapshots', () {
+      final author = Author(
+        id: 'A123',
+        name: 'Katherine Johnson',
+        worksCount: 7,
+        citedByCount: 42,
+        lastKnownInstitution: 'NASA',
+      );
+
+      final restored = Author.fromStoredJson(author.toStoredJson());
+
+      expect(restored.id, author.id);
+      expect(restored.name, author.name);
+      expect(restored.worksCount, author.worksCount);
+      expect(restored.citedByCount, author.citedByCount);
+      expect(restored.lastKnownInstitution, author.lastKnownInstitution);
+    });
+
+    test('restores author defaults from sparse stored data', () {
+      final author = Author.fromStoredJson({});
+
+      expect(author.id, isEmpty);
+      expect(author.name, 'Unknown Author');
+      expect(author.worksCount, 0);
+      expect(author.citedByCount, 0);
+      expect(author.lastKnownInstitution, isNull);
+    });
   });
 
   group('Publication', () {
@@ -92,6 +120,61 @@ void main() {
       expect(publication.journalName, 'Unknown Source');
       expect(publication.abstractText, 'No abstract available.');
       expect(publication.topics, ['Open Science']);
+    });
+
+    test('stores and restores publication snapshots', () {
+      final publication = Publication(
+        id: 'W123',
+        title: 'Reliable Journal Trend Tests',
+        publicationYear: 2025,
+        publicationDate: '2025-12-31',
+        citedByCount: 18,
+        journalId: 'S123',
+        journalName: 'Journal of Test Coverage',
+        authors: [
+          Author(id: 'A1', name: 'Ada Lovelace', worksCount: 2),
+          Author(id: 'A2', name: 'Grace Hopper', citedByCount: 9),
+        ],
+        doi: '10.1000/coverage',
+        abstractText: 'Coverage should stay comfortably above the gate.',
+        topics: ['Software quality', 'Testing'],
+        keywords: ['coverage', 'sonar'],
+      );
+
+      final restored = Publication.fromStoredJson(publication.toStoredJson());
+
+      expect(restored.id, publication.id);
+      expect(restored.title, publication.title);
+      expect(restored.publicationYear, publication.publicationYear);
+      expect(restored.publicationDate, publication.publicationDate);
+      expect(restored.citedByCount, publication.citedByCount);
+      expect(restored.journalId, publication.journalId);
+      expect(restored.journalName, publication.journalName);
+      expect(restored.authorsString, 'Ada Lovelace, Grace Hopper');
+      expect(restored.doi, publication.doi);
+      expect(restored.abstractText, publication.abstractText);
+      expect(restored.topics, publication.topics);
+      expect(restored.keywords, publication.keywords);
+    });
+
+    test('restores publication defaults from sparse stored data', () {
+      final publication = Publication.fromStoredJson({
+        'topics': ['Machine learning', 2026],
+        'keywords': ['ai', null],
+      });
+
+      expect(publication.id, isEmpty);
+      expect(publication.title, 'Untitled');
+      expect(publication.publicationYear, 0);
+      expect(publication.publicationDate, isEmpty);
+      expect(publication.citedByCount, 0);
+      expect(publication.journalId, isEmpty);
+      expect(publication.journalName, 'Unknown Source');
+      expect(publication.authors, isEmpty);
+      expect(publication.doi, isEmpty);
+      expect(publication.abstractText, isEmpty);
+      expect(publication.topics, ['Machine learning', '2026']);
+      expect(publication.keywords, ['ai', 'null']);
     });
   });
 

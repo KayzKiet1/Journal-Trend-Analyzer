@@ -7,12 +7,14 @@ import '../home_formatters.dart';
 
 class HomeRankSection extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final Map<String, int> data;
   final IconData icon;
 
   const HomeRankSection({
     super.key,
     required this.title,
+    this.subtitle,
     required this.data,
     required this.icon,
   });
@@ -48,12 +50,28 @@ class HomeRankSection extends StatelessWidget {
                 child: Icon(icon, color: AppColors.accent, size: 17),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text(title, style: AppTextStyles.h2)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTextStyles.h2),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: AppTextStyles.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
           if (data.isEmpty)
-            Text('Không có dữ liệu.', style: AppTextStyles.bodySmall)
+            Text('No data available.', style: AppTextStyles.bodySmall)
           else
             ...data.entries.map(
               (entry) => Padding(

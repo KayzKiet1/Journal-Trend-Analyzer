@@ -7,8 +7,6 @@ import '../../../../utils/app_text_styles.dart';
 
 class NotificationCenterPanel extends StatelessWidget {
   final String permissionStatus;
-  final String compactToken;
-  final bool hasToken;
   final bool isNotificationReady;
   final bool wantsNotifications;
   final bool isLoading;
@@ -20,8 +18,6 @@ class NotificationCenterPanel extends StatelessWidget {
   const NotificationCenterPanel({
     super.key,
     required this.permissionStatus,
-    required this.compactToken,
-    required this.hasToken,
     required this.isNotificationReady,
     required this.wantsNotifications,
     required this.isLoading,
@@ -33,107 +29,76 @@ class NotificationCenterPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.secondary, width: 1.0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.notifications_outlined, color: AppColors.accent),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'Firebase Cloud Messaging',
-                  style: AppTextStyles.h2,
-                ),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: wantsNotifications,
+          onChanged: isLoading ? null : onNotificationsEnabledChanged,
+          secondary: Icon(
+            wantsNotifications
+                ? Icons.notifications_active_outlined
+                : Icons.notifications_off_outlined,
+            color: wantsNotifications ? AppColors.accent : AppColors.secondary,
           ),
+          title: Text('Receive notifications', style: AppTextStyles.bodySmall),
+          subtitle: Text(
+            wantsNotifications
+                ? 'This device is ready to receive app notifications.'
+                : isNotificationReady
+                ? 'Notifications are paused inside the app.'
+                : 'Turn this on to request notification permission.',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.secondary),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _NotificationReadiness(
+          permissionStatus: permissionStatus,
+          isNotificationReady: isNotificationReady,
+        ),
+        if (errorMessage != null) ...[
           const SizedBox(height: AppSpacing.md),
-          _NotificationStatusRow(
-            permissionStatus: permissionStatus,
-            compactToken: compactToken,
-            hasToken: hasToken,
+          Text(
+            errorMessage!,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
           ),
-          const SizedBox(height: AppSpacing.md),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: wantsNotifications,
-            onChanged: isLoading ? null : onNotificationsEnabledChanged,
-            secondary: Icon(
-              wantsNotifications
-                  ? Icons.notifications_active_outlined
-                  : Icons.notifications_off_outlined,
-              color: wantsNotifications
-                  ? AppColors.accent
-                  : AppColors.secondary,
-            ),
-            title: Text(
-              'Receive notifications',
-              style: AppTextStyles.bodySmall,
-            ),
-            subtitle: Text(
-              wantsNotifications
-                  ? 'Yes. This device is ready to receive app notifications.'
-                  : isNotificationReady
-                  ? 'No. Notifications are paused inside the app.'
-                  : 'No. Turn this on to request notification permission.',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.secondary,
-              ),
-            ),
-          ),
-          if (errorMessage != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              errorMessage!,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'RECEIVED NOTIFICATIONS',
-                  style: AppTextStyles.labelCaps,
-                ),
-              ),
-              if (notifications.isNotEmpty)
-                TextButton(
-                  onPressed: onClearNotifications,
-                  child: const Text('CLEAR'),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          if (notifications.isEmpty)
-            const _NotificationEmptyState()
-          else
-            ...notifications.map(
-              (notification) => _NotificationItem(notification),
-            ),
         ],
-      ),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'RECEIVED NOTIFICATIONS',
+                style: AppTextStyles.labelCaps,
+              ),
+            ),
+            if (notifications.isNotEmpty)
+              TextButton(
+                onPressed: onClearNotifications,
+                child: const Text('CLEAR'),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (notifications.isEmpty)
+          const _NotificationEmptyState()
+        else
+          ...notifications.map(
+            (notification) => _NotificationItem(notification),
+          ),
+      ],
     );
   }
 }
 
-class _NotificationStatusRow extends StatelessWidget {
+class _NotificationReadiness extends StatelessWidget {
   final String permissionStatus;
-  final String compactToken;
-  final bool hasToken;
+  final bool isNotificationReady;
 
-  const _NotificationStatusRow({
+  const _NotificationReadiness({
     required this.permissionStatus,
-    required this.compactToken,
-    required this.hasToken,
+    required this.isNotificationReady,
   });
 
   @override
@@ -146,36 +111,18 @@ class _NotificationStatusRow extends StatelessWidget {
         border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.verified_user_outlined, size: 18),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'Permission: $permissionStatus',
-                  style: AppTextStyles.bodySmall,
-                ),
-              ),
-            ],
+          Text(
+            isNotificationReady ? 'Notifications ready' : 'Permission needed',
+            style: AppTextStyles.labelCaps.copyWith(
+              color: isNotificationReady
+                  ? AppColors.accent
+                  : AppColors.secondary,
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              const Icon(Icons.vpn_key_outlined, size: 18),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'Device token: $compactToken',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: hasToken ? AppColors.primary : AppColors.secondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text('Permission: $permissionStatus', style: AppTextStyles.bodySmall),
         ],
       ),
     );

@@ -8,7 +8,6 @@ import '../common/keyword_formatters.dart';
 import '../common/keyword_hero.dart';
 import '../common/keyword_notice.dart';
 import 'keyword_chart_section.dart';
-import 'keyword_frequency_table.dart';
 import 'keyword_growth_list.dart';
 import 'keyword_metric_grid.dart';
 import 'keyword_trend_charts.dart';
@@ -44,9 +43,7 @@ class KeywordDashboardContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visibleTopKeywords = topKeywords.take(maxKeywordsDisplay).toList();
-    final visibleKeywordGrowth = keywordGrowth
-        .take(maxKeywordsDisplay)
-        .toList();
+    final visibleKeywordGrowth = keywordGrowth.take(5).toList();
     final visibleKeywordIds = visibleTopKeywords
         .map((keyword) => keywordId(keyword['id']?.toString() ?? ''))
         .where((id) => id.isNotEmpty)
@@ -67,12 +64,12 @@ class KeywordDashboardContent extends StatelessWidget {
             children: [
               KeywordHero(
                 eyebrow: 'JOURNAL ARTICLE KEYWORDS',
-                title: 'Search Keywords',
+                title: 'Keyword Insights',
                 subtitle: scopeLabel,
                 badges: [
                   '${topicIds.length} topic filters',
                   '${visibleTopKeywords.length}/${topKeywords.length} keywords',
-                  '${visibleKeywordGrowth.length}/${keywordGrowth.length} growth leaders',
+                  '${visibleKeywordGrowth.length}/${keywordGrowth.length} tracked',
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -99,28 +96,24 @@ class KeywordDashboardContent extends StatelessWidget {
                 )
               else ...[
                 KeywordChartSection(
-                  title: 'Most Used Keywords',
+                  title: 'Keyword Frequency',
                   description:
-                      'Counts show how often each keyword appears in the selected journal article results.',
+                      'Shows the most common keywords in this result set. Tap any keyword in the chart or trend list to open the full analysis.',
                   child: HorizontalBarChart(
                     data: visibleTopKeywords,
-                    title: 'Most used keywords (limit $maxKeywordsDisplay)',
+                    title: 'Keyword frequency (top $maxKeywordsDisplay)',
+                    onItemTap: onKeywordTap,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 KeywordChartSection(
-                  title: 'Top Keywords Growth',
+                  title: 'Keyword Trend',
                   description:
-                      'Ranks keywords by percentage growth from 1995 to the latest available year.',
+                      'Preview of the top 5 recent keyword movements. Open a keyword to see exact yearly counts and percentage change.',
                   child: KeywordGrowthList(
                     growth: visibleKeywordGrowth,
                     onKeywordTap: onKeywordTap,
                   ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                KeywordFrequencyTable(
-                  topKeywords: visibleTopKeywords,
-                  onKeywordTap: onKeywordTap,
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 KeywordTrendCharts(

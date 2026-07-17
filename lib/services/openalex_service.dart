@@ -25,8 +25,8 @@ class _OpenAlexHttpException implements Exception {
 
   @override
   String toString() {
-    if (message.isEmpty) return 'Lỗi API: $statusCode';
-    return 'Lỗi API $statusCode: $message';
+    if (message.isEmpty) return 'API error: $statusCode';
+    return 'API error $statusCode: $message';
   }
 }
 
@@ -207,7 +207,7 @@ class OpenAlexService {
           retryCount++;
           if (retryCount > ApiConstants.maxRetries) {
             throw Exception(
-              'OpenAlex đang giới hạn tốc độ truy cập (429). Vui lòng đợi một chút rồi thử lại.',
+              'OpenAlex is rate limiting requests (429). Please wait a moment and try again.',
             );
           }
 
@@ -222,7 +222,7 @@ class OpenAlexService {
           if (retryCount > ApiConstants.maxRetries) {
             throw _OpenAlexHttpException(
               response.statusCode,
-              'OpenAlex đang xử lý quá tải hoặc timeout. Vui lòng thử lại sau.',
+              'OpenAlex is overloaded or timed out. Please try again later.',
             );
           }
 
@@ -258,7 +258,7 @@ class OpenAlexService {
     } catch (_) {
       // Body is not always JSON.
     }
-    return response.reasonPhrase ?? 'Không rõ nguyên nhân';
+    return response.reasonPhrase ?? 'Unknown reason';
   }
 
   /// Tìm kiếm trực tiếp nguồn xuất bản (Sources/Journals).
@@ -300,7 +300,7 @@ class OpenAlexService {
         'total_count': totalCount,
       };
     } catch (e) {
-      throw Exception('Lỗi khi tìm kiếm nguồn: $e');
+      throw Exception('Could not search sources: $e');
     }
   }
 
@@ -358,7 +358,7 @@ class OpenAlexService {
 
       return {'results': journals, 'total_count': journals.length};
     } catch (e) {
-      throw Exception('Lỗi khi tìm kiếm journal theo topic: $e');
+      throw Exception('Could not search journals by topic: $e');
     }
   }
 
@@ -385,7 +385,7 @@ class OpenAlexService {
       suggestions.sort((a, b) => b.worksCount.compareTo(a.worksCount));
       return suggestions.take(perPage).toList();
     } catch (e) {
-      throw Exception('Lỗi khi tìm topic: $e');
+      throw Exception('Could not search topics: $e');
     }
   }
 
@@ -500,7 +500,7 @@ class OpenAlexService {
         'total_count': totalCount,
       };
     } catch (e) {
-      throw Exception('Lỗi khi tìm works theo journal source: $e');
+      throw Exception('Could not search works by journal source: $e');
     }
   }
 
@@ -527,7 +527,7 @@ class OpenAlexService {
       trends.sort((a, b) => a.year.compareTo(b.year));
       return trends;
     } catch (e) {
-      throw Exception('Lỗi khi tải xu hướng works search: $e');
+      throw Exception('Could not load works search trend: $e');
     }
   }
 
@@ -722,7 +722,7 @@ class OpenAlexService {
         'total_count': totalCount,
       };
     } catch (e) {
-      throw Exception('Lỗi khi tải công bố theo topic: $e');
+      throw Exception('Could not load publications by topic: $e');
     }
   }
 
@@ -753,7 +753,7 @@ class OpenAlexService {
       trends.sort((a, b) => a.year.compareTo(b.year));
       return trends;
     } catch (e) {
-      throw Exception('Lỗi khi tải xu hướng công bố theo topic: $e');
+      throw Exception('Could not load topic publication trend: $e');
     }
   }
 
@@ -1105,7 +1105,7 @@ class OpenAlexService {
             ),
       );
     } catch (e) {
-      throw Exception('Lỗi khi tải thống kê nhóm theo topic: $e');
+      throw Exception('Could not load grouped topic statistics: $e');
     }
   }
 
@@ -1135,7 +1135,7 @@ class OpenAlexService {
       final data = await _getWithRetryAndCache(url);
       return Journal.fromJson(data);
     } catch (e) {
-      throw Exception('Lỗi khi tải chi tiết journal: $e');
+      throw Exception('Could not load journal details: $e');
     }
   }
 
@@ -1195,7 +1195,7 @@ class OpenAlexService {
         'total_count': totalCount,
       };
     } catch (e) {
-      throw Exception('Lỗi khi tải bài báo theo journal: $e');
+      throw Exception('Could not load publications by journal: $e');
     }
   }
 
@@ -1469,7 +1469,7 @@ class OpenAlexService {
         'total_count': totalCount,
       };
     } catch (e) {
-      throw Exception('Lỗi khi tải bài báo theo tác giả: $e');
+      throw Exception('Could not load publications by author: $e');
     }
   }
 }

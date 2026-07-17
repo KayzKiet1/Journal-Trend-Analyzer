@@ -28,8 +28,7 @@ class UserViewModel extends ChangeNotifier {
   bool get isAuthLoading => _isAuthLoading;
   bool get isSignedIn => _firebaseUser != null;
   String get authEmail => _firebaseUser?.email ?? '';
-  String get authDisplayName =>
-      _firebaseUser?.displayName ?? 'Người dùng Google';
+  String get authDisplayName => _firebaseUser?.displayName ?? 'Google user';
   String? get authPhotoUrl => _firebaseUser?.photoUrl;
 
   UserViewModel({FirebaseAuthService? authService})

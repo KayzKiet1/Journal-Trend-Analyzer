@@ -40,7 +40,7 @@ class FirebaseViewModel extends ChangeNotifier {
     } catch (error) {
       _remoteConfigValues = RemoteConfigService.defaultValues;
       _remoteConfigStatus = 'Using default values';
-      _remoteConfigError = 'Không thể tải Remote Config: $error';
+      _remoteConfigError = 'Could not load Remote Config: $error';
     } finally {
       _isRemoteConfigLoading = false;
       notifyListeners();
@@ -54,9 +54,9 @@ class FirebaseViewModel extends ChangeNotifier {
 
     try {
       await _crashlyticsService.recordHandledException();
-      _crashlyticsMessage = 'Handled exception đã được gửi lên Crashlytics.';
+      _crashlyticsMessage = 'Handled exception sent to Crashlytics.';
     } catch (error) {
-      _crashlyticsMessage = 'Không thể gửi handled exception: $error';
+      _crashlyticsMessage = 'Could not send handled exception: $error';
     } finally {
       _isCrashlyticsLoading = false;
       notifyListeners();

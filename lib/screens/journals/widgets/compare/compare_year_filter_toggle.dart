@@ -32,11 +32,11 @@ class CompareYearFilterToggle extends StatelessWidget {
         contentPadding: EdgeInsets.zero,
         activeThumbColor: AppColors.accent,
         title: Text(
-          'Chỉ tính đến năm hiện tại ($currentYear)',
+          'Use data through $currentYear only',
           style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          'Bật để bỏ qua các năm bất thường trong tương lai như 8121 hoặc 9999 khi so sánh.',
+          'Turn this on to ignore unusual future years such as 8121 or 9999 during comparison.',
           style: AppTextStyles.bodySmall,
         ),
       ),

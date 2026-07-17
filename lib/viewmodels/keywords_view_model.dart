@@ -99,9 +99,8 @@ class KeywordsViewModel extends ChangeNotifier {
     final lowerMessage = message.toLowerCase();
     if (message.contains('429') ||
         lowerMessage.contains('too many requests') ||
-        lowerMessage.contains('rate limit') ||
-        lowerMessage.contains('giới hạn tốc độ')) {
-      return 'OpenAlex đang giới hạn số lần truy cập. Tab Keywords đã giới hạn số keyword cần phân tích; vui lòng đợi một chút rồi thử lại.';
+        lowerMessage.contains('rate limit')) {
+      return 'OpenAlex is rate limiting requests. The Keywords tab limits the number of analyzed keywords; please wait a moment and try again.';
     }
 
     return 'Could not load keywords from OpenAlex for the selected journal article search: $error';
@@ -111,7 +110,7 @@ class KeywordsViewModel extends ChangeNotifier {
     required List<Map<String, dynamic>> topKeywords,
     required List<Map<String, dynamic>> recentKeywords,
   }) {
-    const candidateLimit = 5;
+    const candidateLimit = 10;
     final candidates = <KeywordCandidate>[];
     final seenIds = <String>{};
 
@@ -145,20 +144,32 @@ class KeywordsViewModel extends ChangeNotifier {
     Map<String, List<TrendData>> keywordTrends,
   ) {
     final growthRows = <KeywordGrowthData>[];
+    final latestCompleteYear = DateTime.now().year - 1;
+    final recentWindowStartYear = latestCompleteYear - 4;
 
     for (final candidate in candidates) {
       final trends =
           [...?keywordTrends[candidate.id]]
               .where((trend) => trend.year >= analysisStartYear)
-              .where((trend) => trend.year <= DateTime.now().year)
+              .where((trend) => trend.year <= latestCompleteYear)
               .toList()
             ..sort((a, b) => a.year.compareTo(b.year));
       final nonZeroTrends = trends.where((trend) => trend.count > 0).toList();
-      if (nonZeroTrends.length < 2) continue;
+      if (nonZeroTrends.isEmpty) continue;
 
-      final start = nonZeroTrends.first;
-      final end = nonZeroTrends.last;
-      if (start.count <= 0 || end.count <= start.count) continue;
+      final recentTrends = nonZeroTrends
+          .where((trend) => trend.year >= recentWindowStartYear)
+          .toList();
+      final comparisonTrends = recentTrends.length >= 2
+          ? recentTrends
+          : nonZeroTrends.length >= 2
+          ? nonZeroTrends.sublist(nonZeroTrends.length - 2)
+          : nonZeroTrends;
+      if (comparisonTrends.length < 2) continue;
+
+      final start = comparisonTrends.first;
+      final end = comparisonTrends.last;
+      if (start.count <= 0) continue;
 
       growthRows.add(
         KeywordGrowthData(
@@ -175,10 +186,18 @@ class KeywordsViewModel extends ChangeNotifier {
     }
 
     growthRows.sort((a, b) {
+      final byDirection = _momentumRank(b).compareTo(_momentumRank(a));
+      if (byDirection != 0) return byDirection;
       final byGrowth = b.growthRate.compareTo(a.growthRate);
       if (byGrowth != 0) return byGrowth;
       return b.endCount.compareTo(a.endCount);
     });
     return growthRows;
+  }
+
+  int _momentumRank(KeywordGrowthData keyword) {
+    if (keyword.endCount > keyword.startCount) return 2;
+    if (keyword.endCount == keyword.startCount) return 1;
+    return 0;
   }
 }

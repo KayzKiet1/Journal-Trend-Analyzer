@@ -16,6 +16,10 @@ const googleTestAccount = String.fromEnvironment(
   'GOOGLE_TEST_ACCOUNT',
   defaultValue: 'vokiet2004t@gmail.com',
 );
+const runGoogleE2e = bool.fromEnvironment(
+  'RUN_GOOGLE_E2E',
+  defaultValue: false,
+);
 const shortTimeout = Duration(seconds: 8);
 
 Future<void> pumpTestApp(PatrolIntegrationTester $) async {
@@ -119,12 +123,20 @@ Future<void> openJournalsTab(PatrolIntegrationTester $) async {
 
 Future<void> openKeywordsTab(PatrolIntegrationTester $) async {
   await $(#nav_keywords).tap();
-  await waitForFinder($, find.text('Search Keywords'));
+  await waitForFinder($, find.text('Keyword Insights'));
 }
 
 Future<void> openProfileTab(PatrolIntegrationTester $) async {
   await $(#nav_profile).tap();
   await waitForFinder($, find.text('Profile'));
+}
+
+Future<void> expandProfileSection(
+  PatrolIntegrationTester $,
+  String title,
+) async {
+  await $(find.text(title)).scrollTo().tap();
+  await $.pumpAndSettle();
 }
 
 Future<void> searchTopicAndShowPublications(PatrolIntegrationTester $) async {
@@ -138,6 +150,11 @@ Future<void> searchTopicAndShowPublications(PatrolIntegrationTester $) async {
 }
 
 Future<void> signInWithGoogleIfNeeded(PatrolIntegrationTester $) async {
+  if (!runGoogleE2e) return;
+  await signInWithGoogleRequired($);
+}
+
+Future<void> signInWithGoogleRequired(PatrolIntegrationTester $) async {
   if (!$.tester.any(find.byKey(const Key('google_sign_in_button')))) return;
 
   await $(#google_sign_in_button).tap();

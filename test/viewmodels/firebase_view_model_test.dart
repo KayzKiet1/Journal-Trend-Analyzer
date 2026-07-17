@@ -54,7 +54,7 @@ void main() {
       expect(controller.remoteConfigValues.maxKeywordsDisplay, 10);
       expect(controller.remoteConfigValues.enableReportExport, isTrue);
       expect(controller.remoteConfigStatus, 'Using default values');
-      expect(controller.remoteConfigError, contains('Không thể tải'));
+      expect(controller.remoteConfigError, contains('Could not load'));
     });
 
     test('recordHandledException delegates to Crashlytics service', () async {
@@ -69,7 +69,7 @@ void main() {
       expect(crashlytics.handledExceptionCount, 1);
       expect(
         controller.crashlyticsMessage,
-        'Handled exception đã được gửi lên Crashlytics.',
+        'Handled exception sent to Crashlytics.',
       );
       expect(controller.isCrashlyticsLoading, isFalse);
     });
@@ -82,7 +82,7 @@ void main() {
 
       await controller.recordHandledException();
 
-      expect(controller.crashlyticsMessage, contains('Không thể gửi'));
+      expect(controller.crashlyticsMessage, contains('Could not send'));
       expect(controller.isCrashlyticsLoading, isFalse);
     });
   });

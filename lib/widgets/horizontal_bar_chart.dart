@@ -9,6 +9,7 @@ class HorizontalBarChart extends StatelessWidget {
   final String title;
   final String labelKey;
   final String valueKey;
+  final ValueChanged<Map<String, dynamic>>? onItemTap;
 
   const HorizontalBarChart({
     super.key,
@@ -16,6 +17,7 @@ class HorizontalBarChart extends StatelessWidget {
     required this.title,
     this.labelKey = 'name',
     this.valueKey = 'count',
+    this.onItemTap,
   });
 
   @override
@@ -31,6 +33,10 @@ class HorizontalBarChart extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title.toUpperCase(), style: AppTextStyles.labelCaps),
+        if (onItemTap != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text('Tap a row to open details.', style: AppTextStyles.bodySmall),
+        ],
         const SizedBox(height: AppSpacing.md),
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -45,13 +51,24 @@ class HorizontalBarChart extends StatelessWidget {
               final int value = (item[valueKey] as num).toInt();
               final double percentage = maxValue > 0 ? value / maxValue : 0;
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              final row = Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: onItemTap == null
+                    ? EdgeInsets.zero
+                    : const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: onItemTap == null
+                      ? Colors.transparent
+                      : AppColors.surfaceTint,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  border: onItemTap == null
+                      ? null
+                      : Border.all(color: AppColors.border),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
                           child: Text(
@@ -64,12 +81,21 @@ class HorizontalBarChart extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: AppSpacing.sm),
                         Text(
                           value.toString(),
                           style: AppTextStyles.labelCaps.copyWith(
                             color: AppColors.accent,
                           ),
                         ),
+                        if (onItemTap != null) ...[
+                          const SizedBox(width: AppSpacing.xs),
+                          const Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: AppColors.secondary,
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -96,6 +122,20 @@ class HorizontalBarChart extends StatelessWidget {
                       ],
                     ),
                   ],
+                ),
+              );
+              if (onItemTap == null) return row;
+
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  onTap: () => onItemTap!(item),
+                  child: Semantics(
+                    button: true,
+                    label: 'Open details for $label',
+                    child: row,
+                  ),
                 ),
               );
             }).toList(),

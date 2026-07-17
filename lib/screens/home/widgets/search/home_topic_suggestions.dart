@@ -50,8 +50,8 @@ class HomeTopicSuggestions extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Topic filters', style: AppTextStyles.bodyLarge),
-                    if (_summaryText != null)
-                      Text(_summaryText!, style: AppTextStyles.bodySmall),
+                    const SizedBox(height: 2),
+                    Text(_summaryText, style: AppTextStyles.bodySmall),
                   ],
                 ),
               ),
@@ -77,10 +77,12 @@ class HomeTopicSuggestions extends StatelessWidget {
     );
   }
 
-  String? get _summaryText {
-    if (selectedTopics.isEmpty) return null;
+  String get _summaryText {
+    if (selectedTopics.isEmpty) {
+      return 'Optional: narrow results by OpenAlex topic';
+    }
     if (selectedTopics.length == 1) return selectedTopics.first.name;
-    return '${selectedTopics.length} selected';
+    return '${selectedTopics.length} filters selected';
   }
 
   void _openTopicFilter(BuildContext context) {

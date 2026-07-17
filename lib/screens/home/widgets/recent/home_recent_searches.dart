@@ -17,24 +17,45 @@ class HomeRecentSearches extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.history, color: AppColors.accent, size: 18),
-            const SizedBox(width: AppSpacing.sm),
-            Text('RECENT SEARCHES', style: AppTextStyles.labelCaps),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        if (history.isEmpty)
-          Text('No recent searches yet.', style: AppTextStyles.bodySmall)
-        else
+    if (history.isEmpty) return const SizedBox.shrink();
+
+    final visibleHistory = history.take(6).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.history, color: AppColors.accent, size: 18),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Recent searches', style: AppTextStyles.bodyLarge),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Start from a recent topic.',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
-            children: history
+            children: visibleHistory
                 .map(
                   (search) => _RecentTopicChip(
                     search: search,
@@ -43,7 +64,8 @@ class HomeRecentSearches extends StatelessWidget {
                 )
                 .toList(),
           ),
-      ],
+        ],
+      ),
     );
   }
 }

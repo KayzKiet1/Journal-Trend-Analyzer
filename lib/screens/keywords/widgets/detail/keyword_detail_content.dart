@@ -39,6 +39,8 @@ class KeywordDetailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final recentTrend = _recentTrendSummary(trends);
+
     return SingleChildScrollView(
       key: const Key('keyword_detail_content'),
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -55,20 +57,33 @@ class KeywordDetailContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          KeywordDetailSummary(totalPublications: totalPublications),
+          KeywordDetailSummary(
+            totalPublications: totalPublications,
+            journalCount: journals.length,
+            authorCount: authors.length,
+            trendPointCount: trends.length,
+            recentTrendLabel: recentTrend.label,
+            recentTrendDescription: recentTrend.description,
+          ),
           const SizedBox(height: AppSpacing.lg),
           YearTrendChart(
             trends: trends,
             forceLineChart: true,
-            title: 'Publication trend over time',
+            title: 'Yearly article activity',
           ),
           const SizedBox(height: AppSpacing.lg),
-          HorizontalBarChart(data: journals, title: 'Related journals'),
+          HorizontalBarChart(
+            data: journals,
+            title: 'Journals publishing this keyword',
+          ),
           const SizedBox(height: AppSpacing.lg),
-          HorizontalBarChart(data: authors, title: 'Top authors'),
+          HorizontalBarChart(
+            data: authors,
+            title: 'Authors using this keyword',
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Authors are ranked by the number of matching publications.',
+            'Authors and journals are ranked by matching article count in the current search scope.',
             style: AppTextStyles.bodySmall,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -80,4 +95,52 @@ class KeywordDetailContent extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RecentTrendSummary {
+  final String label;
+  final String description;
+
+  const _RecentTrendSummary({required this.label, required this.description});
+}
+
+_RecentTrendSummary _recentTrendSummary(List<TrendData> trends) {
+  final latestCompleteYear = DateTime.now().year - 1;
+  final recentWindowStartYear = latestCompleteYear - 4;
+  final recentTrends =
+      trends
+          .where((trend) => trend.year >= recentWindowStartYear)
+          .where((trend) => trend.year <= latestCompleteYear)
+          .where((trend) => trend.count > 0)
+          .toList()
+        ..sort((a, b) => a.year.compareTo(b.year));
+
+  final comparisonTrends = recentTrends.length >= 2
+      ? recentTrends
+      : (trends.where((trend) => trend.count > 0).toList()
+          ..sort((a, b) => a.year.compareTo(b.year)));
+
+  if (comparisonTrends.length < 2) {
+    return const _RecentTrendSummary(
+      label: 'No trend',
+      description: 'Not enough yearly data for a recent change calculation.',
+    );
+  }
+
+  final start = comparisonTrends.first;
+  final end = comparisonTrends.last;
+  if (start.count <= 0) {
+    return const _RecentTrendSummary(
+      label: 'No trend',
+      description: 'Not enough yearly data for a recent change calculation.',
+    );
+  }
+
+  final change = ((end.count - start.count) / start.count) * 100;
+  final sign = change > 0 ? '+' : '';
+  return _RecentTrendSummary(
+    label: '$sign${change.toStringAsFixed(1)}%',
+    description:
+        '${start.year}-${end.year}: ${start.count} to ${end.count} articles',
+  );
 }
