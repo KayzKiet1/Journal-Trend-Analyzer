@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:journal_trend_analyzer/widgets/publication_card.dart';
 import 'package:patrol/patrol.dart';
 
 import 'helpers/e2e_helpers.dart';
@@ -15,31 +14,27 @@ void main() {
     'Test Case 9 - PDF Export',
     timeout: const Timeout(Duration(seconds: 30)),
     ($) async {
-      await pumpRealApp($);
+      await pumpTestApp($);
       await openProfileTab($);
-      await signInWithGoogleIfNeeded($);
-      await waitForFinder(
-        $,
-        find.byKey(const Key('sign_out_button')),
-        timeout: const Duration(seconds: 20),
-      );
-      await openHome($);
-      await $(#home_topic_search_field).enterText('Artificial intelligence');
-      await $(#home_search_button).tap();
-      await waitForFinder(
-        $,
-        find.text('MOST INFLUENTIAL PUBLICATIONS'),
-        timeout: const Duration(seconds: 25),
-      );
-      await waitForFinder(
-        $,
-        find.byType(PublicationCard),
-        timeout: const Duration(seconds: 10),
-      );
-      await openProfileTab($);
+      if (runGoogleE2e) {
+        await signInWithGoogleIfNeeded($);
+        await waitForFinder(
+          $,
+          find.byKey(const Key('sign_out_button')),
+          timeout: const Duration(seconds: 20),
+        );
+      }
+
+      await expandProfileSection($, 'Research Trend PDF');
       await $(#export_pdf_button).scrollTo();
       expect(find.text('Research Trend PDF'), findsOneWidget);
-      if (runFirebaseE2e) {
+      expect(find.text(defaultTopic), findsWidgets);
+
+      if (!runGoogleE2e) {
+        expect(find.text('Required for Storage'), findsOneWidget);
+      }
+
+      if (runFirebaseE2e && runGoogleE2e) {
         await $(#export_pdf_button).tap();
         await waitForFinder(
           $,

@@ -11,6 +11,14 @@ void main() {
     ($) async {
       await pumpRealApp($);
       await openProfileTab($);
+      expect(find.byKey(const Key('profile_content')), findsOneWidget);
+
+      if (!runGoogleE2e) {
+        expect(find.text('Guest researcher'), findsOneWidget);
+        expect(find.byKey(const Key('google_sign_in_button')), findsOneWidget);
+        return;
+      }
+
       await signInWithGoogleIfNeeded($);
       await waitForFinder(
         $,

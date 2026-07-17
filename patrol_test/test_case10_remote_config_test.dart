@@ -10,13 +10,14 @@ void main() {
     ($) async {
       await pumpRealApp($);
       await openProfileTab($);
+      await expandProfileSection($, 'Firebase Remote Config');
       await $(#fetch_remote_config_button).scrollTo();
-      await $(#fetch_remote_config_button).tap();
       await waitForFinder(
         $,
-        find.text('Firebase Remote Config'),
+        find.text('Journal cards limit'),
         timeout: const Duration(seconds: 20),
       );
+      await $(#fetch_remote_config_button).tap();
       expect(find.text('Journal cards limit'), findsOneWidget);
       expect(find.text('Keyword rows limit'), findsOneWidget);
       expect(find.text('PDF export feature'), findsOneWidget);

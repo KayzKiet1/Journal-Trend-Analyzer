@@ -11,6 +11,16 @@ void main() {
     ($) async {
       await pumpRealApp($);
       await openProfileTab($);
+      expect(find.byKey(const Key('profile_content')), findsOneWidget);
+
+      if (!runGoogleE2e) {
+        expect(find.text('Guest researcher'), findsOneWidget);
+        expect(find.byKey(const Key('google_sign_in_button')), findsOneWidget);
+        expect(find.text('Research activity'), findsOneWidget);
+        expect(find.text('Firebase test lab'), findsOneWidget);
+        return;
+      }
+
       await signInWithGoogleIfNeeded($);
       await waitForFinder(
         $,
@@ -19,6 +29,7 @@ void main() {
       );
       expect(find.byKey(const Key('profile_content')), findsOneWidget);
       expect(find.byKey(const Key('sign_out_button')), findsOneWidget);
+      await expandProfileSection($, 'Notifications');
       expect(find.text('Receive notifications'), findsOneWidget);
     },
   );

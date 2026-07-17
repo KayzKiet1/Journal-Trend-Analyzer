@@ -18,7 +18,7 @@ Future<void> main() async {
 }
 
 /// Lớp gốc của ứng dụng, thiết lập quản lý trạng thái và giao diện chính.
-/// Đã gỡ bỏ khung điện thoại ép buộc trên Web để tối ưu cho màn hình lớn.
+
 class JournalTrendAnalyzerApp extends StatelessWidget {
   const JournalTrendAnalyzerApp({super.key});
 

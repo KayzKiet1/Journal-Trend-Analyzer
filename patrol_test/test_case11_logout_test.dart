@@ -11,7 +11,7 @@ void main() {
     ($) async {
       await pumpRealApp($);
       await openProfileTab($);
-      await signInWithGoogleIfNeeded($);
+      await signInWithGoogleRequired($);
       await waitForFinder(
         $,
         find.byKey(const Key('sign_out_button')),
