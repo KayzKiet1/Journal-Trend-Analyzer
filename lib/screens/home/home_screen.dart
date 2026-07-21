@@ -22,7 +22,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final HomeViewModel _viewModel = HomeViewModel();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_loadMorePublicationsNearBottom);
+  }
 
   void _handleSearch() {
     final controller = context.read<PublicationViewModel>();
@@ -85,9 +92,25 @@ class _HomeScreenState extends State<HomeScreen> {
     controller.setSelectedIndex(1);
   }
 
+  void _loadMorePublicationsNearBottom() {
+    if (!_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+    if (position.extentAfter > 480) return;
+
+    final controller = context.read<PublicationViewModel>();
+    if (!controller.hasMoreTopicDashboardPublications ||
+        controller.isLoadingMoreTopicDashboardPublications) {
+      return;
+    }
+
+    controller.loadMoreWorkSearchDashboardPublications();
+  }
+
   @override
   void dispose() {
     _viewModel.dispose();
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -115,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
             maxWidth: AppSpacing.maxContentWidth,
           ),
           child: SingleChildScrollView(
+            controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
               AppSpacing.md,
@@ -180,6 +204,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               topJournals: publicationController
                                   .topicDashboardTopJournals,
                               maxJournalsDisplay: maxJournals,
+                              lastSearchText:
+                                  publicationController.lastSearchText,
+                              isLoadingMorePublications: publicationController
+                                  .isLoadingMoreTopicDashboardPublications,
+                              selectedPublicationSort: publicationController
+                                  .topicDashboardPublicationSort,
+                              onPublicationSortChanged: publicationController
+                                  .changeWorkSearchPublicationSort,
                               onPublicationTap: (publication) {
                                 Navigator.push(
                                   context,

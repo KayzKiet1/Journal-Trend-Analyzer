@@ -13,6 +13,7 @@ class PublicationCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isBookmarked;
   final VoidCallback? onBookmarkToggle;
+  final bool showJournal;
 
   const PublicationCard({
     super.key,
@@ -24,6 +25,7 @@ class PublicationCard extends StatelessWidget {
     required this.onTap,
     this.isBookmarked = false,
     this.onBookmarkToggle,
+    this.showJournal = true,
   });
 
   @override
@@ -99,14 +101,15 @@ class PublicationCard extends StatelessWidget {
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
                 children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 360),
-                    child: _PublicationMetaChip(
-                      icon: Icons.menu_book_outlined,
-                      label: journal,
-                      highlighted: false,
+                  if (showJournal && journal.isNotEmpty)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
+                      child: _PublicationMetaChip(
+                        icon: Icons.menu_book_outlined,
+                        label: journal,
+                        highlighted: false,
+                      ),
                     ),
-                  ),
                   _PublicationMetaChip(
                     icon: Icons.format_quote,
                     label: '$citations',

@@ -76,22 +76,22 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined, key: Key('nav_home')),
               activeIcon: Icon(Icons.home, key: Key('nav_home')),
-              label: 'HOME',
+              label: 'Home',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.book_outlined, key: Key('nav_journals')),
               activeIcon: Icon(Icons.book, key: Key('nav_journals')),
-              label: 'JOURNALS',
+              label: 'Journals',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.analytics_outlined, key: Key('nav_keywords')),
               activeIcon: Icon(Icons.analytics, key: Key('nav_keywords')),
-              label: 'KEYWORDS',
+              label: 'Keywords',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline, key: Key('nav_profile')),
               activeIcon: Icon(Icons.person, key: Key('nav_profile')),
-              label: 'PROFILE',
+              label: 'Profile',
             ),
           ],
         ),

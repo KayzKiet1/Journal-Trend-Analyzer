@@ -7,8 +7,10 @@ import '../../../../utils/app_colors.dart';
 import '../../../../utils/app_spacing.dart';
 import '../../../../utils/app_text_styles.dart';
 import '../../../../viewmodels/publication_bookmark_view_model.dart';
+import '../../../../viewmodels/publication_view_model.dart';
 import '../../../../widgets/publication_card.dart';
 import '../home_formatters.dart';
+import 'home_empty_state.dart';
 import 'home_metric_tile.dart';
 import 'home_notice.dart';
 import 'home_rank_section.dart';
@@ -24,6 +26,10 @@ class HomeTopicDashboard extends StatelessWidget {
   final Map<String, int> topAuthors;
   final Map<String, int> topJournals;
   final int maxJournalsDisplay;
+  final String lastSearchText;
+  final bool isLoadingMorePublications;
+  final WorkSearchPublicationSort selectedPublicationSort;
+  final ValueChanged<WorkSearchPublicationSort> onPublicationSortChanged;
   final ValueChanged<Publication> onPublicationTap;
   final VoidCallback onViewKeywords;
   final VoidCallback onExploreJournals;
@@ -40,6 +46,10 @@ class HomeTopicDashboard extends StatelessWidget {
     required this.topAuthors,
     required this.topJournals,
     required this.maxJournalsDisplay,
+    required this.lastSearchText,
+    required this.isLoadingMorePublications,
+    required this.selectedPublicationSort,
+    required this.onPublicationSortChanged,
     required this.onPublicationTap,
     required this.onViewKeywords,
     required this.onExploreJournals,
@@ -67,7 +77,7 @@ class HomeTopicDashboard extends StatelessWidget {
     }
 
     if (!hasData) {
-      return const SizedBox(height: AppSpacing.xl);
+      return HomeEmptyState(lastSearchText: lastSearchText);
     }
 
     final topPublication = publications.isEmpty ? null : publications.first;
@@ -217,7 +227,55 @@ class HomeTopicDashboard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
-          Text('MOST INFLUENTIAL PUBLICATIONS', style: AppTextStyles.h2),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final title = Text('PUBLICATIONS', style: AppTextStyles.h2);
+              final sortControl = SegmentedButton<WorkSearchPublicationSort>(
+                segments: WorkSearchPublicationSort.values
+                    .map(
+                      (sort) => ButtonSegment(
+                        value: sort,
+                        icon: Icon(
+                          sort == WorkSearchPublicationSort.newest
+                              ? Icons.update
+                              : Icons.format_quote,
+                          size: 16,
+                        ),
+                        label: Text(sort.label),
+                      ),
+                    )
+                    .toList(),
+                selected: {selectedPublicationSort},
+                onSelectionChanged: (selection) =>
+                    onPublicationSortChanged(selection.first),
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(AppTextStyles.labelCaps),
+                  foregroundColor: const WidgetStatePropertyAll(
+                    AppColors.textPrimary,
+                  ),
+                ),
+              );
+
+              if (constraints.maxWidth < 560) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    title,
+                    const SizedBox(height: AppSpacing.sm),
+                    sortControl,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: title),
+                  sortControl,
+                ],
+              );
+            },
+          ),
           const SizedBox(height: AppSpacing.md),
           if (topPublication == null)
             const HomeNotice(
@@ -227,22 +285,28 @@ class HomeTopicDashboard extends StatelessWidget {
           else
             Consumer<PublicationBookmarkViewModel>(
               builder: (context, bookmarks, _) => Column(
-                children: publications
-                    .take(5)
-                    .map(
-                      (publication) => PublicationCard(
-                        title: publication.title,
-                        year: publication.publicationYear.toString(),
-                        journal: publication.journalName,
-                        authors: publication.authorsString,
-                        citations: publication.citedByCount,
-                        isBookmarked: bookmarks.isBookmarked(publication.id),
-                        onBookmarkToggle: () =>
-                            bookmarks.toggleBookmark(publication),
-                        onTap: () => onPublicationTap(publication),
-                      ),
-                    )
-                    .toList(),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ...publications.map(
+                    (publication) => PublicationCard(
+                      title: publication.title,
+                      year: publication.publicationYear.toString(),
+                      journal: publication.journalName,
+                      authors: publication.authorsString,
+                      citations: publication.citedByCount,
+                      isBookmarked: bookmarks.isBookmarked(publication.id),
+                      onBookmarkToggle: () =>
+                          bookmarks.toggleBookmark(publication),
+                      onTap: () => onPublicationTap(publication),
+                    ),
+                  ),
+                  if (isLoadingMorePublications) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    const Center(
+                      child: CircularProgressIndicator(color: AppColors.accent),
+                    ),
+                  ],
+                ],
               ),
             ),
         ],

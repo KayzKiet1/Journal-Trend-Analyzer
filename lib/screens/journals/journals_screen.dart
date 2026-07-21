@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/recent_search_model.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_spacing.dart';
 import '../../viewmodels/journal_library_view_model.dart';
 import '../../viewmodels/publication_view_model.dart';
+import '../../viewmodels/user_view_model.dart';
 import '../../widgets/loading_widget.dart';
 import '../../models/journal_model.dart';
 import 'compare_journals_screen.dart';
@@ -12,6 +14,7 @@ import 'widgets/list/journal_card.dart';
 import 'widgets/list/journal_compare_bar.dart';
 import 'widgets/list/journal_feedback.dart';
 import 'widgets/list/journal_hero_header.dart';
+import 'widgets/list/journal_recent_searches.dart';
 import 'widgets/list/journal_search_panel.dart';
 
 class JournalsScreen extends StatefulWidget {
@@ -33,7 +36,6 @@ class _JournalsScreenState extends State<JournalsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = context.read<PublicationViewModel>();
       _journalSearchController.text = controller.journalSearchText;
-      _loadInitialJournals();
     });
 
     _scrollController.addListener(_onScroll);
@@ -111,6 +113,7 @@ class _JournalsScreenState extends State<JournalsScreen> {
           const JournalHeroHeader(),
           const SizedBox(height: AppSpacing.lg),
           _buildJournalSearchPanel(controller),
+          _buildRecentSearches(),
           _buildCompareBar(),
           JournalEmptyState(
             hasQuery: _journalSearchController.text.trim().isNotEmpty,
@@ -135,6 +138,7 @@ class _JournalsScreenState extends State<JournalsScreen> {
               const JournalHeroHeader(),
               const SizedBox(height: AppSpacing.lg),
               _buildJournalSearchPanel(controller),
+              _buildRecentSearches(),
               _buildCompareBar(),
               const SizedBox(height: AppSpacing.lg),
             ],
@@ -169,17 +173,6 @@ class _JournalsScreenState extends State<JournalsScreen> {
     );
   }
 
-  void _loadInitialJournals() {
-    if (!mounted) return;
-
-    final controller = context.read<PublicationViewModel>();
-    if (controller.journalSources.isEmpty &&
-        !controller.isLoadingJournals &&
-        controller.journalErrorMessage.isEmpty) {
-      controller.searchJournals('');
-    }
-  }
-
   void _retrySearch() {
     final controller = context.read<PublicationViewModel>();
     controller.cancelActiveSearch();
@@ -200,9 +193,12 @@ class _JournalsScreenState extends State<JournalsScreen> {
   }
 
   void _submitJournalSearch() {
-    context.read<PublicationViewModel>().searchJournals(
-      _journalSearchController.text,
-    );
+    _runJournalSearch(_journalSearchController.text, saveRecent: true);
+  }
+
+  void _clearJournalSearch() {
+    setState(_journalSearchController.clear);
+    context.read<PublicationViewModel>().searchJournals('');
     FocusScope.of(context).unfocus();
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -213,9 +209,30 @@ class _JournalsScreenState extends State<JournalsScreen> {
     }
   }
 
-  void _clearJournalSearch() {
-    setState(_journalSearchController.clear);
-    context.read<PublicationViewModel>().searchJournals('');
+  Widget _buildRecentSearches() {
+    final history = context.watch<UserViewModel>().recentJournalSearches;
+    if (history.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: JournalRecentSearches(
+        history: history,
+        onTap: _handleRecentJournalSearch,
+      ),
+    );
+  }
+
+  void _handleRecentJournalSearch(RecentSearch search) {
+    setState(() => _journalSearchController.text = search.label);
+    _runJournalSearch(search.label, saveRecent: false);
+  }
+
+  void _runJournalSearch(String query, {required bool saveRecent}) {
+    final trimmedQuery = query.trim();
+    context.read<PublicationViewModel>().searchJournals(trimmedQuery);
+    if (saveRecent && trimmedQuery.isNotEmpty) {
+      context.read<UserViewModel>().addJournalSearch(trimmedQuery);
+    }
     FocusScope.of(context).unfocus();
     if (_scrollController.hasClients) {
       _scrollController.animateTo(

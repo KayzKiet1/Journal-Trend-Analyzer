@@ -12,6 +12,8 @@ class KeywordsViewModel extends ChangeNotifier {
   OpenAlexService _apiService;
   String? _apiEmail;
   static const int analysisStartYear = 1995;
+  static const int dashboardKeywordLimit = 10;
+  static const int dashboardTrendKeywordLimit = 5;
 
   List<Map<String, dynamic>> _topKeywords = [];
   List<KeywordGrowthData> _keywordGrowth = [];
@@ -19,6 +21,7 @@ class KeywordsViewModel extends ChangeNotifier {
   bool _isLoading = false;
   String _errorMessage = '';
   String _loadedTopicKey = '';
+  String _keywordSearchQuery = '';
   int _requestId = 0;
 
   List<Map<String, dynamic>> get topKeywords => _topKeywords;
@@ -27,6 +30,20 @@ class KeywordsViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get errorMessage => _errorMessage;
   String get loadedTopicKey => _loadedTopicKey;
+  String get keywordSearchQuery => _keywordSearchQuery;
+
+  void searchKeywords(String query) {
+    final trimmedQuery = query.trim();
+    if (_keywordSearchQuery == trimmedQuery) return;
+
+    _keywordSearchQuery = trimmedQuery;
+    _loadedTopicKey = '';
+    _topKeywords = [];
+    _keywordGrowth = [];
+    _keywordTrends = {};
+    _errorMessage = '';
+    notifyListeners();
+  }
 
   void syncApiService(String? email) {
     final normalizedEmail = email?.trim();
@@ -57,11 +74,13 @@ class KeywordsViewModel extends ChangeNotifier {
         query: query,
         topicIds: topicIds,
         fromYear: fromYear,
+        perPage: dashboardKeywordLimit,
       );
       final trendingKeywords = await _apiService.getWorkSearchTrendingKeywords(
         query: query,
         topicIds: topicIds,
         fromYear: fromYear,
+        perPage: dashboardTrendKeywordLimit,
       );
       final keywordCandidates = _keywordGrowthCandidates(
         topKeywords: topKeywords,
@@ -72,7 +91,7 @@ class KeywordsViewModel extends ChangeNotifier {
         topicIds: topicIds,
         keywordIds: keywordCandidates.map((keyword) => keyword.id).toList(),
         fromYear: fromYear,
-        perKeyword: keywordCandidates.length,
+        perKeyword: dashboardTrendKeywordLimit,
       );
       final keywordGrowth = _buildKeywordGrowthData(
         keywordCandidates,
@@ -110,7 +129,7 @@ class KeywordsViewModel extends ChangeNotifier {
     required List<Map<String, dynamic>> topKeywords,
     required List<Map<String, dynamic>> recentKeywords,
   }) {
-    const candidateLimit = 10;
+    const candidateLimit = dashboardTrendKeywordLimit;
     final candidates = <KeywordCandidate>[];
     final seenIds = <String>{};
 

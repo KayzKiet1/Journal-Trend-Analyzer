@@ -7,6 +7,29 @@ import '../models/research_topic_model.dart';
 import '../models/trend_data_model.dart';
 import '../services/openalex_service.dart';
 
+enum WorkSearchPublicationSort {
+  newest,
+  mostCited;
+
+  String get label {
+    switch (this) {
+      case WorkSearchPublicationSort.newest:
+        return 'Newest';
+      case WorkSearchPublicationSort.mostCited:
+        return 'Most cited';
+    }
+  }
+
+  String get apiSort {
+    switch (this) {
+      case WorkSearchPublicationSort.newest:
+        return 'publication_date:desc';
+      case WorkSearchPublicationSort.mostCited:
+        return 'cited_by_count:desc';
+    }
+  }
+}
+
 /// ViewModel quản lý trạng thái của danh sách bài báo và tìm kiếm đa thực thể
 class PublicationViewModel extends ChangeNotifier {
   OpenAlexService _apiService;
@@ -119,11 +142,16 @@ class PublicationViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> _keywordFixtures = [];
   bool _hasTestingFixtures = false;
   bool _isLoadingTopicDashboard = false;
+  bool _isLoadingMoreTopicDashboardPublications = false;
   String _topicDashboardError = '';
   String? _topicDashboardTopicKey;
   int _topicDashboardTotalWorks = 0;
   double _topicDashboardAverageCitations = 0;
   int? _topicDashboardPeakYear;
+  int _topicDashboardWorksPage = 1;
+  WorkSearchPublicationSort _topicDashboardPublicationSort =
+      WorkSearchPublicationSort.mostCited;
+  static const int _topicDashboardPublicationsPerPage = 10;
 
   int _currentPage = 1;
   int _totalResults = 0;
@@ -170,10 +198,16 @@ class PublicationViewModel extends ChangeNotifier {
   Map<String, int> get topicDashboardTopAuthors => _topicDashboardTopAuthors;
   Map<String, int> get topicDashboardTopJournals => _topicDashboardTopJournals;
   bool get isLoadingTopicDashboard => _isLoadingTopicDashboard;
+  bool get isLoadingMoreTopicDashboardPublications =>
+      _isLoadingMoreTopicDashboardPublications;
+  bool get hasMoreTopicDashboardPublications =>
+      _topicDashboardPublications.length < _topicDashboardTotalWorks;
   String get topicDashboardError => _topicDashboardError;
   int get topicDashboardTotalWorks => _topicDashboardTotalWorks;
   double get topicDashboardAverageCitations => _topicDashboardAverageCitations;
   int? get topicDashboardPeakYear => _topicDashboardPeakYear;
+  WorkSearchPublicationSort get topicDashboardPublicationSort =>
+      _topicDashboardPublicationSort;
   Publication? get topicDashboardTopPublication =>
       _topicDashboardPublications.isEmpty
       ? null
@@ -217,6 +251,7 @@ class PublicationViewModel extends ChangeNotifier {
     _currentWorkQuery = topic;
     _currentWorkTopicIds = topicIds;
     _workSearchDashboardKey = '$topic|${topicIds.join('|')}';
+    _topicDashboardPublicationSort = WorkSearchPublicationSort.mostCited;
     _selectedTopics = [
       ResearchTopic(
         id: topicIds.isEmpty ? 'test-topic' : topicIds.first,
@@ -240,6 +275,8 @@ class PublicationViewModel extends ChangeNotifier {
     _topicDashboardError = '';
     _topicDashboardTopicKey = topicIds.join('|');
     _isLoadingTopicDashboard = false;
+    _isLoadingMoreTopicDashboardPublications = false;
+    _topicDashboardWorksPage = 1;
     _journalSources = journals;
     _journalSourcesTotal = journals.length;
     _journalSearchText = '';
@@ -583,7 +620,8 @@ class PublicationViewModel extends ChangeNotifier {
     }
 
     final topicKey = _topicKey(topicIds) ?? '';
-    final searchKey = '${trimmedQuery.toLowerCase()}|$topicKey';
+    final searchKey =
+        '${trimmedQuery.toLowerCase()}|$topicKey|${_topicDashboardPublicationSort.name}';
 
     if (_isLoadingTopicDashboard) return;
     if (_workSearchDashboardKey == searchKey &&
@@ -616,11 +654,18 @@ class PublicationViewModel extends ChangeNotifier {
     _topicDashboardTotalWorks = 0;
     _topicDashboardAverageCitations = 0;
     _topicDashboardPeakYear = null;
+    _topicDashboardWorksPage = 1;
+    _isLoadingMoreTopicDashboardPublications = false;
     notifyListeners();
 
     try {
       final worksData = await _apiService
-          .searchWorks(query: trimmedQuery, topicIds: topicIds, perPage: 20)
+          .searchWorks(
+            query: trimmedQuery,
+            topicIds: topicIds,
+            perPage: _topicDashboardPublicationsPerPage,
+            sort: _topicDashboardPublicationSort.apiSort,
+          )
           .timeout(
             searchTimeout,
             onTimeout: () => throw TimeoutException(
@@ -661,6 +706,83 @@ class PublicationViewModel extends ChangeNotifier {
         _isLoadingTopicDashboard = false;
         notifyListeners();
       }
+    }
+  }
+
+  Future<void> loadMoreWorkSearchDashboardPublications() async {
+    final query = _currentWorkQuery.trim();
+    if (query.length < 2 ||
+        _hasTestingFixtures ||
+        _isLoadingTopicDashboard ||
+        _isLoadingMoreTopicDashboardPublications ||
+        !hasMoreTopicDashboardPublications) {
+      return;
+    }
+
+    final requestId = ++_searchRequestId;
+    final nextPage = _topicDashboardWorksPage + 1;
+    _isLoadingMoreTopicDashboardPublications = true;
+    _topicDashboardError = '';
+    notifyListeners();
+
+    try {
+      final worksData = await _apiService
+          .searchWorks(
+            query: query,
+            topicIds: _currentWorkTopicIds,
+            page: nextPage,
+            perPage: _topicDashboardPublicationsPerPage,
+            sort: _topicDashboardPublicationSort.apiSort,
+          )
+          .timeout(
+            searchTimeout,
+            onTimeout: () => throw TimeoutException(
+              'OpenAlex took too long while loading more works. Please try again.',
+            ),
+          );
+
+      if (requestId != _searchRequestId) return;
+
+      final publications = worksData['results'] as List<Publication>;
+      _topicDashboardWorksPage = nextPage;
+      _topicDashboardPublications = [
+        ..._topicDashboardPublications,
+        ...publications,
+      ];
+      _topicDashboardTotalWorks =
+          worksData['total_count'] as int? ?? _topicDashboardTotalWorks;
+      _topicDashboardAverageCitations = _averageCitations(
+        _topicDashboardPublications,
+      );
+      _topicDashboardTopAuthors = _rankAuthorsFromPublications(
+        _topicDashboardPublications,
+      );
+      _topicDashboardTopJournals = _rankJournalsFromPublications(
+        _topicDashboardPublications,
+      );
+    } catch (e) {
+      if (requestId != _searchRequestId) return;
+      _topicDashboardError = _formatSearchError(e);
+    } finally {
+      if (requestId == _searchRequestId) {
+        _isLoadingMoreTopicDashboardPublications = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> changeWorkSearchPublicationSort(
+    WorkSearchPublicationSort sort,
+  ) async {
+    if (_topicDashboardPublicationSort == sort) return;
+
+    _topicDashboardPublicationSort = sort;
+    _workSearchDashboardKey = null;
+    notifyListeners();
+
+    final query = _currentWorkQuery.trim();
+    if (query.length >= 2) {
+      await loadWorkSearchDashboard(query);
     }
   }
 
@@ -761,6 +883,8 @@ class PublicationViewModel extends ChangeNotifier {
     _topicDashboardTotalWorks = 0;
     _topicDashboardAverageCitations = 0;
     _topicDashboardPeakYear = null;
+    _topicDashboardWorksPage = 1;
+    _isLoadingMoreTopicDashboardPublications = false;
     notifyListeners();
 
     try {
@@ -1056,12 +1180,14 @@ class PublicationViewModel extends ChangeNotifier {
     _topicDashboardTopAuthors = {};
     _topicDashboardTopJournals = {};
     _isLoadingTopicDashboard = false;
+    _isLoadingMoreTopicDashboardPublications = false;
     _topicDashboardError = '';
     _topicDashboardTopicKey = null;
     _workSearchDashboardKey = null;
     _topicDashboardTotalWorks = 0;
     _topicDashboardAverageCitations = 0;
     _topicDashboardPeakYear = null;
+    _topicDashboardWorksPage = 1;
     _journalSources = [];
     _journalSourcesPage = 1;
     _journalSourcesTotal = 0;

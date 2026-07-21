@@ -115,6 +115,7 @@ class JournalPublicationsSection extends StatelessWidget {
               isBookmarked: isPublicationBookmarked(publication.id),
               onBookmarkToggle: () => onBookmarkToggle(publication),
               onTap: () => onPublicationTap(publication),
+              showJournal: false,
             ),
           ),
       ],

@@ -80,6 +80,12 @@ void main() {
           'legacy search',
           '{"label":""}',
         ],
+        'recent_journal_searches': ['nature', 'science', '{"label":""}'],
+        'recent_keyword_searches': [
+          'deep learning',
+          'robotics',
+          '{"label":""}',
+        ],
       });
 
       final controller = UserViewModel(authService: _FakeAuthService());
@@ -93,6 +99,46 @@ void main() {
       ]);
       expect(controller.recentSearches.first.topicNames, [
         'Artificial Intelligence',
+      ]);
+      expect(controller.recentJournalSearches.map((item) => item.label), [
+        'nature',
+        'science',
+      ]);
+      expect(controller.recentKeywordSearches.map((item) => item.label), [
+        'deep learning',
+        'robotics',
+      ]);
+    });
+
+    test('keeps journal recent searches separate and unique', () async {
+      final controller = UserViewModel(authService: _FakeAuthService());
+      await Future<void>.delayed(Duration.zero);
+
+      await controller.addSearch('machine learning');
+      await controller.addJournalSearch('nature');
+      await controller.addJournalSearch('science');
+      await controller.addJournalSearch('nature');
+
+      expect(controller.recentSearches.single.label, 'machine learning');
+      expect(controller.recentJournalSearches.map((item) => item.label), [
+        'nature',
+        'science',
+      ]);
+    });
+
+    test('keeps keyword recent searches separate and unique', () async {
+      final controller = UserViewModel(authService: _FakeAuthService());
+      await Future<void>.delayed(Duration.zero);
+
+      await controller.addSearch('home topic');
+      await controller.addKeywordSearch('machine learning');
+      await controller.addKeywordSearch('deep learning');
+      await controller.addKeywordSearch('machine learning');
+
+      expect(controller.recentSearches.single.label, 'home topic');
+      expect(controller.recentKeywordSearches.map((item) => item.label), [
+        'machine learning',
+        'deep learning',
       ]);
     });
 
