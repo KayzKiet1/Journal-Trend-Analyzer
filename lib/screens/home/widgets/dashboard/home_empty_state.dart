@@ -4,10 +4,10 @@ import '../../../../utils/app_colors.dart';
 import '../../../../utils/app_spacing.dart';
 import '../../../../utils/app_text_styles.dart';
 
-class KeywordEmptyState extends StatelessWidget {
+class HomeEmptyState extends StatelessWidget {
   final String lastSearchText;
 
-  const KeywordEmptyState({super.key, required this.lastSearchText});
+  const HomeEmptyState({super.key, required this.lastSearchText});
 
   @override
   Widget build(BuildContext context) {
@@ -40,20 +40,20 @@ class KeywordEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'No keyword analysis yet',
+                'No topic analysis yet',
                 style: AppTextStyles.h2,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Search keywords above to analyze frequency, growth, related journals, and publications.',
+                'Search a research topic above to analyze publication trends, top authors, journals, and influential papers.',
                 style: AppTextStyles.bodySmall,
                 textAlign: TextAlign.center,
               ),
               if (lastSearchText.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Last keyword search: $lastSearchText',
+                  'Last topic search: $lastSearchText',
                   style: AppTextStyles.labelCaps.copyWith(
                     color: AppColors.accent,
                   ),

@@ -11,11 +11,15 @@ class UserViewModel extends ChangeNotifier {
   String _email = '';
   String _apiKey = '';
   List<RecentSearch> _recentSearches = [];
+  List<RecentSearch> _recentJournalSearches = [];
+  List<RecentSearch> _recentKeywordSearches = [];
   AuthenticatedUser? _firebaseUser;
   bool _isAuthLoading = false;
   String? _authError;
   StreamSubscription<AuthenticatedUser?>? _authSubscription;
   static const String _recentSearchesKey = 'recent_searches';
+  static const String _recentJournalSearchesKey = 'recent_journal_searches';
+  static const String _recentKeywordSearchesKey = 'recent_keyword_searches';
   static const String _emailKey = 'user_email';
   static const String _apiKeyKey = 'openalex_api_key';
   static const int _recentSearchLimit = 10;
@@ -23,6 +27,8 @@ class UserViewModel extends ChangeNotifier {
   String get email => _email;
   String get apiKey => _apiKey;
   List<RecentSearch> get recentSearches => _recentSearches;
+  List<RecentSearch> get recentJournalSearches => _recentJournalSearches;
+  List<RecentSearch> get recentKeywordSearches => _recentKeywordSearches;
   AuthenticatedUser? get firebaseUser => _firebaseUser;
   String? get authError => _authError;
   bool get isAuthLoading => _isAuthLoading;
@@ -51,6 +57,16 @@ class UserViewModel extends ChangeNotifier {
         .map(RecentSearch.fromStored)
         .where((item) => item.label.isNotEmpty)
         .toList();
+    _recentJournalSearches =
+        (prefs.getStringList(_recentJournalSearchesKey) ?? [])
+            .map(RecentSearch.fromStored)
+            .where((item) => item.label.isNotEmpty)
+            .toList();
+    _recentKeywordSearches =
+        (prefs.getStringList(_recentKeywordSearchesKey) ?? [])
+            .map(RecentSearch.fromStored)
+            .where((item) => item.label.isNotEmpty)
+            .toList();
     notifyListeners();
   }
 
@@ -136,6 +152,48 @@ class UserViewModel extends ChangeNotifier {
     if (label.isEmpty) return;
 
     await _addRecentSearch(RecentSearch(label: label));
+  }
+
+  Future<void> addJournalSearch(String query) async {
+    final label = query.trim();
+    if (label.isEmpty) return;
+
+    await _addScopedRecentSearch(
+      RecentSearch(label: label),
+      history: _recentJournalSearches,
+      storageKey: _recentJournalSearchesKey,
+    );
+  }
+
+  Future<void> addKeywordSearch(String query) async {
+    final label = query.trim();
+    if (label.isEmpty) return;
+
+    await _addScopedRecentSearch(
+      RecentSearch(label: label),
+      history: _recentKeywordSearches,
+      storageKey: _recentKeywordSearchesKey,
+    );
+  }
+
+  Future<void> _addScopedRecentSearch(
+    RecentSearch search, {
+    required List<RecentSearch> history,
+    required String storageKey,
+  }) async {
+    history.removeWhere((item) => item.label == search.label);
+    history.insert(0, search);
+
+    if (history.length > _recentSearchLimit) {
+      history.removeLast();
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      storageKey,
+      history.map((item) => item.toStored()).toList(),
+    );
+    notifyListeners();
   }
 
   Future<void> _addRecentSearch(RecentSearch search) async {

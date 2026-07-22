@@ -28,9 +28,6 @@ class JournalCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 520;
-        final typeLabel = (journal.type?.trim().isNotEmpty == true)
-            ? journal.type!.toUpperCase()
-            : 'JOURNAL';
         final leading = Container(
           padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
@@ -73,21 +70,6 @@ class JournalCard extends StatelessWidget {
                 _MetricBadge(
                   icon: Icons.format_quote,
                   label: '${_compactCount(journal.citedByCount)} citations',
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceTint,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Text(
-                    typeLabel,
-                    style: AppTextStyles.labelCaps.copyWith(fontSize: 10),
-                  ),
                 ),
               ],
             ),

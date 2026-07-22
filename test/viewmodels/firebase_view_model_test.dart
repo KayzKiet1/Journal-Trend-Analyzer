@@ -85,6 +85,18 @@ void main() {
       expect(controller.crashlyticsMessage, contains('Could not send'));
       expect(controller.isCrashlyticsLoading, isFalse);
     });
+
+    test('triggerTestCrash delegates to Crashlytics service', () async {
+      final crashlytics = _FakeCrashlyticsService();
+      final controller = FirebaseViewModel(
+        remoteConfigService: _FakeRemoteConfigService(),
+        crashlyticsService: crashlytics,
+      );
+
+      await controller.triggerTestCrash();
+
+      expect(crashlytics.testCrashCount, 1);
+    });
   });
 }
 
@@ -106,6 +118,7 @@ class _FakeCrashlyticsService implements CrashlyticsClient {
 
   final bool shouldThrowHandled;
   int handledExceptionCount = 0;
+  int testCrashCount = 0;
 
   @override
   Future<void> recordHandledException() async {
@@ -115,6 +128,6 @@ class _FakeCrashlyticsService implements CrashlyticsClient {
 
   @override
   Future<void> triggerTestCrash() async {
-    throw StateError('test crash');
+    testCrashCount++;
   }
 }

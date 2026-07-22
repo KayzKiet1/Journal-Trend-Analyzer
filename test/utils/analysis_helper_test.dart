@@ -29,6 +29,12 @@ void main() {
 
       expect(text, 'first third');
     });
+
+    test('returns parsing error when positions are malformed', () {
+      final text = AbstractParser.parseInvertedIndex({'OpenAlex': 1});
+
+      expect(text, startsWith('Error parsing abstract:'));
+    });
   });
 
   group('AnalysisHelper', () {
@@ -91,6 +97,30 @@ void main() {
       });
       expect(AnalysisHelper.getMostActivePublicationYear(publications), 2025);
       expect(AnalysisHelper.getMostActivePublicationYear([]), isNull);
+    });
+
+    test('uses the latest year when publication counts are tied', () {
+      final tiedPublications = [
+        _publication(
+          title: 'Older year',
+          year: 2023,
+          citations: 1,
+          journal: 'Journal A',
+          authors: ['Ada'],
+        ),
+        _publication(
+          title: 'Newer year',
+          year: 2024,
+          citations: 1,
+          journal: 'Journal A',
+          authors: ['Ada'],
+        ),
+      ];
+
+      expect(
+        AnalysisHelper.getMostActivePublicationYear(tiedPublications),
+        2024,
+      );
     });
   });
 }

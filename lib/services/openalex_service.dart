@@ -472,6 +472,7 @@ class OpenAlexService {
     List<String> topicIds = const [],
     int page = 1,
     int perPage = 20,
+    String sort = 'cited_by_count:desc',
   }) async {
     final trimmedQuery = query.trim();
     if (trimmedQuery.length < 2) {
@@ -480,7 +481,7 @@ class OpenAlexService {
 
     final params = _workSearchParams(query: trimmedQuery, topicIds: topicIds)
       ..addAll({
-        'sort': 'cited_by_count:desc',
+        'sort': sort,
         'page': page.toString(),
         'per_page': perPage.toString(),
         'select': _workSelectFields,

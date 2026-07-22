@@ -164,12 +164,13 @@ void main() {
     });
 
     test('loadWorkSearchDashboard builds overview from works search', () async {
-      final controller = PublicationViewModel(
-        apiService: _FakeOpenAlexService(),
-      );
+      final service = _FakeOpenAlexService();
+      final controller = PublicationViewModel(apiService: service);
 
       await controller.loadWorkSearchDashboard('artificial intelligence');
 
+      expect(service.workSearchPerPages, [10]);
+      expect(service.workSearchSorts, ['cited_by_count:desc']);
       expect(controller.currentWorkQuery, 'artificial intelligence');
       expect(controller.currentWorkTopicIds, isEmpty);
       expect(controller.topicDashboardTotalWorks, 1);
@@ -178,6 +179,49 @@ void main() {
       expect(controller.topicDashboardTopJournals, {'Journal': 1});
       expect(controller.topicDashboardTopPublication?.title, 'Search work');
     });
+
+    test('load more appends Home dashboard publications', () async {
+      final service = _PagedWorkSearchOpenAlexService();
+      final controller = PublicationViewModel(apiService: service);
+
+      await controller.loadWorkSearchDashboard('artificial intelligence');
+
+      expect(controller.topicDashboardPublications.map((pub) => pub.title), [
+        'Search work 1',
+      ]);
+      expect(controller.hasMoreTopicDashboardPublications, isTrue);
+
+      await controller.loadMoreWorkSearchDashboardPublications();
+
+      expect(service.workSearchPerPages, [10, 10]);
+      expect(controller.topicDashboardPublications.map((pub) => pub.title), [
+        'Search work 1',
+        'Search work 2',
+      ]);
+      expect(controller.hasMoreTopicDashboardPublications, isFalse);
+    });
+
+    test(
+      'changing Home publication sort reloads works with selected order',
+      () async {
+        final service = _FakeOpenAlexService();
+        final controller = PublicationViewModel(apiService: service);
+
+        await controller.loadWorkSearchDashboard('artificial intelligence');
+        await controller.changeWorkSearchPublicationSort(
+          WorkSearchPublicationSort.newest,
+        );
+
+        expect(
+          controller.topicDashboardPublicationSort,
+          WorkSearchPublicationSort.newest,
+        );
+        expect(service.workSearchSorts, [
+          'cited_by_count:desc',
+          'publication_date:desc',
+        ]);
+      },
+    );
 
     test(
       'autoSelectTopicsForQuery selects top suggestions for Home search',
@@ -373,6 +417,8 @@ void main() {
 class _FakeOpenAlexService extends OpenAlexService {
   int sourceSearchCalls = 0;
   int workSearchCalls = 0;
+  final List<int> workSearchPerPages = [];
+  final List<String> workSearchSorts = [];
 
   @override
   Future<Map<String, dynamic>> searchSources(
@@ -428,8 +474,11 @@ class _FakeOpenAlexService extends OpenAlexService {
     List<String> topicIds = const [],
     int page = 1,
     int perPage = 20,
+    String sort = 'cited_by_count:desc',
   }) async {
     workSearchCalls++;
+    workSearchPerPages.add(perPage);
+    workSearchSorts.add(sort);
     return {
       'results': [_publication('Search work')],
       'total_count': 1,
@@ -547,6 +596,7 @@ class _EmptyWorksOpenAlexService extends _FakeOpenAlexService {
     List<String> topicIds = const [],
     int page = 1,
     int perPage = 20,
+    String sort = 'cited_by_count:desc',
   }) async {
     return {'results': <Publication>[], 'total_count': 0};
   }
@@ -576,8 +626,27 @@ class _FailingWorksOpenAlexService extends _FakeOpenAlexService {
     List<String> topicIds = const [],
     int page = 1,
     int perPage = 20,
+    String sort = 'cited_by_count:desc',
   }) {
     throw StateError('OpenAlex exploded');
+  }
+}
+
+class _PagedWorkSearchOpenAlexService extends _FakeOpenAlexService {
+  @override
+  Future<Map<String, dynamic>> searchWorks({
+    required String query,
+    List<String> topicIds = const [],
+    int page = 1,
+    int perPage = 20,
+    String sort = 'cited_by_count:desc',
+  }) async {
+    workSearchPerPages.add(perPage);
+    workSearchSorts.add(sort);
+    return {
+      'results': [_publication('Search work $page')],
+      'total_count': 2,
+    };
   }
 }
 

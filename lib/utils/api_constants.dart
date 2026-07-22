@@ -19,7 +19,7 @@ class ApiConstants {
 
   /// Khoảng cách tối thiểu giữa 2 request OpenAlex trong toàn app.
   /// Keeps app traffic below conservative public limits while reducing wait time.
-  static const int minRequestIntervalMs = 250;
+  static const int minRequestIntervalMs = 350;
 
   /// Timeout cho mỗi request để app không treo quá lâu khi mạng yếu.
   static const int requestTimeoutSeconds = 20;
