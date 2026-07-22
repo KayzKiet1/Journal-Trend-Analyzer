@@ -10,11 +10,20 @@ import 'viewmodels/notification_view_model.dart';
 import 'viewmodels/publication_bookmark_view_model.dart';
 import 'viewmodels/publication_view_model.dart';
 import 'viewmodels/user_view_model.dart';
-
-Future<void> main() async {
+import 'package:firebase_core/firebase_core.dart';
+import 'package:journal_trend_analyzer/firebase_options.dart';
+// Future<void> main() async {
+//   WidgetsFlutterBinding.ensureInitialized();
+//   await initializeFirebase();
+//   runApp(const JournalTrendAnalyzerApp());
+// }
+Future<void> main() async{
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeFirebase();
-  runApp(const JournalTrendAnalyzerApp());
+  await Firebase.initializeApp(
+    options:
+    DefaultFirebaseOptions.currentPlatform, 
+  );
+ runApp(const JournalTrendAnalyzerApp());
 }
 
 /// Lớp gốc của ứng dụng, thiết lập quản lý trạng thái và giao diện chính.
