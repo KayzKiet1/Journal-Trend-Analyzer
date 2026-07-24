@@ -6,6 +6,8 @@ import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_view.dart';
 import 'dashboard_view_model.dart';
 
+/// Trang Dashboard chính của hệ thống quản trị.
+/// Hiển thị tổng quan các chỉ số hệ thống và cung cấp các liên kết truy cập nhanh.
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -19,6 +21,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
+    // Khởi tạo ViewModel và tự động tải dữ liệu tóm tắt.
     _viewModel = DashboardViewModel()..loadSummary();
   }
 
@@ -31,14 +34,16 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return AdminShell(
-      title: 'Dashboard',
+      title: 'Tổng quan hệ thống',
       child: AnimatedBuilder(
         animation: _viewModel,
         builder: (context, _) {
+          // Trạng thái đang tải dữ liệu lần đầu.
           if (_viewModel.isLoading && _viewModel.summary == null) {
             return const LoadingView();
           }
 
+          // Trạng thái gặp lỗi khi tải dữ liệu.
           if (_viewModel.errorMessage != null && _viewModel.summary == null) {
             return ErrorView(message: _viewModel.errorMessage!);
           }
@@ -51,75 +56,96 @@ class _DashboardPageState extends State<DashboardPage> {
           return RefreshIndicator(
             onRefresh: _viewModel.loadSummary,
             child: ListView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(32),
               children: [
+                // Khối tiêu đề chào mừng.
+                Text(
+                  'Chào mừng quay trở lại, Admin',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Dưới đây là các số liệu thống kê mới nhất về ứng dụng của bạn.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Lưới hiển thị các thẻ chỉ số (Metrics).
                 Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
+                  spacing: 20,
+                  runSpacing: 20,
                   children: [
                     _MetricTile(
-                      label: 'Users',
+                      label: 'Người dùng',
                       value: summary.userCount.toString(),
                       icon: Icons.people_alt_outlined,
+                      color: Colors.blue,
                     ),
                     _MetricTile(
-                      label: 'Journals',
+                      label: 'Tạp chí',
                       value: summary.journalCount.toString(),
                       icon: Icons.menu_book_outlined,
+                      color: Colors.orange,
                     ),
                     _MetricTile(
-                      label: 'Publications',
+                      label: 'Bài báo',
                       value: summary.publicationCount.toString(),
                       icon: Icons.article_outlined,
+                      color: Colors.green,
                     ),
                     _MetricTile(
-                      label: 'Storage files',
+                      label: 'Tệp lưu trữ',
                       value: summary.storageFileCount.toString(),
                       icon: Icons.folder_outlined,
+                      color: Colors.purple,
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 48),
+
+                // Phân đoạn các liên kết nhanh (Quick Actions).
                 Text(
-                  'Quick links',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  'Truy cập nhanh',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
                   children: const [
                     _QuickLink(
-                      label: 'Users',
+                      label: 'Quản lý Người dùng',
                       routeName: AdminRoutes.users,
                       icon: Icons.people_alt_outlined,
                     ),
                     _QuickLink(
-                      label: 'Firestore',
+                      label: 'Dữ liệu Firestore',
                       routeName: AdminRoutes.firestoreCollections,
                       icon: Icons.storage_outlined,
                     ),
                     _QuickLink(
-                      label: 'Config',
+                      label: 'Cấu hình Hệ thống',
                       routeName: AdminRoutes.appConfig,
                       icon: Icons.tune_outlined,
                     ),
                     _QuickLink(
-                      label: 'Storage',
+                      label: 'Quản lý Tệp tin',
                       routeName: AdminRoutes.storage,
-                      icon: Icons.folder_outlined,
+                      icon: Icons.cloud_circle_outlined,
+                    ),
+                    _QuickLink(
+                      label: 'Nhật ký Hoạt động',
+                      routeName: AdminRoutes.auditLogs,
+                      icon: Icons.history_outlined,
                     ),
                   ],
                 ),
-                if (_viewModel.errorMessage != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    _viewModel.errorMessage!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ],
               ],
             ),
           );
@@ -129,55 +155,80 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
+/// Widget thẻ hiển thị một chỉ số thống kê.
 class _MetricTile extends StatelessWidget {
   const _MetricTile({
     required this.label,
     required this.value,
     required this.icon,
+    required this.color,
   });
 
   final String label;
   final String value;
   final IconData icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return SizedBox(
-      width: 220,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: colorScheme.primaryContainer,
-                foregroundColor: colorScheme.onPrimaryContainer,
-                child: Icon(icon),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: Theme.of(context).textTheme.labelLarge),
-                    const SizedBox(height: 4),
-                    Text(
-                      value,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return Container(
+      width: 260,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: colorScheme.outline,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
+/// Widget nút bấm truy cập nhanh vào các tính năng quản trị.
 class _QuickLink extends StatelessWidget {
   const _QuickLink({
     required this.label,
@@ -193,8 +244,14 @@ class _QuickLink extends StatelessWidget {
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
       onPressed: () => Navigator.of(context).pushNamed(routeName),
-      icon: Icon(icon),
+      icon: Icon(icon, size: 20),
       label: Text(label),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
     );
   }
 }
