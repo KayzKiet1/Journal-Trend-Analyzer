@@ -7,13 +7,17 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   sonarqube:
     name: SonarQube
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Checkout
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -21,17 +25,50 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
-      - name: Install dependencies
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install mobile dependencies
         run: flutter pub get
 
-      - name: Analyze
+      - name: Install admin dashboard dependencies
+        run: flutter pub get
+        working-directory: admin_dashboard
+
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Analyze mobile app
         run: flutter analyze
 
-      - name: Test with coverage
+      - name: Analyze admin dashboard
+        run: flutter analyze
+        working-directory: admin_dashboard
+
+      - name: Lint functions
+        run: npm run lint
+        working-directory: functions
+
+      - name: Check functions syntax
+        run: node --check index.js
+        working-directory: functions
+
+      - name: Test mobile app with coverage
         run: flutter test --coverage
 
+      - name: Test admin dashboard with coverage
+        run: flutter test --coverage
+        working-directory: admin_dashboard
+
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995
+        uses: SonarSource/sonarqube-scan-action@v7.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

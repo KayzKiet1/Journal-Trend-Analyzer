@@ -11,11 +11,13 @@ class StorageUploadRequest {
     required this.bytes,
     required this.fileName,
     required this.contentType,
+    this.folder = 'admin_uploads',
   });
 
   final Uint8List bytes;
   final String fileName;
   final String contentType;
+  final String folder;
 }
 
 abstract class StorageRepository {
@@ -43,8 +45,9 @@ class FirebaseStorageRepository implements StorageRepository {
     }
 
     final safeFileName = _safeFileName(request.fileName);
+    final safeFolder = _safeFolder(request.folder);
     final path =
-        'admin_uploads/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
+        '$safeFolder/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
     final reference = _storage.ref().child(path);
     final metadata = SettableMetadata(
       contentType: request.contentType.isEmpty
@@ -74,5 +77,15 @@ class FirebaseStorageRepository implements StorageRepository {
         .replaceAll(RegExp(r'[^a-zA-Z0-9._-]+'), '_')
         .replaceAll(RegExp(r'_+'), '_');
     return normalized.isEmpty ? 'upload.bin' : normalized;
+  }
+
+  String _safeFolder(String value) {
+    final normalized = value
+        .trim()
+        .replaceAll(RegExp(r'[^a-zA-Z0-9_/-]+'), '_')
+        .replaceAll(RegExp(r'/+'), '/')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^/+|/+$'), '');
+    return normalized.isEmpty ? 'admin_uploads' : normalized;
   }
 }

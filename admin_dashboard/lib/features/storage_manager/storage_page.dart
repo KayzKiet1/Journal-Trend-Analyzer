@@ -18,6 +18,7 @@ class StoragePage extends StatefulWidget {
 class _StoragePageState extends State<StoragePage> {
   late final StorageViewModel _viewModel;
   final _prefixController = TextEditingController();
+  String _uploadFolder = 'admin_uploads';
 
   @override
   void initState() {
@@ -50,9 +51,13 @@ class _StoragePageState extends State<StoragePage> {
           return ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(
+                  SizedBox(
+                    width: 320,
                     child: TextField(
                       controller: _prefixController,
                       decoration: const InputDecoration(
@@ -61,7 +66,6 @@ class _StoragePageState extends State<StoragePage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
                   FilledButton.icon(
                     onPressed: _viewModel.isLoading
                         ? null
@@ -72,7 +76,28 @@ class _StoragePageState extends State<StoragePage> {
                     icon: const Icon(Icons.search),
                     label: const Text('Search'),
                   ),
-                  const SizedBox(width: 12),
+                  DropdownMenu<String>(
+                    width: 190,
+                    initialSelection: _uploadFolder,
+                    label: const Text('Upload folder'),
+                    onSelected: (value) {
+                      if (value != null) {
+                        setState(() => _uploadFolder = value);
+                      }
+                    },
+                    dropdownMenuEntries: const [
+                      DropdownMenuEntry(
+                        value: 'admin_uploads',
+                        label: 'Admin uploads',
+                      ),
+                      DropdownMenuEntry(value: 'reports', label: 'Reports'),
+                      DropdownMenuEntry(
+                        value: 'announcements',
+                        label: 'Announcements',
+                      ),
+                      DropdownMenuEntry(value: 'exports', label: 'Exports'),
+                    ],
+                  ),
                   FilledButton.icon(
                     onPressed: _viewModel.isUploading ? null : _pickAndUpload,
                     icon: _viewModel.isUploading
@@ -166,6 +191,7 @@ class _StoragePageState extends State<StoragePage> {
         bytes: bytes,
         fileName: file.name,
         contentType: _contentType(file.name),
+        folder: _uploadFolder,
       ),
     );
   }

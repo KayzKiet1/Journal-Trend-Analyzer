@@ -1,40 +1,31 @@
 import 'package:flutter/foundation.dart';
 
-import '../../data/models/analytics_summary.dart';
+import '../../data/models/system_health.dart';
 import '../../data/repositories/admin_repository.dart';
 
-class AnalyticsViewModel extends ChangeNotifier {
-  AnalyticsViewModel({AdminRepository? adminRepository})
+class SystemHealthViewModel extends ChangeNotifier {
+  SystemHealthViewModel({AdminRepository? adminRepository})
     : _adminRepository = adminRepository ?? const FirebaseAdminRepository();
 
   final AdminRepository _adminRepository;
 
-  AnalyticsSummary? _summary;
+  SystemHealthSummary? _summary;
   bool _isLoading = false;
   String? _errorMessage;
-  int _selectedDays = 30;
 
-  AnalyticsSummary? get summary => _summary;
+  SystemHealthSummary? get summary => _summary;
 
   bool get isLoading => _isLoading;
 
   String? get errorMessage => _errorMessage;
 
-  int get selectedDays => _selectedDays;
-
-  Future<void> loadSummary({int? days}) async {
-    if (days != null) {
-      _selectedDays = days;
-    }
-
+  Future<void> load({int limit = 25}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _summary = await _adminRepository.getAnalyticsSummary(
-        days: _selectedDays,
-      );
+      _summary = await _adminRepository.listSystemHealth(limit: limit);
     } on Exception catch (error) {
       _errorMessage = error.toString();
     } finally {

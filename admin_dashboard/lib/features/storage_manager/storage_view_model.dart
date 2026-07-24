@@ -64,7 +64,7 @@ class StorageViewModel extends ChangeNotifier {
 
     try {
       _lastUploadedPath = await _storageRepository.uploadAdminFile(request);
-      await loadFiles(prefix: 'admin_uploads/', refresh: true);
+      await loadFiles(prefix: '${request.folder}/', refresh: true);
     } on Exception catch (error) {
       _errorMessage = error.toString();
     } finally {

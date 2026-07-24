@@ -105,6 +105,13 @@ class Sidebar extends StatelessWidget {
                   routeName: AdminRoutes.auditLogs,
                   isActive: currentRoute == AdminRoutes.auditLogs,
                 ),
+                _SidebarItem(
+                  label: 'System Health',
+                  icon: Icons.monitor_heart_outlined,
+                  activeIcon: Icons.monitor_heart,
+                  routeName: AdminRoutes.systemHealth,
+                  isActive: currentRoute == AdminRoutes.systemHealth,
+                ),
               ],
             ),
           ),
