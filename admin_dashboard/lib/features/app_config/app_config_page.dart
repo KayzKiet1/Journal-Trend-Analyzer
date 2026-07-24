@@ -7,7 +7,7 @@ class AppConfigPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AdminShell(
+    return AdminShell(
       title: 'App Config',
       child: Center(child: Text('App configuration placeholder')),
     );

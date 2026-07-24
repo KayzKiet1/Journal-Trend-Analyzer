@@ -7,7 +7,7 @@ class AuditLogsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AdminShell(
+    return AdminShell(
       title: 'Audit Logs',
       child: Center(child: Text('Audit logs placeholder')),
     );

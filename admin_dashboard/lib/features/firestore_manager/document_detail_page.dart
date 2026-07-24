@@ -7,7 +7,7 @@ class DocumentDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AdminShell(
+    return AdminShell(
       title: 'Document Detail',
       child: Center(child: Text('Document detail placeholder')),
     );

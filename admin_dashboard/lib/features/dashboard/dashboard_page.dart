@@ -7,7 +7,7 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AdminShell(
+    return AdminShell(
       title: 'Dashboard',
       child: Center(child: Text('Admin dashboard placeholder')),
     );

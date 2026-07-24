@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/auth/auth_guard.dart';
 import '../features/app_config/app_config_page.dart';
 import '../features/audit_logs/audit_logs_page.dart';
 import '../features/auth/login_page.dart';
@@ -31,15 +32,19 @@ class AdminRoutes {
 Map<String, WidgetBuilder> buildAdminRoutes() {
   return {
     AdminRoutes.login: (_) => const LoginPage(),
-    AdminRoutes.dashboard: (_) => const DashboardPage(),
-    AdminRoutes.users: (_) => const UsersPage(),
-    AdminRoutes.userDetail: (_) => const UserDetailPage(),
-    AdminRoutes.firestoreCollections: (_) => const CollectionsPage(),
-    AdminRoutes.firestoreDocuments: (_) => const DocumentsPage(),
-    AdminRoutes.firestoreDocumentDetail: (_) => const DocumentDetailPage(),
-    AdminRoutes.storage: (_) => const StoragePage(),
-    AdminRoutes.storageDetail: (_) => const StorageDetailPage(),
-    AdminRoutes.appConfig: (_) => const AppConfigPage(),
-    AdminRoutes.auditLogs: (_) => const AuditLogsPage(),
+    AdminRoutes.dashboard: (_) => AuthGuard(child: const DashboardPage()),
+    AdminRoutes.users: (_) => AuthGuard(child: const UsersPage()),
+    AdminRoutes.userDetail: (_) => AuthGuard(child: const UserDetailPage()),
+    AdminRoutes.firestoreCollections: (_) =>
+        AuthGuard(child: const CollectionsPage()),
+    AdminRoutes.firestoreDocuments: (_) =>
+        AuthGuard(child: const DocumentsPage()),
+    AdminRoutes.firestoreDocumentDetail: (_) =>
+        AuthGuard(child: const DocumentDetailPage()),
+    AdminRoutes.storage: (_) => AuthGuard(child: const StoragePage()),
+    AdminRoutes.storageDetail: (_) =>
+        AuthGuard(child: const StorageDetailPage()),
+    AdminRoutes.appConfig: (_) => AuthGuard(child: const AppConfigPage()),
+    AdminRoutes.auditLogs: (_) => AuthGuard(child: const AuditLogsPage()),
   };
 }

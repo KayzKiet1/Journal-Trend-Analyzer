@@ -7,7 +7,7 @@ class UsersPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AdminShell(
+    return AdminShell(
       title: 'Users',
       child: Center(child: Text('Users management placeholder')),
     );

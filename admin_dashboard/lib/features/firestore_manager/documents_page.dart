@@ -7,7 +7,7 @@ class DocumentsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AdminShell(
+    return AdminShell(
       title: 'Firestore Documents',
       child: Center(child: Text('Documents placeholder')),
     );

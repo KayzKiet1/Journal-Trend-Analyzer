@@ -7,7 +7,7 @@ class StoragePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AdminShell(
+    return AdminShell(
       title: 'Storage',
       child: Center(child: Text('Storage management placeholder')),
     );

@@ -7,7 +7,7 @@ class CollectionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AdminShell(
+    return AdminShell(
       title: 'Firestore Collections',
       child: Center(child: Text('Collections placeholder')),
     );
