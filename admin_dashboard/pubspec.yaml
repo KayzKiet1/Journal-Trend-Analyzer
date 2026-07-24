@@ -1,0 +1,23 @@
+name: journal_trend_admin_dashboard
+description: Admin dashboard for Journal Trend Analyzer.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cloud_firestore: ^6.1.0
+  firebase_auth: ^6.5.4
+  firebase_core: ^4.11.0
+  firebase_storage: ^13.0.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
