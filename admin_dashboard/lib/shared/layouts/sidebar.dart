@@ -13,26 +13,29 @@ class Sidebar extends StatelessWidget {
   final String currentRoute;
   final AuthRepository _authRepository;
 
+  static const _backgroundColor = Color(0xFF0F172A);
+  static const _activeItemColor = Colors.white;
+  static const _inactiveItemColor = Color(0xFFCBD5E1);
+  static const _categoryColor = Color(0xFF94A3B8);
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Container(
       width: 264,
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
+      decoration: const BoxDecoration(
+        color: _backgroundColor,
         border: Border(
-          right: BorderSide(color: colorScheme.outlineVariant, width: 1),
+          right: BorderSide(color: Color(0xFF1E293B), width: 1),
         ),
       ),
       child: Column(
         children: [
-          _SidebarHeader(colorScheme: colorScheme),
+          const _SidebarHeader(),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               children: [
-                _SidebarCategory(label: 'CHÍNH', colorScheme: colorScheme),
+                const _SidebarCategory(label: 'CHÍNH'),
                 _SidebarItem(
                   label: 'Dashboard',
                   icon: Icons.dashboard_outlined,
@@ -48,7 +51,7 @@ class Sidebar extends StatelessWidget {
                   isActive: currentRoute == AdminRoutes.analytics,
                 ),
                 const SizedBox(height: 20),
-                _SidebarCategory(label: 'QUẢN LÝ', colorScheme: colorScheme),
+                const _SidebarCategory(label: 'QUẢN LÝ'),
                 _SidebarItem(
                   label: 'Users',
                   icon: Icons.people_alt_outlined,
@@ -73,7 +76,7 @@ class Sidebar extends StatelessWidget {
                   isActive: currentRoute.startsWith(AdminRoutes.storage),
                 ),
                 const SizedBox(height: 20),
-                _SidebarCategory(label: 'HỆ THỐNG', colorScheme: colorScheme),
+                const _SidebarCategory(label: 'HỆ THỐNG'),
                 _SidebarItem(
                   label: 'App Config',
                   icon: Icons.tune_outlined,
@@ -105,10 +108,7 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          _SidebarFooter(
-            colorScheme: colorScheme,
-            authRepository: _authRepository,
-          ),
+          _SidebarFooter(authRepository: _authRepository),
         ],
       ),
     );
@@ -116,12 +116,12 @@ class Sidebar extends StatelessWidget {
 }
 
 class _SidebarHeader extends StatelessWidget {
-  const _SidebarHeader({required this.colorScheme});
-
-  final ColorScheme colorScheme;
+  const _SidebarHeader();
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
       alignment: Alignment.centerLeft,
@@ -131,18 +131,19 @@ class _SidebarHeader extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
+              color: colorScheme.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.auto_graph, color: colorScheme.primary, size: 22),
+            child: const Icon(Icons.auto_graph, color: Colors.white, size: 22),
           ),
           const SizedBox(width: 12),
-          Expanded(
+          const Expanded(
             child: Text(
               'Journal Admin',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              style: TextStyle(
+                fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: colorScheme.onSurface,
+                color: Colors.white,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -155,10 +156,9 @@ class _SidebarHeader extends StatelessWidget {
 }
 
 class _SidebarCategory extends StatelessWidget {
-  const _SidebarCategory({required this.label, required this.colorScheme});
+  const _SidebarCategory({required this.label});
 
   final String label;
-  final ColorScheme colorScheme;
 
   @override
   Widget build(BuildContext context) {
@@ -166,9 +166,10 @@ class _SidebarCategory extends StatelessWidget {
       padding: const EdgeInsets.only(left: 12, bottom: 8),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: colorScheme.outline,
-          letterSpacing: 0,
+        style: const TextStyle(
+          color: Sidebar._categoryColor,
+          fontSize: 11,
+          letterSpacing: 0.5,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -193,13 +194,12 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
-        color: isActive ? colorScheme.primaryContainer : Colors.transparent,
+        color: isActive ? Colors.white.withOpacity(0.1) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -228,19 +228,18 @@ class _SidebarItem extends StatelessWidget {
                 Icon(
                   isActive ? activeIcon : icon,
                   size: 22,
-                  color: isActive
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
+                  color:
+                      isActive ? Sidebar._activeItemColor : Sidebar._inactiveItemColor,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
-                    style: theme.textTheme.bodyMedium?.copyWith(
+                    style: TextStyle(
+                      fontSize: 14,
                       fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                      color: isActive
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant,
+                      color:
+                          isActive ? Sidebar._activeItemColor : Sidebar._inactiveItemColor,
                     ),
                   ),
                 ),
@@ -254,12 +253,8 @@ class _SidebarItem extends StatelessWidget {
 }
 
 class _SidebarFooter extends StatelessWidget {
-  const _SidebarFooter({
-    required this.colorScheme,
-    required this.authRepository,
-  });
+  const _SidebarFooter({required this.authRepository});
 
-  final ColorScheme colorScheme;
   final AuthRepository authRepository;
 
   @override
@@ -273,22 +268,18 @@ class _SidebarFooter extends StatelessWidget {
 
         return Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerLowest,
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E293B),
             border: Border(
-              top: BorderSide(color: colorScheme.outlineVariant, width: 1),
+              top: BorderSide(color: Color(0xFF334155), width: 1),
             ),
           ),
           child: Row(
             children: [
-              CircleAvatar(
+              const CircleAvatar(
                 radius: 16,
-                backgroundColor: colorScheme.secondaryContainer,
-                child: Icon(
-                  Icons.person,
-                  size: 18,
-                  color: colorScheme.onSecondaryContainer,
-                ),
+                backgroundColor: Color(0xFF334155),
+                child: Icon(Icons.person, size: 18, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -297,6 +288,7 @@ class _SidebarFooter extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
