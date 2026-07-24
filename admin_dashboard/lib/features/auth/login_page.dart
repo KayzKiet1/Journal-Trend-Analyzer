@@ -20,6 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   final _viewModel = LoginViewModel();
 
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   String? _errorMessage;
 
   @override
@@ -105,13 +106,24 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                   const SizedBox(height: 24),
                   FilledButton(
-                    onPressed: _isLoading ? null : _submit,
+                    onPressed: _isBusy ? null : _submit,
                     child: _isLoading
                         ? const SizedBox.square(
                             dimension: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Sign in'),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _isBusy ? null : _signInWithGoogle,
+                    icon: _isGoogleLoading
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.account_circle_outlined),
+                    label: const Text('Sign in with Google'),
                   ),
                 ],
               ),
@@ -121,6 +133,8 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+
+  bool get _isBusy => _isLoading || _isGoogleLoading;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
@@ -164,6 +178,46 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final canAccessAdmin = await _viewModel.signInWithGoogleAsAdmin();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!canAccessAdmin) {
+        setState(() {
+          _errorMessage = 'This Google account does not have admin access.';
+        });
+        return;
+      }
+
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AdminRoutes.dashboard, (route) => false);
+    } on Exception catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGoogleLoading = false;
         });
       }
     }

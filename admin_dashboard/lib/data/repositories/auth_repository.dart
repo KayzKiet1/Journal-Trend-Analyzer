@@ -23,6 +23,8 @@ abstract class AuthRepository {
     required String password,
   });
 
+  Future<AdminAuthState> signInWithGoogle();
+
   Future<void> signOut();
 }
 
@@ -61,6 +63,22 @@ class FirebaseAuthRepository implements AuthRepository {
       email: email.trim(),
       password: password,
     );
+
+    final adminState = await getCurrentAdminState(forceRefresh: true);
+    if (!adminState.isAdmin) {
+      await signOut();
+    }
+
+    return adminState;
+  }
+
+  @override
+  Future<AdminAuthState> signInWithGoogle() async {
+    final provider = GoogleAuthProvider()
+      ..addScope('email')
+      ..addScope('profile');
+
+    await _auth.signInWithPopup(provider);
 
     final adminState = await getCurrentAdminState(forceRefresh: true);
     if (!adminState.isAdmin) {

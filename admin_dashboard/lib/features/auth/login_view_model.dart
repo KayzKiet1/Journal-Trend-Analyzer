@@ -17,4 +17,9 @@ class LoginViewModel {
 
     return authState.canAccessAdmin;
   }
+
+  Future<bool> signInWithGoogleAsAdmin() async {
+    final authState = await _authRepository.signInWithGoogle();
+    return authState.canAccessAdmin;
+  }
 }
