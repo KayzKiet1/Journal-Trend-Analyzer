@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:journal_trend_admin_dashboard/data/models/admin_user.dart';
+import 'package:journal_trend_admin_dashboard/data/models/analytics_summary.dart';
 import 'package:journal_trend_admin_dashboard/data/models/dashboard_summary.dart';
 
 void main() {
@@ -38,5 +39,31 @@ void main() {
     expect(summary.publicationCount, 5);
     expect(summary.appConfigCount, 1);
     expect(summary.generatedAt, isNotNull);
+  });
+
+  test('AnalyticsSummary parses aggregate metrics', () {
+    final summary = AnalyticsSummary.fromMap({
+      'days': 30,
+      'totalEvents': 12,
+      'activeUsers': 3,
+      'activeUsersToday': 1,
+      'activeUsers7d': 2,
+      'dailyEvents': [
+        {'date': '2026-07-24', 'count': 5},
+      ],
+      'topEvents': [
+        {'name': 'view_journal', 'count': 7},
+      ],
+      'topJournals': [
+        {'name': 'Nature', 'count': 4},
+      ],
+      'generatedAt': '2026-07-24T10:00:00.000Z',
+    });
+
+    expect(summary.totalEvents, 12);
+    expect(summary.activeUsers7d, 2);
+    expect(summary.dailyEvents.single.count, 5);
+    expect(summary.topEvents.single.name, 'view_journal');
+    expect(summary.topJournals.single.count, 4);
   });
 }

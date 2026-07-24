@@ -63,3 +63,9 @@ android/app/google-services.json
 # Firebase Admin SDK service account keys
 service-account.json
 *-firebase-adminsdk-*.json
+
+# Local learning/report artifacts
+learning.md
+learning 2.md
+screen_img/
+Group 7 final report.pdf

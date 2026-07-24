@@ -177,17 +177,20 @@ void main() {
       expect(publication.keywords, ['ai', 'null']);
     });
 
-    test('restores empty topic, keyword and author lists from missing data', () {
-      final publication = Publication.fromStoredJson({
-        'id': 'W-empty-lists',
-        'journal_name': 'Journal of Sparse Records',
-      });
+    test(
+      'restores empty topic, keyword and author lists from missing data',
+      () {
+        final publication = Publication.fromStoredJson({
+          'id': 'W-empty-lists',
+          'journal_name': 'Journal of Sparse Records',
+        });
 
-      expect(publication.id, 'W-empty-lists');
-      expect(publication.authors, isEmpty);
-      expect(publication.topics, isEmpty);
-      expect(publication.keywords, isEmpty);
-    });
+        expect(publication.id, 'W-empty-lists');
+        expect(publication.authors, isEmpty);
+        expect(publication.topics, isEmpty);
+        expect(publication.keywords, isEmpty);
+      },
+    );
   });
 
   group('TrendData', () {

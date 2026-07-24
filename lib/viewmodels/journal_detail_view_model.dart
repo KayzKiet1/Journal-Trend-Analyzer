@@ -67,7 +67,10 @@ class JournalDetailViewModel extends ChangeNotifier {
     required int chartStartYear,
     Journal? journalForTesting,
   }) async {
-    await _analyticsService.logViewJournal(journalName: journalName);
+    await _analyticsService.logViewJournal(
+      journalId: journalId,
+      journalName: journalName,
+    );
 
     if (journalForTesting != null) {
       _journal = journalForTesting;

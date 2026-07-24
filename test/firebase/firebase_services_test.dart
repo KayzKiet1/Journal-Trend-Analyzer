@@ -22,53 +22,44 @@ void main() {
   });
 
   group('RemoteConfigService', () {
-    test('fetchValues sets defaults, fetches and maps positive values', () async {
-      final remoteConfig = _MockFirebaseRemoteConfig();
-      when(
-        () => remoteConfig.setDefaults(any()),
-      ).thenAnswer((_) async {});
-      when(
-        () => remoteConfig.setConfigSettings(any()),
-      ).thenAnswer((_) async {});
-      when(remoteConfig.fetchAndActivate).thenAnswer((_) async => true);
-      when(
-        () => remoteConfig.getInt('max_journals_display'),
-      ).thenReturn(7);
-      when(
-        () => remoteConfig.getInt('max_keywords_display'),
-      ).thenReturn(9);
-      when(
-        () => remoteConfig.getBool('enable_report_export'),
-      ).thenReturn(false);
+    test(
+      'fetchValues sets defaults, fetches and maps positive values',
+      () async {
+        final remoteConfig = _MockFirebaseRemoteConfig();
+        when(() => remoteConfig.setDefaults(any())).thenAnswer((_) async {});
+        when(
+          () => remoteConfig.setConfigSettings(any()),
+        ).thenAnswer((_) async {});
+        when(remoteConfig.fetchAndActivate).thenAnswer((_) async => true);
+        when(() => remoteConfig.getInt('max_journals_display')).thenReturn(7);
+        when(() => remoteConfig.getInt('max_keywords_display')).thenReturn(9);
+        when(
+          () => remoteConfig.getBool('enable_report_export'),
+        ).thenReturn(false);
 
-      final values = await RemoteConfigService(
-        remoteConfig: remoteConfig,
-      ).fetchValues();
+        final values = await RemoteConfigService(
+          remoteConfig: remoteConfig,
+        ).fetchValues();
 
-      expect(values.maxJournalsDisplay, 7);
-      expect(values.maxKeywordsDisplay, 9);
-      expect(values.enableReportExport, isFalse);
-      verify(
-        () => remoteConfig.setDefaults({
-          'max_journals_display': 10,
-          'max_keywords_display': 10,
-          'enable_report_export': true,
-        }),
-      ).called(1);
-      verify(remoteConfig.fetchAndActivate).called(1);
-    });
+        expect(values.maxJournalsDisplay, 7);
+        expect(values.maxKeywordsDisplay, 9);
+        expect(values.enableReportExport, isFalse);
+        verify(
+          () => remoteConfig.setDefaults({
+            'max_journals_display': 10,
+            'max_keywords_display': 10,
+            'enable_report_export': true,
+          }),
+        ).called(1);
+        verify(remoteConfig.fetchAndActivate).called(1);
+      },
+    );
 
     test('currentValues falls back when numeric values are not positive', () {
       final remoteConfig = _MockFirebaseRemoteConfig();
-      when(
-        () => remoteConfig.getInt('max_journals_display'),
-      ).thenReturn(0);
-      when(
-        () => remoteConfig.getInt('max_keywords_display'),
-      ).thenReturn(-3);
-      when(
-        () => remoteConfig.getBool('enable_report_export'),
-      ).thenReturn(true);
+      when(() => remoteConfig.getInt('max_journals_display')).thenReturn(0);
+      when(() => remoteConfig.getInt('max_keywords_display')).thenReturn(-3);
+      when(() => remoteConfig.getBool('enable_report_export')).thenReturn(true);
 
       final values = RemoteConfigService(
         remoteConfig: remoteConfig,
@@ -108,31 +99,34 @@ void main() {
       expect(verification.captured[0], isA<StateError>());
     });
 
-    test('triggerTestCrash records a debug fatal placeholder then throws', () async {
-      final crashlytics = _MockFirebaseCrashlytics();
-      when(
-        () => crashlytics.recordError(
-          any(),
-          any(),
-          reason: any(named: 'reason'),
-          fatal: any(named: 'fatal'),
-        ),
-      ).thenAnswer((_) async {});
+    test(
+      'triggerTestCrash records a debug fatal placeholder then throws',
+      () async {
+        final crashlytics = _MockFirebaseCrashlytics();
+        when(
+          () => crashlytics.recordError(
+            any(),
+            any(),
+            reason: any(named: 'reason'),
+            fatal: any(named: 'fatal'),
+          ),
+        ).thenAnswer((_) async {});
 
-      await expectLater(
-        CrashlyticsService(crashlytics: crashlytics).triggerTestCrash(),
-        throwsA(isA<StateError>()),
-      );
+        await expectLater(
+          CrashlyticsService(crashlytics: crashlytics).triggerTestCrash(),
+          throwsA(isA<StateError>()),
+        );
 
-      verify(
-        () => crashlytics.recordError(
-          any(),
-          any(),
-          reason: 'Profile Crashlytics Demo: debug-mode test crash',
-          fatal: true,
-        ),
-      ).called(1);
-    });
+        verify(
+          () => crashlytics.recordError(
+            any(),
+            any(),
+            reason: 'Profile Crashlytics Demo: debug-mode test crash',
+            fatal: true,
+          ),
+        ).called(1);
+      },
+    );
   });
 
   group('FirebaseAuthService', () {
@@ -151,38 +145,41 @@ void main() {
       expect(mapped.photoUrl, 'https://example.com/photo.png');
     });
 
-    test('currentUser and authStateChanges map nullable Firebase users', () async {
-      final auth = _MockFirebaseAuth();
-      final googleSignIn = _MockGoogleSignIn();
-      final user = _MockUser();
-      final controller = StreamController<User?>.broadcast();
-      when(() => user.uid).thenReturn('U2');
-      when(() => user.email).thenReturn(null);
-      when(() => user.displayName).thenReturn(null);
-      when(() => user.photoURL).thenReturn(null);
-      when(() => auth.currentUser).thenReturn(user);
-      when(auth.authStateChanges).thenAnswer((_) => controller.stream);
+    test(
+      'currentUser and authStateChanges map nullable Firebase users',
+      () async {
+        final auth = _MockFirebaseAuth();
+        final googleSignIn = _MockGoogleSignIn();
+        final user = _MockUser();
+        final controller = StreamController<User?>.broadcast();
+        when(() => user.uid).thenReturn('U2');
+        when(() => user.email).thenReturn(null);
+        when(() => user.displayName).thenReturn(null);
+        when(() => user.photoURL).thenReturn(null);
+        when(() => auth.currentUser).thenReturn(user);
+        when(auth.authStateChanges).thenAnswer((_) => controller.stream);
 
-      final service = FirebaseAuthService(
-        auth: auth,
-        googleSignIn: googleSignIn,
-      );
+        final service = FirebaseAuthService(
+          auth: auth,
+          googleSignIn: googleSignIn,
+        );
 
-      expect(service.currentUser?.displayName, 'Nguoi dung Google');
+        expect(service.currentUser?.displayName, 'Nguoi dung Google');
 
-      final events = <AuthenticatedUser?>[];
-      final subscription = service.authStateChanges().listen(events.add);
-      controller
-        ..add(user)
-        ..add(null);
-      await Future<void>.delayed(Duration.zero);
+        final events = <AuthenticatedUser?>[];
+        final subscription = service.authStateChanges().listen(events.add);
+        controller
+          ..add(user)
+          ..add(null);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(events.first?.uid, 'U2');
-      expect(events.first?.email, isEmpty);
-      expect(events.last, isNull);
-      await subscription.cancel();
-      await controller.close();
-    });
+        expect(events.first?.uid, 'U2');
+        expect(events.first?.email, isEmpty);
+        expect(events.last, isNull);
+        await subscription.cancel();
+        await controller.close();
+      },
+    );
 
     test('signOut signs out Firebase and wraps failures', () async {
       final auth = _MockFirebaseAuth();
@@ -213,7 +210,9 @@ void main() {
       final auth = _MockFirebaseAuth();
       final googleSignIn = _MockGoogleSignIn();
       when(
-        () => googleSignIn.initialize(serverClientId: any(named: 'serverClientId')),
+        () => googleSignIn.initialize(
+          serverClientId: any(named: 'serverClientId'),
+        ),
       ).thenAnswer((_) async {});
       when(googleSignIn.supportsAuthenticate).thenReturn(false);
 

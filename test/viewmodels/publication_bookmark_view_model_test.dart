@@ -31,24 +31,29 @@ void main() {
       expect(controller.isBookmarked('W2'), isFalse);
     });
 
-    test('toggleBookmark adds newest first and removes existing bookmarks', () async {
-      final controller = PublicationBookmarkViewModel();
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'toggleBookmark adds newest first and removes existing bookmarks',
+      () async {
+        final controller = PublicationBookmarkViewModel();
+        await Future<void>.delayed(Duration.zero);
 
-      await controller.toggleBookmark(_publication('W1', 'First paper'));
-      await controller.toggleBookmark(_publication('W2', 'Second paper'));
+        await controller.toggleBookmark(_publication('W1', 'First paper'));
+        await controller.toggleBookmark(_publication('W2', 'Second paper'));
 
-      expect(controller.bookmarks.map((publication) => publication.id), [
-        'W2',
-        'W1',
-      ]);
-      expect(controller.isBookmarked('W1'), isTrue);
+        expect(controller.bookmarks.map((publication) => publication.id), [
+          'W2',
+          'W1',
+        ]);
+        expect(controller.isBookmarked('W1'), isTrue);
 
-      await controller.toggleBookmark(_publication('W1', 'First paper'));
+        await controller.toggleBookmark(_publication('W1', 'First paper'));
 
-      expect(controller.bookmarks.map((publication) => publication.id), ['W2']);
-      expect(controller.isBookmarked('W1'), isFalse);
-    });
+        expect(controller.bookmarks.map((publication) => publication.id), [
+          'W2',
+        ]);
+        expect(controller.isBookmarked('W1'), isFalse);
+      },
+    );
 
     test('toggleBookmark ignores publications without ids', () async {
       final controller = PublicationBookmarkViewModel();

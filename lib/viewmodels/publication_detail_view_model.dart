@@ -11,8 +11,11 @@ class PublicationDetailViewModel extends ChangeNotifier {
 
   Future<void> logViewPublication(Publication publication) async {
     await _analyticsService.logViewPublication(
+      publicationId: publication.id,
       publicationTitle: publication.title,
       publicationYear: publication.publicationYear,
+      journalId: publication.journalId,
+      journalName: publication.journalName,
     );
   }
 }

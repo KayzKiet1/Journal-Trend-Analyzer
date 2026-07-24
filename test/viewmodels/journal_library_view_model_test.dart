@@ -67,24 +67,27 @@ void main() {
       expect(controller.recentViewed, isEmpty);
     });
 
-    test('loads stored favorites and recent journals while skipping invalid rows', () async {
-      SharedPreferences.setMockInitialValues({
-        'favorite_journals': [
-          jsonEncode(_journal('S1', 'Stored Favorite').toStoredJson()),
-          'not-json',
-          jsonEncode(_journal('', 'Missing id').toStoredJson()),
-        ],
-        'recent_viewed_journals': [
-          jsonEncode(_journal('S2', 'Stored Recent').toStoredJson()),
-        ],
-      });
+    test(
+      'loads stored favorites and recent journals while skipping invalid rows',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'favorite_journals': [
+            jsonEncode(_journal('S1', 'Stored Favorite').toStoredJson()),
+            'not-json',
+            jsonEncode(_journal('', 'Missing id').toStoredJson()),
+          ],
+          'recent_viewed_journals': [
+            jsonEncode(_journal('S2', 'Stored Recent').toStoredJson()),
+          ],
+        });
 
-      final controller = JournalLibraryViewModel();
-      await Future<void>.delayed(Duration.zero);
+        final controller = JournalLibraryViewModel();
+        await Future<void>.delayed(Duration.zero);
 
-      expect(controller.favorites.map((journal) => journal.id), ['S1']);
-      expect(controller.recentViewed.map((journal) => journal.id), ['S2']);
-    });
+        expect(controller.favorites.map((journal) => journal.id), ['S1']);
+        expect(controller.recentViewed.map((journal) => journal.id), ['S2']);
+      },
+    );
   });
 }
 

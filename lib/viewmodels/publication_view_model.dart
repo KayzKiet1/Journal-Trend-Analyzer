@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import '../firebase/firebase_analytics_service.dart';
 import '../models/publication_model.dart';
 import '../models/journal_model.dart';
 import '../models/research_topic_model.dart';
@@ -33,21 +34,27 @@ enum WorkSearchPublicationSort {
 /// ViewModel quản lý trạng thái của danh sách bài báo và tìm kiếm đa thực thể
 class PublicationViewModel extends ChangeNotifier {
   OpenAlexService _apiService;
+  final FirebaseAnalyticsService? _analyticsService;
   String? _apiEmail;
   String? _apiKeyValue;
   final Duration searchTimeout;
   final Duration searchWatchdogTimeout;
 
-  PublicationViewModel({OpenAlexService? apiService})
-    : _apiService = apiService ?? OpenAlexService(),
-      searchTimeout = const Duration(seconds: 15),
-      searchWatchdogTimeout = const Duration(seconds: 12);
+  PublicationViewModel({
+    OpenAlexService? apiService,
+    FirebaseAnalyticsService? analyticsService,
+  }) : _apiService = apiService ?? OpenAlexService(),
+       _analyticsService = analyticsService,
+       searchTimeout = const Duration(seconds: 15),
+       searchWatchdogTimeout = const Duration(seconds: 12);
 
   PublicationViewModel.withTimeout({
     OpenAlexService? apiService,
+    FirebaseAnalyticsService? analyticsService,
     required this.searchTimeout,
     this.searchWatchdogTimeout = const Duration(seconds: 12),
-  }) : _apiService = apiService ?? OpenAlexService();
+  }) : _apiService = apiService ?? OpenAlexService(),
+       _analyticsService = analyticsService;
 
   /// Cập nhật email và API Key cho API service
   void updateApiService(String? email, {String? apiKey}) {
@@ -352,6 +359,10 @@ class PublicationViewModel extends ChangeNotifier {
         final label = trimmedQuery.isEmpty ? 'popular journals' : trimmedQuery;
         _journalErrorMessage = 'No journals found for "$label" on OpenAlex.';
       }
+
+      if (!loadMore) {
+        await _logSearchJournal(query: trimmedQuery, resultCount: total);
+      }
     } catch (e) {
       if (requestId != _journalSearchRequestId) return;
       _journalErrorMessage = _formatSearchError(e);
@@ -475,6 +486,7 @@ class PublicationViewModel extends ChangeNotifier {
         _lastFetchedQuery = query;
         _lastFetchedCategory = category;
         _lastFetchedTopicKey = effectiveTopicKey;
+        await _logSearchJournal(query: query, resultCount: _totalResults);
       }
     } catch (e) {
       if (requestId != _searchRequestId) return;
@@ -1157,6 +1169,21 @@ class PublicationViewModel extends ChangeNotifier {
             'No response from OpenAlex for "$query". Check your internet connection or app network permission, then try again.',
       );
     });
+  }
+
+  Future<void> _logSearchJournal({
+    required String query,
+    required int resultCount,
+  }) async {
+    try {
+      final analyticsService = _analyticsService ?? FirebaseAnalyticsService();
+      await analyticsService.logSearchJournal(
+        query: query,
+        resultCount: resultCount,
+      );
+    } catch (_) {
+      // Analytics must never interrupt search or unit tests.
+    }
   }
 
   /// Xóa dữ liệu tìm kiếm

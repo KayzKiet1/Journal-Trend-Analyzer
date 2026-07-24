@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/auth/auth_guard.dart';
+import '../features/analytics/analytics_page.dart';
 import '../features/app_config/app_config_page.dart';
 import '../features/audit_logs/audit_logs_page.dart';
 import '../features/auth/login_page.dart';
@@ -8,6 +9,7 @@ import '../features/dashboard/dashboard_page.dart';
 import '../features/firestore_manager/collections_page.dart';
 import '../features/firestore_manager/document_detail_page.dart';
 import '../features/firestore_manager/documents_page.dart';
+import '../features/messaging/messaging_page.dart';
 import '../features/storage_manager/storage_detail_page.dart';
 import '../features/storage_manager/storage_page.dart';
 import '../features/users/user_detail_page.dart';
@@ -26,6 +28,8 @@ class AdminRoutes {
   static const storage = '/storage';
   static const storageDetail = '/storage/detail';
   static const appConfig = '/app-config';
+  static const analytics = '/analytics';
+  static const messaging = '/messaging';
   static const auditLogs = '/audit-logs';
 }
 
@@ -45,6 +49,8 @@ Map<String, WidgetBuilder> buildAdminRoutes() {
     AdminRoutes.storageDetail: (_) =>
         AuthGuard(child: const StorageDetailPage()),
     AdminRoutes.appConfig: (_) => AuthGuard(child: const AppConfigPage()),
+    AdminRoutes.analytics: (_) => AuthGuard(child: const AnalyticsPage()),
+    AdminRoutes.messaging: (_) => AuthGuard(child: const MessagingPage()),
     AdminRoutes.auditLogs: (_) => AuthGuard(child: const AuditLogsPage()),
   };
 }
