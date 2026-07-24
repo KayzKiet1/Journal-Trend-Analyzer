@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../app/router.dart';
+import '../../data/repositories/auth_repository.dart';
 
+/// Thanh điều hướng bên (Sidebar) cho giao diện Quản trị.
+/// Hiển thị các menu chức năng phân loại theo nhóm và thông tin người dùng hiện tại.
 class Sidebar extends StatelessWidget {
-  const Sidebar({required this.currentRoute, super.key});
+  Sidebar({required this.currentRoute, super.key})
+      : _authRepository = FirebaseAuthRepository();
 
   final String currentRoute;
+  final AuthRepository _authRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -21,12 +26,15 @@ class Sidebar extends StatelessWidget {
       ),
       child: Column(
         children: [
+          // Logo và Tên hệ thống.
           _SidebarHeader(colorScheme: colorScheme),
+          
+          // Danh sách các mục Menu.
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               children: [
-                _SidebarCategory(label: 'MAIN', colorScheme: colorScheme),
+                _SidebarCategory(label: 'CHÍNH', colorScheme: colorScheme),
                 _SidebarItem(
                   label: 'Dashboard',
                   icon: Icons.dashboard_outlined,
@@ -35,53 +43,55 @@ class Sidebar extends StatelessWidget {
                   isActive: currentRoute == AdminRoutes.dashboard,
                 ),
                 _SidebarItem(
-                  label: 'Analytics',
+                  label: 'Phân tích (Analytics)',
                   icon: Icons.analytics_outlined,
                   activeIcon: Icons.analytics,
                   routeName: AdminRoutes.analytics,
                   isActive: currentRoute == AdminRoutes.analytics,
                 ),
                 const SizedBox(height: 24),
-                _SidebarCategory(label: 'MANAGEMENT', colorScheme: colorScheme),
+                
+                _SidebarCategory(label: 'QUẢN LÝ DỮ LIỆU', colorScheme: colorScheme),
                 _SidebarItem(
-                  label: 'Users',
+                  label: 'Người dùng',
                   icon: Icons.people_alt_outlined,
                   activeIcon: Icons.people_alt,
                   routeName: AdminRoutes.users,
                   isActive: currentRoute.startsWith(AdminRoutes.users),
                 ),
                 _SidebarItem(
-                  label: 'Firestore',
+                  label: 'Dữ liệu Firestore',
                   icon: Icons.storage_outlined,
                   activeIcon: Icons.storage,
                   routeName: AdminRoutes.firestoreCollections,
                   isActive: currentRoute.startsWith(AdminRoutes.firestoreCollections),
                 ),
                 _SidebarItem(
-                  label: 'Storage',
+                  label: 'Quản lý Tệp (Storage)',
                   icon: Icons.folder_outlined,
                   activeIcon: Icons.folder,
                   routeName: AdminRoutes.storage,
                   isActive: currentRoute.startsWith(AdminRoutes.storage),
                 ),
                 const SizedBox(height: 24),
-                _SidebarCategory(label: 'SYSTEM', colorScheme: colorScheme),
+                
+                _SidebarCategory(label: 'HỆ THỐNG', colorScheme: colorScheme),
                 _SidebarItem(
-                  label: 'App Config',
+                  label: 'Cấu hình App',
                   icon: Icons.tune_outlined,
                   activeIcon: Icons.tune,
                   routeName: AdminRoutes.appConfig,
                   isActive: currentRoute == AdminRoutes.appConfig,
                 ),
                 _SidebarItem(
-                  label: 'Messaging',
+                  label: 'Gửi Thông báo',
                   icon: Icons.notifications_outlined,
                   activeIcon: Icons.notifications,
                   routeName: AdminRoutes.messaging,
                   isActive: currentRoute == AdminRoutes.messaging,
                 ),
                 _SidebarItem(
-                  label: 'Audit Logs',
+                  label: 'Nhật ký Hoạt động',
                   icon: Icons.history_outlined,
                   activeIcon: Icons.history,
                   routeName: AdminRoutes.auditLogs,
@@ -90,7 +100,9 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          _SidebarFooter(colorScheme: colorScheme),
+          
+          // Thông tin tài khoản đăng nhập ở dưới cùng.
+          _SidebarFooter(colorScheme: colorScheme, authRepository: _authRepository),
         ],
       ),
     );
@@ -208,36 +220,55 @@ class _SidebarItem extends StatelessWidget {
 }
 
 class _SidebarFooter extends StatelessWidget {
-  const _SidebarFooter({required this.colorScheme});
+  const _SidebarFooter({required this.colorScheme, required this.authRepository});
   final ColorScheme colorScheme;
+  final AuthRepository authRepository;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: colorScheme.outlineVariant, width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: colorScheme.secondaryContainer,
-            child: Icon(Icons.person, size: 18, color: colorScheme.onSecondaryContainer),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'Admin Account',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    return StreamBuilder(
+      stream: authRepository.authStateChanges(),
+      builder: (context, snapshot) {
+        final user = snapshot.data;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: colorScheme.outlineVariant, width: 1),
             ),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: colorScheme.secondaryContainer,
+                child: Icon(Icons.person, size: 18, color: colorScheme.onSecondaryContainer),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user?.displayName ?? 'Admin Account',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (user?.email != null)
+                      Text(
+                        user!.email!,
+                        style: TextStyle(fontSize: 11, color: colorScheme.outline),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

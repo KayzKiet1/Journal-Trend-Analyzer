@@ -60,32 +60,102 @@ class AdminShell extends StatelessWidget {
     );
   }
 
-  /// Xây dựng cụm nút hành động liên quan đến tài khoản (Sign out).
+  /// Xây dựng cụm nút hành động liên quan đến tài khoản (Đăng xuất) chuyên nghiệp hơn.
   Widget _buildAuthAction(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return StreamBuilder(
       stream: _authRepository.authStateChanges(),
       builder: (context, snapshot) {
-        if (snapshot.data == null) {
+        final user = snapshot.data;
+        if (user == null) {
           return const SizedBox.shrink();
         }
 
         return MenuAnchor(
+          style: MenuStyle(
+            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 8)),
+            elevation: WidgetStateProperty.all(8),
+          ),
           builder: (context, controller, child) {
-            return IconButton(
-              onPressed: () {
+            return InkWell(
+              onTap: () {
                 if (controller.isOpen) {
                   controller.close();
                 } else {
                   controller.open();
                 }
               },
-              icon: const CircleAvatar(
-                radius: 16,
-                child: Icon(Icons.person, size: 20),
+              borderRadius: BorderRadius.circular(24),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Hiển thị tên và email ở phía trước Avatar (chỉ trên màn hình lớn).
+                    if (MediaQuery.of(context).size.width > 600)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            user.displayName ?? 'Admin Account',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              height: 1.1,
+                            ),
+                          ),
+                          Text(
+                            user.email ?? '',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(width: 12),
+                    // Avatar với chữ cái đầu của người dùng.
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: colorScheme.primaryContainer,
+                      child: Text(
+                        (user.displayName ?? user.email ?? 'A')[0].toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down, size: 20),
+                  ],
+                ),
               ),
             );
           },
           menuChildren: [
+            // Header bên trong menu xổ xuống.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Tài khoản quản trị',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user.email ?? '',
+                    style: TextStyle(fontSize: 12, color: colorScheme.outline),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Nút đăng xuất nổi bật.
             MenuItemButton(
               onPressed: () async {
                 await _authRepository.signOut();
@@ -96,8 +166,11 @@ class AdminShell extends StatelessWidget {
                   );
                 }
               },
-              leadingIcon: const Icon(Icons.logout, size: 18),
-              child: const Text('Đăng xuất'),
+              leadingIcon: const Icon(Icons.logout, size: 18, color: Colors.redAccent),
+              child: const Text(
+                'Đăng xuất',
+                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500),
+              ),
             ),
           ],
         );
