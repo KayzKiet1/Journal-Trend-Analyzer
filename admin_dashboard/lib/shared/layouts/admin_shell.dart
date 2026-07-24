@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../app/router.dart';
 import '../../data/repositories/auth_repository.dart';
+import 'sidebar.dart';
 
+/// Lớp vỏ bọc giao diện Admin (Shell).
+/// Cung cấp cấu trúc điều hướng thống nhất cho toàn bộ hệ thống quản trị,
+/// bao gồm Sidebar trên màn hình rộng và Drawer trên màn hình nhỏ.
 class AdminShell extends StatelessWidget {
   AdminShell({required this.title, required this.child, super.key})
-    : _authRepository = FirebaseAuthRepository();
+      : _authRepository = FirebaseAuthRepository();
 
   final String title;
   final Widget child;
@@ -13,105 +17,90 @@ class AdminShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: Drawer(
-        child: ListView(
-          children: const [
-            DrawerHeader(child: Text('Journal Trend Admin')),
-            _NavTile(
-              label: 'Dashboard',
-              routeName: AdminRoutes.dashboard,
-              icon: Icons.dashboard_outlined,
-            ),
-            _NavTile(
-              label: 'Users',
-              routeName: AdminRoutes.users,
-              icon: Icons.people_alt_outlined,
-            ),
-            _NavTile(
-              label: 'Firestore',
-              routeName: AdminRoutes.firestoreCollections,
-              icon: Icons.storage_outlined,
-            ),
-            _NavTile(
-              label: 'Storage',
-              routeName: AdminRoutes.storage,
-              icon: Icons.folder_outlined,
-            ),
-            _NavTile(
-              label: 'Config',
-              routeName: AdminRoutes.appConfig,
-              icon: Icons.tune_outlined,
-            ),
-            _NavTile(
-              label: 'Analytics',
-              routeName: AdminRoutes.analytics,
-              icon: Icons.analytics_outlined,
-            ),
-            _NavTile(
-              label: 'Messaging',
-              routeName: AdminRoutes.messaging,
-              icon: Icons.campaign_outlined,
-            ),
-            _NavTile(
-              label: 'Audit Logs',
-              routeName: AdminRoutes.auditLogs,
-              icon: Icons.history_outlined,
-            ),
-          ],
-        ),
-      ),
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
-          StreamBuilder(
-            stream: _authRepository.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.data == null) {
-                return const SizedBox.shrink();
-              }
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    // Lấy tên route hiện tại để làm nổi bật mục tương ứng trong Sidebar.
+    final currentRoute = ModalRoute.of(context)?.settings.name ?? AdminRoutes.dashboard;
 
-              return IconButton(
-                tooltip: 'Sign out',
-                onPressed: () async {
-                  await _authRepository.signOut();
-                  if (context.mounted) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      AdminRoutes.login,
-                      (route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.logout),
-              );
-            },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Xác định xem có nên dùng giao diện Mobile (dưới 900px) hay không.
+        final isMobile = constraints.maxWidth < 900;
+
+        return Scaffold(
+          backgroundColor: colorScheme.surfaceContainerLowest,
+          appBar: AppBar(
+            title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            elevation: 0,
+            scrolledUnderElevation: 2,
+            centerTitle: false,
+            // Header chỉ hiện màu nền trên mobile để đồng bộ với thanh AppBar.
+            backgroundColor: isMobile ? colorScheme.surface : Colors.transparent,
+            actions: [
+              _buildAuthAction(context),
+              const SizedBox(width: 8),
+            ],
           ),
-        ],
-      ),
-      body: child,
+          // Chỉ hiển thị Drawer nếu là màn hình nhỏ.
+          drawer: isMobile ? Sidebar(currentRoute: currentRoute) : null,
+          body: Row(
+            children: [
+              // Hiển thị Sidebar cố định trên màn hình rộng.
+              if (!isMobile) Sidebar(currentRoute: currentRoute),
+              Expanded(
+                child: ClipRRect(
+                  child: child,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
-}
 
-class _NavTile extends StatelessWidget {
-  const _NavTile({
-    required this.label,
-    required this.routeName,
-    required this.icon,
-  });
+  /// Xây dựng cụm nút hành động liên quan đến tài khoản (Sign out).
+  Widget _buildAuthAction(BuildContext context) {
+    return StreamBuilder(
+      stream: _authRepository.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.data == null) {
+          return const SizedBox.shrink();
+        }
 
-  final String label;
-  final String routeName;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(label),
-      onTap: () {
-        Navigator.of(context).pop();
-        Navigator.of(context).pushReplacementNamed(routeName);
+        return MenuAnchor(
+          builder: (context, controller, child) {
+            return IconButton(
+              onPressed: () {
+                if (controller.isOpen) {
+                  controller.close();
+                } else {
+                  controller.open();
+                }
+              },
+              icon: const CircleAvatar(
+                radius: 16,
+                child: Icon(Icons.person, size: 20),
+              ),
+            );
+          },
+          menuChildren: [
+            MenuItemButton(
+              onPressed: () async {
+                await _authRepository.signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    AdminRoutes.login,
+                    (route) => false,
+                  );
+                }
+              },
+              leadingIcon: const Icon(Icons.logout, size: 18),
+              child: const Text('Đăng xuất'),
+            ),
+          ],
+        );
       },
     );
   }
