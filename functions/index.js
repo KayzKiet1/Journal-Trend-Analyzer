@@ -14,6 +14,7 @@ const appConfigDocument = 'main';
 const analyticsEventsCollection = 'analytics_events';
 const notificationLogsCollection = 'notificationLogs';
 const storageUploadsCollection = 'storageUploads';
+const healthCollections = ['app_errors', 'function_errors', 'system_health'];
 const managedCollections = [
   'users',
   'journals',
@@ -21,9 +22,12 @@ const managedCollections = [
   'configs',
   'app_config',
   'analytics_events',
+  'app_errors',
   'auditLogs',
   'audit_logs',
+  'function_errors',
   'publications',
+  'system_health',
 ];
 const dashboardCollections = ['users', 'journals', 'trends', 'publications', appConfigCollection];
 
@@ -580,6 +584,48 @@ exports.listNotificationLogs = onCall({ region }, async (request) => {
   return {
     logs,
     nextPageToken: snapshot.docs.length === limit && lastDocument ? lastDocument.id : '',
+  };
+});
+
+exports.listSystemHealth = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const limit = Math.min(Number(request.data?.limit) || 25, 50);
+  const firestore = getFirestore();
+
+  const snapshots = await Promise.all(
+    healthCollections.map(async (collectionName) => {
+      const snapshot = await firestore
+        .collection(collectionName)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .get();
+
+      return snapshot.docs.map((document) => ({
+        source: collectionName,
+        ...toFirestoreDocument(document),
+      }));
+    }),
+  );
+
+  const items = snapshots
+    .flat()
+    .sort((a, b) => {
+      const aDate = a.data.createdAt || '';
+      const bDate = b.data.createdAt || '';
+      return bDate.localeCompare(aDate);
+    })
+    .slice(0, limit);
+
+  const openIssueCount = items.filter((item) => {
+    const status = String(item.data.status || '').toLowerCase();
+    return status !== 'resolved' && status !== 'closed';
+  }).length;
+
+  return {
+    items,
+    openIssueCount,
+    generatedAt: new Date().toISOString(),
   };
 });
 

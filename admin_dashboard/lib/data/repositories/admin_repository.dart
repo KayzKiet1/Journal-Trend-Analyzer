@@ -9,6 +9,7 @@ import '../models/managed_collection.dart';
 import '../models/managed_document.dart';
 import '../models/notification_log.dart';
 import '../models/storage_file.dart';
+import '../models/system_health.dart';
 import '../models/user_profile_summary.dart';
 
 class UserListResult {
@@ -59,6 +60,8 @@ abstract class AdminRepository {
   Future<DashboardSummary> getDashboardSummary();
 
   Future<AnalyticsSummary> getAnalyticsSummary({int days = 30});
+
+  Future<SystemHealthSummary> listSystemHealth({int limit = 25});
 
   Future<UserListResult> listUsers({String? pageToken, int maxResults = 50});
 
@@ -159,6 +162,12 @@ class FirebaseAdminRepository implements AdminRepository {
   Future<AnalyticsSummary> getAnalyticsSummary({int days = 30}) async {
     final data = await _call('getAnalyticsSummary', {'days': days});
     return AnalyticsSummary.fromMap(data);
+  }
+
+  @override
+  Future<SystemHealthSummary> listSystemHealth({int limit = 25}) async {
+    final data = await _call('listSystemHealth', {'limit': limit});
+    return SystemHealthSummary.fromMap(data);
   }
 
   @override
