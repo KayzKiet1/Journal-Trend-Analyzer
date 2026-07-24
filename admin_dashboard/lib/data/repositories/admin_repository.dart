@@ -103,6 +103,17 @@ abstract class AdminRepository {
     required String title,
     required String body,
   });
+
+  Future<Map<String, int>> sendUserMessage({
+    required String recipient,
+    required String title,
+    required String body,
+  });
+
+  Future<String> sendAllUsersMessage({
+    required String title,
+    required String body,
+  });
 }
 
 class FirebaseAdminRepository implements AdminRepository {
@@ -322,6 +333,37 @@ class FirebaseAdminRepository implements AdminRepository {
     return data['messageId']?.toString() ?? '';
   }
 
+  @override
+  Future<Map<String, int>> sendUserMessage({
+    required String recipient,
+    required String title,
+    required String body,
+  }) async {
+    final isEmail = recipient.contains('@');
+    final data = await _call('sendUserMessage', {
+      if (isEmail) 'email': recipient else 'uid': recipient,
+      'title': title,
+      'body': body,
+    });
+
+    return {
+      'successCount': _readInt(data['successCount']),
+      'failureCount': _readInt(data['failureCount']),
+    };
+  }
+
+  @override
+  Future<String> sendAllUsersMessage({
+    required String title,
+    required String body,
+  }) async {
+    final data = await _call('sendAllUsersMessage', {
+      'title': title,
+      'body': body,
+    });
+    return data['messageId']?.toString() ?? '';
+  }
+
   Future<Map<String, dynamic>> _call(
     String functionName, [
     Map<String, dynamic>? parameters,
@@ -336,4 +378,14 @@ class FirebaseAdminRepository implements AdminRepository {
       throw Exception(error.message ?? error.code);
     }
   }
+}
+
+int _readInt(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  return int.tryParse(value?.toString() ?? '') ?? 0;
 }

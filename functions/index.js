@@ -408,6 +408,85 @@ exports.sendTopicMessage = onCall({ region }, async (request) => {
   return { messageId };
 });
 
+exports.sendUserMessage = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const uid = request.data?.uid;
+  const email = request.data?.email;
+  const title = request.data?.title;
+  const body = request.data?.body;
+
+  if ((!uid && !email) || !title || !body) {
+    throw new HttpsError('invalid-argument', 'User uid/email, title, and body are required.');
+  }
+
+  const userRecord = uid
+    ? await getAuth().getUser(uid)
+    : await getAuth().getUserByEmail(email);
+
+  const tokenSnapshot = await getFirestore()
+    .collection('users')
+    .doc(userRecord.uid)
+    .collection('fcmTokens')
+    .get();
+
+  const tokens = tokenSnapshot.docs
+    .map((document) => document.data().token)
+    .filter((token) => typeof token === 'string' && token.length > 0);
+
+  if (tokens.length === 0) {
+    throw new HttpsError('failed-precondition', 'This user has no registered FCM tokens.');
+  }
+
+  const response = await getMessaging().sendEachForMulticast({
+    tokens,
+    notification: { title, body },
+    data: {
+      source: 'admin_dashboard',
+      type: 'direct',
+    },
+  });
+
+  await writeAuditLog(authContext, 'sendUserMessage', userRecord.uid, null, {
+    email: userRecord.email || '',
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+    title,
+    body,
+  });
+
+  return {
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+  };
+});
+
+exports.sendAllUsersMessage = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const title = request.data?.title;
+  const body = request.data?.body;
+
+  if (!title || !body) {
+    throw new HttpsError('invalid-argument', 'Title and body are required.');
+  }
+
+  const messageId = await getMessaging().send({
+    topic: 'announcements',
+    notification: { title, body },
+    data: {
+      source: 'admin_dashboard',
+      type: 'announcement',
+    },
+  });
+
+  await writeAuditLog(authContext, 'sendAllUsersMessage', 'announcements', null, {
+    messageId,
+    title,
+    body,
+  });
+
+  return { messageId };
+});
+
 exports.getAnalyticsSummary = onCall({ region }, async (request) => {
   assertAdmin(request);
 
