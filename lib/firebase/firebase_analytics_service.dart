@@ -1,10 +1,16 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
 
+import 'analytics_event_service.dart';
+
 class FirebaseAnalyticsService {
-  FirebaseAnalyticsService({FirebaseAnalytics? analytics})
-    : _analytics = analytics ?? FirebaseAnalytics.instance;
+  FirebaseAnalyticsService({
+    FirebaseAnalytics? analytics,
+    AnalyticsEventService? eventService,
+  }) : _analytics = analytics ?? FirebaseAnalytics.instance,
+       _eventService = eventService ?? AnalyticsEventService();
 
   final FirebaseAnalytics _analytics;
+  final AnalyticsEventService _eventService;
 
   Future<void> logLogin({String method = 'google'}) {
     return _logEvent('login', {'method': method});
@@ -21,18 +27,37 @@ class FirebaseAnalyticsService {
     });
   }
 
-  Future<void> logViewPublication({
-    required String publicationTitle,
-    required int publicationYear,
-  }) {
-    return _logEvent('view_publication', {
-      'publication_title': publicationTitle,
-      'publication_year': publicationYear,
+  Future<void> logSearchJournal({required String query, int resultCount = 0}) {
+    return _logEvent('search_journal', {
+      'query': query,
+      'result_count': resultCount,
     });
   }
 
-  Future<void> logViewJournal({required String journalName}) {
-    return _logEvent('view_journal', {'journal_name': journalName});
+  Future<void> logViewPublication({
+    String publicationId = '',
+    required String publicationTitle,
+    required int publicationYear,
+    String journalId = '',
+    String journalName = '',
+  }) {
+    return _logEvent('view_publication', {
+      'publication_id': publicationId,
+      'publication_title': publicationTitle,
+      'publication_year': publicationYear,
+      'journal_id': journalId,
+      'journal_name': journalName,
+    });
+  }
+
+  Future<void> logViewJournal({
+    String journalId = '',
+    required String journalName,
+  }) {
+    return _logEvent('view_journal', {
+      'journal_id': journalId,
+      'journal_name': journalName,
+    });
   }
 
   Future<void> logViewKeyword({required String keyword}) {
@@ -48,12 +73,14 @@ class FirebaseAnalyticsService {
     Map<String, Object?> parameters = const {},
   ]) async {
     try {
-      await _analytics.logEvent(
-        name: name,
-        parameters: parameters.map(
-          (key, value) => MapEntry(key, _sanitizeValue(value)),
-        ),
+      final sanitizedParameters = parameters.map(
+        (key, value) => MapEntry(key, _sanitizeValue(value)),
       );
+
+      await Future.wait([
+        _analytics.logEvent(name: name, parameters: sanitizedParameters),
+        _eventService.logEvent(eventName: name, metadata: sanitizedParameters),
+      ]);
     } catch (_) {
       // Analytics must never interrupt the user workflow.
     }

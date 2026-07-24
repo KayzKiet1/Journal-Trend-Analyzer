@@ -1,6 +1,7 @@
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore, FieldPath, FieldValue } = require('firebase-admin/firestore');
+const { getMessaging } = require('firebase-admin/messaging');
 const { getStorage } = require('firebase-admin/storage');
 const { HttpsError, onCall } = require('firebase-functions/v2/https');
 
@@ -8,7 +9,21 @@ initializeApp();
 
 const region = 'asia-southeast1';
 const auditCollection = 'auditLogs';
-const dashboardCollections = ['users', 'journals', 'publications', 'appConfig'];
+const appConfigCollection = 'app_config';
+const appConfigDocument = 'main';
+const analyticsEventsCollection = 'analytics_events';
+const managedCollections = [
+  'users',
+  'journals',
+  'trends',
+  'configs',
+  'app_config',
+  'analytics_events',
+  'auditLogs',
+  'audit_logs',
+  'publications',
+];
+const dashboardCollections = ['users', 'journals', 'trends', 'publications', appConfigCollection];
 
 function assertAdmin(request) {
   if (!request.auth) {
@@ -47,6 +62,60 @@ async function writeAuditLog(authContext, action, target, before, after) {
     after,
     createdAt: FieldValue.serverTimestamp(),
   });
+}
+
+function assertManagedCollection(collectionName) {
+  if (!managedCollections.includes(collectionName)) {
+    throw new HttpsError('invalid-argument', 'This collection is not managed by the admin dashboard.');
+  }
+}
+
+function assertDocumentInput(collectionName, documentId) {
+  assertManagedCollection(collectionName);
+  if (!documentId || typeof documentId !== 'string' || documentId.includes('/')) {
+    throw new HttpsError('invalid-argument', 'A valid document id is required.');
+  }
+}
+
+function serializeFirestoreValue(value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value.toDate === 'function') {
+    return value.toDate().toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(serializeFirestoreValue);
+  }
+
+  if (typeof value === 'object') {
+    const serialized = {};
+    Object.entries(value).forEach(([key, nestedValue]) => {
+      serialized[key] = serializeFirestoreValue(nestedValue);
+    });
+    return serialized;
+  }
+
+  return value;
+}
+
+function toFirestoreDocument(snapshot) {
+  return {
+    id: snapshot.id,
+    path: snapshot.ref.path,
+    exists: snapshot.exists,
+    data: snapshot.exists ? serializeFirestoreValue(snapshot.data()) : {},
+  };
+}
+
+function parsePlainObject(value, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new HttpsError('invalid-argument', `${label} must be a plain object.`);
+  }
+
+  return value;
 }
 
 async function countAuthUsers() {
@@ -96,6 +165,329 @@ exports.getAdminDashboardSummary = onCall({ region }, async (request) => {
     generatedAt: new Date().toISOString(),
   };
 });
+
+exports.listManagedCollections = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const collections = await Promise.all(
+    managedCollections.map(async (name) => ({
+      name,
+      count: await countFirestoreCollection(name),
+    })),
+  );
+
+  return { collections };
+});
+
+exports.listManagedDocuments = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const collectionName = request.data?.collectionName;
+  assertManagedCollection(collectionName);
+
+  const limit = Math.min(Number(request.data?.limit) || 25, 50);
+  const startAfterId = request.data?.startAfterId;
+  let query = getFirestore()
+    .collection(collectionName)
+    .orderBy(FieldPath.documentId())
+    .limit(limit);
+
+  if (startAfterId) {
+    const cursor = await getFirestore()
+      .collection(collectionName)
+      .doc(startAfterId)
+      .get();
+    if (cursor.exists) {
+      query = query.startAfter(cursor);
+    }
+  }
+
+  const snapshot = await query.get();
+  const documents = snapshot.docs.map(toFirestoreDocument);
+  const lastDocument = snapshot.docs[snapshot.docs.length - 1];
+
+  return {
+    documents,
+    nextPageToken: snapshot.docs.length === limit && lastDocument ? lastDocument.id : '',
+  };
+});
+
+exports.getManagedDocument = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const collectionName = request.data?.collectionName;
+  const documentId = request.data?.documentId;
+  assertDocumentInput(collectionName, documentId);
+
+  const snapshot = await getFirestore().collection(collectionName).doc(documentId).get();
+  return { document: toFirestoreDocument(snapshot) };
+});
+
+exports.saveManagedDocument = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const collectionName = request.data?.collectionName;
+  const documentId = request.data?.documentId;
+  const data = parsePlainObject(request.data?.data, 'Document data');
+  assertDocumentInput(collectionName, documentId);
+
+  const reference = getFirestore().collection(collectionName).doc(documentId);
+  const beforeSnapshot = await reference.get();
+  const before = toFirestoreDocument(beforeSnapshot);
+
+  await reference.set({
+    ...data,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  const after = toFirestoreDocument(await reference.get());
+  await writeAuditLog(authContext, 'saveDocument', reference.path, before, after);
+
+  return { document: after };
+});
+
+exports.deleteManagedDocument = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const collectionName = request.data?.collectionName;
+  const documentId = request.data?.documentId;
+  assertDocumentInput(collectionName, documentId);
+
+  if (collectionName === auditCollection) {
+    throw new HttpsError('failed-precondition', 'Audit logs cannot be deleted from the admin dashboard.');
+  }
+
+  const reference = getFirestore().collection(collectionName).doc(documentId);
+  const before = toFirestoreDocument(await reference.get());
+  await reference.delete();
+  await writeAuditLog(authContext, 'deleteDocument', reference.path, before, { exists: false });
+
+  return { deleted: true };
+});
+
+exports.getAppConfig = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const snapshot = await getFirestore()
+    .collection(appConfigCollection)
+    .doc(appConfigDocument)
+    .get();
+
+  return {
+    config: snapshot.exists ? serializeFirestoreValue(snapshot.data()) : {},
+  };
+});
+
+exports.saveAppConfig = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const config = parsePlainObject(request.data?.config, 'App config');
+  const reference = getFirestore()
+    .collection(appConfigCollection)
+    .doc(appConfigDocument);
+
+  const before = toFirestoreDocument(await reference.get());
+  await reference.set({
+    ...config,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  const after = toFirestoreDocument(await reference.get());
+
+  await writeAuditLog(authContext, 'saveAppConfig', reference.path, before, after);
+
+  return { config: after.data };
+});
+
+exports.listStorageFiles = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const prefix = request.data?.prefix || '';
+  const maxResults = Math.min(Number(request.data?.maxResults) || 50, 100);
+  const pageToken = request.data?.pageToken || undefined;
+  const [files, nextQuery] = await getStorage().bucket().getFiles({
+    prefix,
+    maxResults,
+    pageToken,
+  });
+
+  const items = await Promise.all(
+    files.map(async (file) => {
+      const [metadata] = await file.getMetadata();
+      const [downloadUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 15 * 60 * 1000,
+      });
+
+      return {
+        name: file.name,
+        bucket: metadata.bucket || '',
+        contentType: metadata.contentType || '',
+        size: Number(metadata.size || 0),
+        updated: metadata.updated || '',
+        downloadUrl,
+      };
+    }),
+  );
+
+  return {
+    files: items,
+    nextPageToken: nextQuery?.pageToken || '',
+  };
+});
+
+exports.deleteStorageFile = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const path = request.data?.path;
+
+  if (!path || typeof path !== 'string') {
+    throw new HttpsError('invalid-argument', 'A storage file path is required.');
+  }
+
+  const file = getStorage().bucket().file(path);
+  const [exists] = await file.exists();
+  const before = exists ? { path } : { path, exists: false };
+
+  if (!exists) {
+    throw new HttpsError('not-found', 'Storage file was not found.');
+  }
+
+  await file.delete();
+  await writeAuditLog(authContext, 'deleteStorageFile', path, before, { exists: false });
+
+  return { deleted: true };
+});
+
+exports.listAuditLogs = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const limit = Math.min(Number(request.data?.limit) || 50, 100);
+  const startAfterId = request.data?.startAfterId;
+  let query = getFirestore()
+    .collection(auditCollection)
+    .orderBy('createdAt', 'desc')
+    .limit(limit);
+
+  if (startAfterId) {
+    const cursor = await getFirestore().collection(auditCollection).doc(startAfterId).get();
+    if (cursor.exists) {
+      query = query.startAfter(cursor);
+    }
+  }
+
+  const snapshot = await query.get();
+  const logs = snapshot.docs.map(toFirestoreDocument);
+  const lastDocument = snapshot.docs[snapshot.docs.length - 1];
+
+  return {
+    logs,
+    nextPageToken: snapshot.docs.length === limit && lastDocument ? lastDocument.id : '',
+  };
+});
+
+exports.sendTopicMessage = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const topic = request.data?.topic;
+  const title = request.data?.title;
+  const body = request.data?.body;
+
+  if (!topic || typeof topic !== 'string' || !title || !body) {
+    throw new HttpsError('invalid-argument', 'Topic, title, and body are required.');
+  }
+
+  const messageId = await getMessaging().send({
+    topic,
+    notification: { title, body },
+    data: {
+      source: 'admin_dashboard',
+    },
+  });
+
+  await writeAuditLog(authContext, 'sendTopicMessage', topic, null, {
+    messageId,
+    title,
+    body,
+  });
+
+  return { messageId };
+});
+
+exports.getAnalyticsSummary = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const days = Math.min(Number(request.data?.days) || 30, 90);
+  const now = new Date();
+  const todayKey = now.toISOString().slice(0, 10);
+  const since = new Date(now);
+  since.setDate(since.getDate() - days + 1);
+  since.setHours(0, 0, 0, 0);
+
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const snapshot = await getFirestore()
+    .collection(analyticsEventsCollection)
+    .where('createdAt', '>=', since)
+    .orderBy('createdAt', 'desc')
+    .limit(5000)
+    .get();
+
+  const dailyEvents = {};
+  const topEvents = {};
+  const topJournals = {};
+  const activeUsersToday = new Set();
+  const activeUsers7d = new Set();
+  const activeUsers = new Set();
+
+  snapshot.docs.forEach((document) => {
+    const data = document.data();
+    const createdAt = data.createdAt?.toDate?.();
+    if (!createdAt) return;
+
+    const dateKey = createdAt.toISOString().slice(0, 10);
+    const eventName = data.eventName || 'unknown';
+    const metadata = data.metadata || {};
+    const userKey = data.userId || data.userEmail || '';
+
+    dailyEvents[dateKey] = (dailyEvents[dateKey] || 0) + 1;
+    topEvents[eventName] = (topEvents[eventName] || 0) + 1;
+
+    if (eventName === 'view_journal' || eventName === 'search_journal') {
+      const journalName = metadata.journal_name || metadata.query || '';
+      if (journalName) {
+        topJournals[journalName] = (topJournals[journalName] || 0) + 1;
+      }
+    }
+
+    if (userKey) {
+      activeUsers.add(userKey);
+      if (dateKey === todayKey) {
+        activeUsersToday.add(userKey);
+      }
+      if (createdAt >= sevenDaysAgo) {
+        activeUsers7d.add(userKey);
+      }
+    }
+  });
+
+  return {
+    days,
+    totalEvents: snapshot.size,
+    activeUsers: activeUsers.size,
+    activeUsersToday: activeUsersToday.size,
+    activeUsers7d: activeUsers7d.size,
+    dailyEvents: Object.entries(dailyEvents)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date)),
+    topEvents: rankCounts(topEvents),
+    topJournals: rankCounts(topJournals),
+    generatedAt: now.toISOString(),
+  };
+});
+
+function rankCounts(values) {
+  return Object.entries(values)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 10);
+}
 
 exports.listUsers = onCall({ region }, async (request) => {
   assertAdmin(request);
