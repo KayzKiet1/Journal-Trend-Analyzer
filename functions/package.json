@@ -1,0 +1,20 @@
+{
+  "name": "journal-trend-analyzer-functions",
+  "description": "Firebase Cloud Functions for Journal Trend Analyzer admin dashboard.",
+  "private": true,
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint .",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^6.4.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.32.0"
+  }
+}

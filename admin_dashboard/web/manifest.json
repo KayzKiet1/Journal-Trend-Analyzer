@@ -1,0 +1,13 @@
+{
+  "name": "Journal Trend Admin",
+  "short_name": "Admin",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "description": "Admin dashboard for Journal Trend Analyzer.",
+  "orientation": "landscape-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}
+
