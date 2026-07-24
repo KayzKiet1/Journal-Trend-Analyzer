@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../firebase/saved_items_sync_service.dart';
 import '../models/journal_model.dart';
 
 class JournalLibraryViewModel extends ChangeNotifier {
@@ -12,11 +13,13 @@ class JournalLibraryViewModel extends ChangeNotifier {
 
   List<Journal> _favorites = [];
   List<Journal> _recentViewed = [];
+  final SavedItemsSyncService? _syncService;
 
   List<Journal> get favorites => List.unmodifiable(_favorites);
   List<Journal> get recentViewed => List.unmodifiable(_recentViewed);
 
-  JournalLibraryViewModel() {
+  JournalLibraryViewModel({SavedItemsSyncService? syncService})
+    : _syncService = syncService {
     _loadData();
   }
 
@@ -39,8 +42,10 @@ class JournalLibraryViewModel extends ChangeNotifier {
     final index = _favorites.indexWhere((item) => item.id == journal.id);
     if (index >= 0) {
       _favorites.removeAt(index);
+      await _syncSavedJournal(journal, saved: false);
     } else {
       _favorites.insert(0, journal);
+      await _syncSavedJournal(journal, saved: true);
     }
     await _saveList(_favoriteJournalsKey, _favorites);
     notifyListeners();
@@ -84,5 +89,18 @@ class JournalLibraryViewModel extends ChangeNotifier {
         .map((journal) => jsonEncode(journal.toStoredJson()))
         .toList();
     await prefs.setStringList(key, encodedItems);
+  }
+
+  Future<void> _syncSavedJournal(Journal journal, {required bool saved}) async {
+    try {
+      final service = _syncService ?? SavedItemsSyncService();
+      if (saved) {
+        await service.saveJournal(journal);
+      } else {
+        await service.removeJournal(journal.id);
+      }
+    } catch (_) {
+      // Saved item sync must never interrupt the local library workflow.
+    }
   }
 }

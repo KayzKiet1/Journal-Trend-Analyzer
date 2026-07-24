@@ -16,6 +16,8 @@ abstract class AuthRepository {
 
   User? get currentUser;
 
+  AdminAuthState? get cachedAdminState;
+
   Future<AdminAuthState> getCurrentAdminState({bool forceRefresh = false});
 
   Future<AdminAuthState> signInWithEmailAndPassword({
@@ -33,6 +35,8 @@ class FirebaseAuthRepository implements AuthRepository {
     : _auth = auth ?? FirebaseService.auth;
 
   final FirebaseAuth _auth;
+  static AdminAuthState? _cachedAdminState;
+  static String? _cachedAdminUid;
 
   @override
   Stream<User?> authStateChanges() => _auth.authStateChanges();
@@ -41,17 +45,37 @@ class FirebaseAuthRepository implements AuthRepository {
   User? get currentUser => _auth.currentUser;
 
   @override
+  AdminAuthState? get cachedAdminState {
+    final user = _auth.currentUser;
+    if (user == null || _cachedAdminUid != user.uid) {
+      return null;
+    }
+
+    return _cachedAdminState;
+  }
+
+  @override
   Future<AdminAuthState> getCurrentAdminState({
     bool forceRefresh = false,
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
+      _clearCachedAdminState();
       return const AdminAuthState(user: null, isAdmin: false);
+    }
+
+    if (!forceRefresh &&
+        _cachedAdminUid == user.uid &&
+        _cachedAdminState != null) {
+      return _cachedAdminState!;
     }
 
     final token = await user.getIdTokenResult(forceRefresh);
     final isAdmin = token.claims?['admin'] == true;
-    return AdminAuthState(user: user, isAdmin: isAdmin);
+    final adminState = AdminAuthState(user: user, isAdmin: isAdmin);
+    _cachedAdminUid = user.uid;
+    _cachedAdminState = adminState;
+    return adminState;
   }
 
   @override
@@ -89,5 +113,13 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    _clearCachedAdminState();
+    await _auth.signOut();
+  }
+
+  static void _clearCachedAdminState() {
+    _cachedAdminUid = null;
+    _cachedAdminState = null;
+  }
 }

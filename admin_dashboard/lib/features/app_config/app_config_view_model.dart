@@ -47,6 +47,45 @@ class AppConfigViewModel extends ChangeNotifier {
     });
   }
 
+  Future<void> saveTypedConfig({
+    required bool maintenanceMode,
+    required bool enableReportExport,
+    required int maxJournalsDisplay,
+    required String announcementText,
+    required String advancedJson,
+  }) async {
+    if (maxJournalsDisplay < 1) {
+      _errorMessage = 'Max journals display must be greater than 0.';
+      notifyListeners();
+      return;
+    }
+
+    Map<String, dynamic> advancedConfig = {};
+    try {
+      final decoded = jsonDecode(
+        advancedJson.trim().isEmpty ? '{}' : advancedJson,
+      );
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('Advanced config JSON must be an object.');
+      }
+      advancedConfig = decoded;
+    } on FormatException catch (error) {
+      _errorMessage = error.message;
+      notifyListeners();
+      return;
+    }
+
+    await _run(() async {
+      _config = await _adminRepository.saveAppConfig({
+        ...advancedConfig,
+        'maintenanceMode': maintenanceMode,
+        'enableReportExport': enableReportExport,
+        'maxJournalsDisplay': maxJournalsDisplay,
+        'announcementText': announcementText,
+      });
+    });
+  }
+
   Future<void> _run(Future<void> Function() action) async {
     _isLoading = true;
     _errorMessage = null;

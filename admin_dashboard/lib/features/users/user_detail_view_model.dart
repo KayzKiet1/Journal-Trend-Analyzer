@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../data/models/admin_user.dart';
+import '../../data/models/user_profile_summary.dart';
 import '../../data/repositories/admin_repository.dart';
 
 class UserDetailViewModel extends ChangeNotifier {
@@ -10,10 +11,13 @@ class UserDetailViewModel extends ChangeNotifier {
   final AdminRepository _adminRepository;
 
   AdminUser? _user;
+  UserProfileSummary? _profileSummary;
   bool _isLoading = false;
   String? _errorMessage;
 
   AdminUser? get user => _user;
+
+  UserProfileSummary? get profileSummary => _profileSummary;
 
   bool get isLoading => _isLoading;
 
@@ -26,6 +30,7 @@ class UserDetailViewModel extends ChangeNotifier {
 
     try {
       _user = await _adminRepository.getUser(uid);
+      _profileSummary = await _adminRepository.getUserProfileSummary(uid);
     } on Exception catch (error) {
       _errorMessage = error.toString();
     } finally {

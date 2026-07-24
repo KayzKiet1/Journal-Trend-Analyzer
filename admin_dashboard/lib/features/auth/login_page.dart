@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../app/router.dart';
-import '../../shared/layouts/admin_shell.dart';
 import 'login_view_model.dart';
 
-/// Trang đăng nhập cho hệ quản trị (Admin Login).
-/// Cung cấp hai phương thức xác thực: Email/Password truyền thống và Google Sign-In.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, this.initialError});
 
@@ -23,6 +20,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLoading = false;
   bool _isGoogleLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   @override
@@ -40,201 +38,56 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isWide = MediaQuery.sizeOf(context).width >= 920;
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
-      body: Row(
-        children: [
-          // Phần hình ảnh minh họa bên trái (chỉ hiện trên màn hình lớn).
-          if (MediaQuery.of(context).size.width > 800)
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [colorScheme.primary, colorScheme.primaryContainer],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.auto_graph, size: 100, color: Colors.white),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Journal Trend Analyzer',
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1180),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  if (isWide) ...[
+                    const Expanded(child: _BrandPanel()),
+                    const SizedBox(width: 24),
+                  ],
+                  Expanded(
+                    child: Align(
+                      alignment: isWide
+                          ? Alignment.centerLeft
+                          : Alignment.center,
+                      child: _LoginCard(
+                        formKey: _formKey,
+                        emailController: _emailController,
+                        passwordController: _passwordController,
+                        obscurePassword: _obscurePassword,
+                        errorMessage: _errorMessage,
+                        isLoading: _isLoading,
+                        isGoogleLoading: _isGoogleLoading,
+                        isBusy: _isBusy,
+                        onPasswordVisibilityPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
                         ),
+                        onSubmit: _submit,
+                        onGoogleSubmit: _signInWithGoogle,
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Hệ thống quản trị dữ liệu nghiên cứu khoa học',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          
-          // Phần Form đăng nhập bên phải.
-          Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  padding: const EdgeInsets.all(32),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          'Đăng nhập Admin',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Vui lòng sử dụng tài khoản có quyền quản trị.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.outline,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        
-                        // Trường nhập Email.
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            prefixIcon: Icon(Icons.email_outlined),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(12)),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Vui lòng nhập Email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        
-                        // Trường nhập Mật khẩu.
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Mật khẩu',
-                            prefixIcon: Icon(Icons.lock_outline),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(12)),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Vui lòng nhập mật khẩu';
-                            }
-                            return null;
-                          },
-                          onFieldSubmitted: (_) => _submit(),
-                        ),
-                        
-                        // Thông báo lỗi nếu có.
-                        if (_errorMessage != null) ...[
-                          const SizedBox(height: 20),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: colorScheme.errorContainer,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _errorMessage!,
-                              style: TextStyle(color: colorScheme.onErrorContainer),
-                            ),
-                          ),
-                        ],
-                        
-                        const SizedBox(height: 32),
-                        
-                        // Nút Đăng nhập chính.
-                        FilledButton(
-                          onPressed: _isBusy ? null : _submit,
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox.square(
-                                  dimension: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Đăng nhập'),
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        const Row(
-                          children: [
-                            Expanded(child: Divider()),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text('HOẶC'),
-                            ),
-                            Expanded(child: Divider()),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Nút Đăng nhập bằng Google.
-                        OutlinedButton.icon(
-                          onPressed: _isBusy ? null : _signInWithGoogle,
-                          icon: _isGoogleLoading
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.login),
-                          label: const Text('Đăng nhập với Google'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
   bool get _isBusy => _isLoading || _isGoogleLoading;
 
-  /// Xử lý logic đăng nhập bằng tài khoản/mật khẩu.
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -260,7 +113,9 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      Navigator.of(context).pushNamedAndRemoveUntil(AdminRoutes.dashboard, (route) => false);
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AdminRoutes.dashboard, (route) => false);
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() {
@@ -275,7 +130,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  /// Xử lý logic đăng nhập bằng Google.
   Future<void> _signInWithGoogle() async {
     setState(() {
       _isGoogleLoading = true;
@@ -294,7 +148,9 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      Navigator.of(context).pushNamedAndRemoveUntil(AdminRoutes.dashboard, (route) => false);
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AdminRoutes.dashboard, (route) => false);
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() {
@@ -307,5 +163,304 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     }
+  }
+}
+
+class _BrandPanel extends StatelessWidget {
+  const _BrandPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      height: double.infinity,
+      constraints: const BoxConstraints(minHeight: 620),
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.auto_graph, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Journal Admin',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            'Quản trị dữ liệu nghiên cứu rõ ràng hơn.',
+            style: theme.textTheme.displaySmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Theo dõi user, cấu hình app, storage, notification và audit log trong một dashboard dành riêng cho admin.',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: const Color(0xFFCBD5E1),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 28),
+          const _BrandMetricRow(),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrandMetricRow extends StatelessWidget {
+  const _BrandMetricRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        _BrandMetric(icon: Icons.verified_user_outlined, label: 'Claim guard'),
+        _BrandMetric(icon: Icons.history_outlined, label: 'Audit logs'),
+        _BrandMetric(icon: Icons.notifications_outlined, label: 'Messaging'),
+      ],
+    );
+  }
+}
+
+class _BrandMetric extends StatelessWidget {
+  const _BrandMetric({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoginCard extends StatelessWidget {
+  const _LoginCard({
+    required this.formKey,
+    required this.emailController,
+    required this.passwordController,
+    required this.obscurePassword,
+    required this.errorMessage,
+    required this.isLoading,
+    required this.isGoogleLoading,
+    required this.isBusy,
+    required this.onPasswordVisibilityPressed,
+    required this.onSubmit,
+    required this.onGoogleSubmit,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final bool obscurePassword;
+  final String? errorMessage;
+  final bool isLoading;
+  final bool isGoogleLoading;
+  final bool isBusy;
+  final VoidCallback onPasswordVisibilityPressed;
+  final VoidCallback onSubmit;
+  final VoidCallback onGoogleSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 440),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Đăng nhập Admin',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Chỉ tài khoản có custom claim admin mới vào được dashboard.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  validator: (value) {
+                    final email = value?.trim() ?? '';
+                    if (email.isEmpty) {
+                      return 'Vui lòng nhập email.';
+                    }
+                    if (!email.contains('@')) {
+                      return 'Email chưa đúng định dạng.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: passwordController,
+                  obscureText: obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: 'Mật khẩu',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      tooltip: obscurePassword
+                          ? 'Hiện mật khẩu'
+                          : 'Ẩn mật khẩu',
+                      onPressed: onPasswordVisibilityPressed,
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập mật khẩu.';
+                    }
+                    return null;
+                  },
+                  onFieldSubmitted: (_) => onSubmit(),
+                ),
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  _LoginErrorBanner(message: errorMessage!),
+                ],
+                const SizedBox(height: 22),
+                FilledButton.icon(
+                  onPressed: isBusy ? null : onSubmit,
+                  icon: isLoading
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.login),
+                  label: const Text('Đăng nhập'),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'hoặc',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: isBusy ? null : onGoogleSubmit,
+                  icon: isGoogleLoading
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.account_circle_outlined),
+                  label: const Text('Tiếp tục với Google'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginErrorBanner extends StatelessWidget {
+  const _LoginErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline, color: colorScheme.onErrorContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: colorScheme.onErrorContainer),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

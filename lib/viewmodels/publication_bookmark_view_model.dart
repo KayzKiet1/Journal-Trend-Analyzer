@@ -3,16 +3,19 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../firebase/saved_items_sync_service.dart';
 import '../models/publication_model.dart';
 
 class PublicationBookmarkViewModel extends ChangeNotifier {
   static const String _bookmarkedPublicationsKey = 'bookmarked_publications';
 
   List<Publication> _bookmarks = [];
+  final SavedItemsSyncService? _syncService;
 
   List<Publication> get bookmarks => List.unmodifiable(_bookmarks);
 
-  PublicationBookmarkViewModel() {
+  PublicationBookmarkViewModel({SavedItemsSyncService? syncService})
+    : _syncService = syncService {
     _loadData();
   }
 
@@ -26,8 +29,10 @@ class PublicationBookmarkViewModel extends ChangeNotifier {
     final index = _bookmarks.indexWhere((item) => item.id == publication.id);
     if (index >= 0) {
       _bookmarks.removeAt(index);
+      await _syncBookmark(publication, saved: false);
     } else {
       _bookmarks.insert(0, publication);
+      await _syncBookmark(publication, saved: true);
     }
     await _saveBookmarks();
     notifyListeners();
@@ -70,5 +75,21 @@ class PublicationBookmarkViewModel extends ChangeNotifier {
           .map((publication) => jsonEncode(publication.toStoredJson()))
           .toList(),
     );
+  }
+
+  Future<void> _syncBookmark(
+    Publication publication, {
+    required bool saved,
+  }) async {
+    try {
+      final service = _syncService ?? SavedItemsSyncService();
+      if (saved) {
+        await service.savePublication(publication);
+      } else {
+        await service.removePublication(publication.id);
+      }
+    } catch (_) {
+      // Saved item sync must never interrupt local bookmarks.
+    }
   }
 }

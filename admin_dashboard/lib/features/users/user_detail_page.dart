@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/models/user_profile_summary.dart';
 import '../../shared/layouts/admin_shell.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_view.dart';
@@ -148,6 +149,8 @@ class _UserDetailPageState extends State<UserDetailPage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              _UserProfileSections(summary: _viewModel.profileSummary),
               if (_viewModel.errorMessage != null) ...[
                 const SizedBox(height: 16),
                 Text(
@@ -201,6 +204,119 @@ class _UserDetailPageState extends State<UserDetailPage> {
   }
 }
 
+class _UserProfileSections extends StatelessWidget {
+  const _UserProfileSections({required this.summary});
+
+  final UserProfileSummary? summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = summary;
+    if (data == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      children: [
+        _SectionCard(
+          title: 'FCM tokens',
+          icon: Icons.notifications_active_outlined,
+          children: data.fcmTokens.isEmpty
+              ? const [Text('No registered tokens.')]
+              : data.fcmTokens
+                    .map(
+                      (token) => _InfoRow(
+                        label: token.id,
+                        value:
+                            token.data['platform']?.toString() ??
+                            token.data['updatedAt']?.toString() ??
+                            '-',
+                      ),
+                    )
+                    .toList(),
+        ),
+        const SizedBox(height: 16),
+        _SectionCard(
+          title: 'Recent activity',
+          icon: Icons.timeline_outlined,
+          children: data.activity.isEmpty
+              ? const [Text('No analytics activity yet.')]
+              : data.activity
+                    .take(8)
+                    .map(
+                      (event) => _InfoRow(
+                        label: event.data['eventName']?.toString() ?? event.id,
+                        value: event.data['createdAt']?.toString() ?? '-',
+                      ),
+                    )
+                    .toList(),
+        ),
+        const SizedBox(height: 16),
+        _SectionCard(
+          title: 'Uploaded reports',
+          icon: Icons.picture_as_pdf_outlined,
+          children: data.reports.isEmpty
+              ? const [Text('No uploaded reports.')]
+              : data.reports
+                    .map(
+                      (report) => _InfoRow(
+                        label: report.name,
+                        value:
+                            '${_formatBytes(report.size)} • ${report.updated}',
+                      ),
+                    )
+                    .toList(),
+        ),
+        const SizedBox(height: 16),
+        _SectionCard(
+          title: 'Saved journals/publications',
+          icon: Icons.bookmark_outline,
+          children: [
+            Text('${data.savedJournals.length} saved journals'),
+            const SizedBox(height: 6),
+            Text('${data.savedPublications.length} saved publications'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
+
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon),
+                const SizedBox(width: 8),
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.label, required this.value});
 
@@ -223,4 +339,14 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatBytes(int bytes) {
+  if (bytes >= 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  if (bytes >= 1024) {
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+  return '$bytes B';
 }

@@ -12,6 +12,8 @@ const auditCollection = 'auditLogs';
 const appConfigCollection = 'app_config';
 const appConfigDocument = 'main';
 const analyticsEventsCollection = 'analytics_events';
+const notificationLogsCollection = 'notificationLogs';
+const storageUploadsCollection = 'storageUploads';
 const managedCollections = [
   'users',
   'journals',
@@ -61,6 +63,15 @@ async function writeAuditLog(authContext, action, target, before, after) {
     before,
     after,
     createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
+async function writeNotificationLog(authContext, payload) {
+  await getFirestore().collection(notificationLogsCollection).add({
+    adminUid: authContext.uid,
+    adminEmail: authContext.token.email || '',
+    createdAt: FieldValue.serverTimestamp(),
+    ...payload,
   });
 }
 
@@ -321,6 +332,7 @@ exports.listStorageFiles = onCall({ region }, async (request) => {
         contentType: metadata.contentType || '',
         size: Number(metadata.size || 0),
         updated: metadata.updated || '',
+        customMetadata: metadata.metadata || {},
         downloadUrl,
       };
     }),
@@ -352,6 +364,33 @@ exports.deleteStorageFile = onCall({ region }, async (request) => {
   await writeAuditLog(authContext, 'deleteStorageFile', path, before, { exists: false });
 
   return { deleted: true };
+});
+
+exports.recordStorageUpload = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const path = request.data?.path;
+  const fileName = request.data?.fileName;
+  const contentType = request.data?.contentType || '';
+  const size = Number(request.data?.size || 0);
+
+  if (!path || typeof path !== 'string' || !fileName) {
+    throw new HttpsError('invalid-argument', 'Uploaded file path and file name are required.');
+  }
+
+  const payload = {
+    path,
+    fileName,
+    contentType,
+    size,
+    uploadedByUid: authContext.uid,
+    uploadedByEmail: authContext.token.email || '',
+    createdAt: FieldValue.serverTimestamp(),
+  };
+
+  await getFirestore().collection(storageUploadsCollection).add(payload);
+  await writeAuditLog(authContext, 'uploadStorageFile', path, null, payload);
+
+  return { recorded: true };
 });
 
 exports.listAuditLogs = onCall({ region }, async (request) => {
@@ -404,6 +443,15 @@ exports.sendTopicMessage = onCall({ region }, async (request) => {
     title,
     body,
   });
+  await writeNotificationLog(authContext, {
+    mode: 'topic',
+    target: topic,
+    title,
+    body,
+    successCount: 1,
+    failureCount: 0,
+    messageId,
+  });
 
   return { messageId };
 });
@@ -453,6 +501,15 @@ exports.sendUserMessage = onCall({ region }, async (request) => {
     title,
     body,
   });
+  await writeNotificationLog(authContext, {
+    mode: 'user',
+    target: userRecord.uid,
+    targetEmail: userRecord.email || '',
+    title,
+    body,
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+  });
 
   return {
     successCount: response.successCount,
@@ -483,9 +540,111 @@ exports.sendAllUsersMessage = onCall({ region }, async (request) => {
     title,
     body,
   });
+  await writeNotificationLog(authContext, {
+    mode: 'allUsers',
+    target: 'announcements',
+    title,
+    body,
+    successCount: 1,
+    failureCount: 0,
+    messageId,
+  });
 
   return { messageId };
 });
+
+exports.listNotificationLogs = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const limit = Math.min(Number(request.data?.limit) || 50, 100);
+  const startAfterId = request.data?.startAfterId;
+  let query = getFirestore()
+    .collection(notificationLogsCollection)
+    .orderBy('createdAt', 'desc')
+    .limit(limit);
+
+  if (startAfterId) {
+    const cursor = await getFirestore()
+      .collection(notificationLogsCollection)
+      .doc(startAfterId)
+      .get();
+    if (cursor.exists) {
+      query = query.startAfter(cursor);
+    }
+  }
+
+  const snapshot = await query.get();
+  const logs = snapshot.docs.map(toFirestoreDocument);
+  const lastDocument = snapshot.docs[snapshot.docs.length - 1];
+
+  return {
+    logs,
+    nextPageToken: snapshot.docs.length === limit && lastDocument ? lastDocument.id : '',
+  };
+});
+
+exports.getUserProfileSummary = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const uid = request.data?.uid;
+  if (!uid || typeof uid !== 'string') {
+    throw new HttpsError('invalid-argument', 'A user uid is required.');
+  }
+
+  const firestore = getFirestore();
+  const userRef = firestore.collection('users').doc(uid);
+
+  const [
+    tokenSnapshot,
+    analyticsSnapshot,
+    savedJournalsSnapshot,
+    savedPublicationsSnapshot,
+    reports,
+  ] = await Promise.all([
+    userRef.collection('fcmTokens').limit(20).get(),
+    firestore.collection(analyticsEventsCollection).where('userId', '==', uid).limit(50).get(),
+    userRef.collection('savedJournals').limit(20).get(),
+    userRef.collection('savedPublications').limit(20).get(),
+    listReportFiles(uid),
+  ]);
+
+  const activity = analyticsSnapshot.docs
+    .map(toFirestoreDocument)
+    .sort((a, b) => {
+      const aDate = a.data.createdAt || '';
+      const bDate = b.data.createdAt || '';
+      return bDate.localeCompare(aDate);
+    })
+    .slice(0, 20);
+
+  return {
+    fcmTokens: tokenSnapshot.docs.map(toFirestoreDocument),
+    activity,
+    reports,
+    savedJournals: savedJournalsSnapshot.docs.map(toFirestoreDocument),
+    savedPublications: savedPublicationsSnapshot.docs.map(toFirestoreDocument),
+  };
+});
+
+async function listReportFiles(uid) {
+  const [files] = await getStorage().bucket().getFiles({
+    prefix: `reports/${uid}/`,
+    maxResults: 20,
+  });
+
+  return Promise.all(
+    files.map(async (file) => {
+      const [metadata] = await file.getMetadata();
+      return {
+        name: file.name,
+        contentType: metadata.contentType || '',
+        size: Number(metadata.size || 0),
+        updated: metadata.updated || '',
+        customMetadata: metadata.metadata || {},
+      };
+    }),
+  );
+}
 
 exports.getAnalyticsSummary = onCall({ region }, async (request) => {
   assertAdmin(request);

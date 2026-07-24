@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../data/models/storage_file.dart';
+import '../../data/repositories/storage_repository.dart';
 import '../../shared/layouts/admin_shell.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_view.dart';
@@ -70,9 +72,24 @@ class _StoragePageState extends State<StoragePage> {
                     icon: const Icon(Icons.search),
                     label: const Text('Search'),
                   ),
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    onPressed: _viewModel.isUploading ? null : _pickAndUpload,
+                    icon: _viewModel.isUploading
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.upload_file_outlined),
+                    label: const Text('Upload'),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
+              if (_viewModel.lastUploadedPath != null) ...[
+                Text('Uploaded: ${_viewModel.lastUploadedPath}'),
+                const SizedBox(height: 12),
+              ],
               if (_viewModel.errorMessage != null) ...[
                 Text(
                   _viewModel.errorMessage!,
@@ -135,6 +152,34 @@ class _StoragePageState extends State<StoragePage> {
       await _viewModel.deleteFile(file.name);
     }
   }
+
+  Future<void> _pickAndUpload() async {
+    final result = await FilePicker.pickFiles(withData: true);
+    final file = result?.files.single;
+    final bytes = file?.bytes;
+    if (file == null || bytes == null) {
+      return;
+    }
+
+    await _viewModel.uploadFile(
+      StorageUploadRequest(
+        bytes: bytes,
+        fileName: file.name,
+        contentType: _contentType(file.name),
+      ),
+    );
+  }
+
+  String _contentType(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.csv')) return 'text/csv';
+    if (lower.endsWith('.txt')) return 'text/plain';
+    return 'application/octet-stream';
+  }
 }
 
 class _StorageFileCard extends StatelessWidget {
@@ -172,6 +217,8 @@ class _StorageFileCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text('${file.contentType} • ${_formatBytes(file.size)}'),
               Text(file.updated.isEmpty ? '-' : file.updated),
+              if (file.uploadedByEmail.isNotEmpty)
+                Text('Uploaded by ${file.uploadedByEmail}'),
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,

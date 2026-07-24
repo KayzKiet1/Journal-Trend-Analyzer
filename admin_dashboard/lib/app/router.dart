@@ -10,6 +10,7 @@ import '../features/firestore_manager/collections_page.dart';
 import '../features/firestore_manager/document_detail_page.dart';
 import '../features/firestore_manager/documents_page.dart';
 import '../features/messaging/messaging_page.dart';
+import '../features/notification_history/notification_history_page.dart';
 import '../features/storage_manager/storage_detail_page.dart';
 import '../features/storage_manager/storage_page.dart';
 import '../features/users/user_detail_page.dart';
@@ -30,6 +31,7 @@ class AdminRoutes {
   static const appConfig = '/app-config';
   static const analytics = '/analytics';
   static const messaging = '/messaging';
+  static const notificationHistory = '/notification-history';
   static const auditLogs = '/audit-logs';
 }
 
@@ -51,6 +53,8 @@ Map<String, WidgetBuilder> buildAdminRoutes() {
     AdminRoutes.appConfig: (_) => AuthGuard(child: const AppConfigPage()),
     AdminRoutes.analytics: (_) => AuthGuard(child: const AnalyticsPage()),
     AdminRoutes.messaging: (_) => AuthGuard(child: const MessagingPage()),
+    AdminRoutes.notificationHistory: (_) =>
+        AuthGuard(child: const NotificationHistoryPage()),
     AdminRoutes.auditLogs: (_) => AuthGuard(child: const AuditLogsPage()),
   };
 }
