@@ -11,6 +11,7 @@ class MessagingViewModel extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   String? _lastMessageId;
+  String? _lastScheduleId;
   Map<String, int>? _lastDirectResult;
 
   bool get isLoading => _isLoading;
@@ -18,6 +19,8 @@ class MessagingViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   String? get lastMessageId => _lastMessageId;
+
+  String? get lastScheduleId => _lastScheduleId;
 
   Map<String, int>? get lastDirectResult => _lastDirectResult;
 
@@ -61,10 +64,29 @@ class MessagingViewModel extends ChangeNotifier {
     });
   }
 
+  Future<void> scheduleNotification({
+    required String mode,
+    required String recipient,
+    required String title,
+    required String body,
+    required DateTime scheduledAt,
+  }) async {
+    await _send(() async {
+      _lastScheduleId = await _adminRepository.scheduleNotification(
+        mode: mode,
+        recipient: recipient,
+        title: title,
+        body: body,
+        scheduledAt: scheduledAt,
+      );
+    });
+  }
+
   Future<void> _send(Future<void> Function() action) async {
     _isLoading = true;
     _errorMessage = null;
     _lastMessageId = null;
+    _lastScheduleId = null;
     _lastDirectResult = null;
     notifyListeners();
 

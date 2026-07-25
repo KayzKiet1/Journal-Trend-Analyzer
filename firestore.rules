@@ -1,0 +1,87 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    match /auditLogs/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /analytics_events/{eventId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /notificationLogs/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /notificationSchedules/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /storageUploads/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /app_config/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /appConfig/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /app_errors/{docId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /function_errors/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /system_health/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow create, update: if isAdmin() || isOwner(userId);
+      allow delete: if isAdmin();
+
+      match /fcmTokens/{tokenId} {
+        allow create, update, delete: if isOwner(userId);
+        allow read, delete: if isAdmin();
+      }
+
+      match /savedJournals/{docId} {
+        allow create, update, delete: if isOwner(userId);
+        allow read: if isAdmin() || isOwner(userId);
+      }
+
+      match /savedPublications/{docId} {
+        allow create, update, delete: if isOwner(userId);
+        allow read: if isAdmin() || isOwner(userId);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

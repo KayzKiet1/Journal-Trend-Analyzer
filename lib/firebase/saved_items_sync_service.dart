@@ -26,6 +26,8 @@ class SavedItemsSyncService {
 
   static bool get canUseDefaultFirebase => Firebase.apps.isNotEmpty;
 
+  bool get hasSignedInUser => _auth.currentUser != null;
+
   Future<void> saveJournal(Journal journal) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -35,14 +37,20 @@ class SavedItemsSyncService {
     }
     if (journal.id.isEmpty) return;
 
-    await _userCollection(
-      user.uid,
-      'savedJournals',
-    ).doc(_documentId(journal.id)).set({
+    final batch = _firestore.batch();
+    final userDocument = _userDocument(user.uid);
+    final savedDocument = userDocument
+        .collection('savedJournals')
+        .doc(_documentId(journal.id));
+
+    batch.set(userDocument, _userProfileData(user), SetOptions(merge: true));
+    batch.set(savedDocument, {
       ...journal.toStoredJson(),
       'itemId': journal.id,
+      'type': 'journal',
       'savedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    await batch.commit();
   }
 
   Future<List<Journal>> fetchSavedJournals({int limit = 100}) async {
@@ -78,10 +86,13 @@ class SavedItemsSyncService {
     }
     if (journalId.isEmpty) return;
 
-    await _userCollection(
-      user.uid,
-      'savedJournals',
-    ).doc(_documentId(journalId)).delete();
+    final batch = _firestore.batch();
+    final userDocument = _userDocument(user.uid);
+    batch.set(userDocument, _userProfileData(user), SetOptions(merge: true));
+    batch.delete(
+      userDocument.collection('savedJournals').doc(_documentId(journalId)),
+    );
+    await batch.commit();
   }
 
   Future<void> savePublication(Publication publication) async {
@@ -93,14 +104,20 @@ class SavedItemsSyncService {
     }
     if (publication.id.isEmpty) return;
 
-    await _userCollection(
-      user.uid,
-      'savedPublications',
-    ).doc(_documentId(publication.id)).set({
+    final batch = _firestore.batch();
+    final userDocument = _userDocument(user.uid);
+    final savedDocument = userDocument
+        .collection('savedPublications')
+        .doc(_documentId(publication.id));
+
+    batch.set(userDocument, _userProfileData(user), SetOptions(merge: true));
+    batch.set(savedDocument, {
       ...publication.toStoredJson(),
       'itemId': publication.id,
+      'type': 'publication',
       'savedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    await batch.commit();
   }
 
   Future<List<Publication>> fetchSavedPublications({int limit = 100}) async {
@@ -136,17 +153,53 @@ class SavedItemsSyncService {
     }
     if (publicationId.isEmpty) return;
 
-    await _userCollection(
-      user.uid,
-      'savedPublications',
-    ).doc(_documentId(publicationId)).delete();
+    final batch = _firestore.batch();
+    final userDocument = _userDocument(user.uid);
+    batch.set(userDocument, _userProfileData(user), SetOptions(merge: true));
+    batch.delete(
+      userDocument
+          .collection('savedPublications')
+          .doc(_documentId(publicationId)),
+    );
+    await batch.commit();
+  }
+
+  Future<void> saveJournals(Iterable<Journal> journals) async {
+    for (final journal in journals) {
+      if (journal.id.isNotEmpty) {
+        await saveJournal(journal);
+      }
+    }
+  }
+
+  Future<void> savePublications(Iterable<Publication> publications) async {
+    for (final publication in publications) {
+      if (publication.id.isNotEmpty) {
+        await savePublication(publication);
+      }
+    }
   }
 
   CollectionReference<Map<String, dynamic>> _userCollection(
     String uid,
     String collectionName,
   ) {
-    return _firestore.collection('users').doc(uid).collection(collectionName);
+    return _userDocument(uid).collection(collectionName);
+  }
+
+  DocumentReference<Map<String, dynamic>> _userDocument(String uid) {
+    return _firestore.collection('users').doc(uid);
+  }
+
+  Map<String, dynamic> _userProfileData(User user) {
+    return {
+      'uid': user.uid,
+      'email': user.email ?? '',
+      'displayName': user.displayName ?? '',
+      'photoUrl': user.photoURL ?? '',
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastBookmarkSyncAt': FieldValue.serverTimestamp(),
+    };
   }
 
   String _documentId(String value) {

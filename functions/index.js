@@ -5,6 +5,7 @@ const { getMessaging } = require('firebase-admin/messaging');
 const { getRemoteConfig } = require('firebase-admin/remote-config');
 const { getStorage } = require('firebase-admin/storage');
 const { HttpsError, onCall } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 
 initializeApp();
 
@@ -14,6 +15,7 @@ const appConfigCollection = 'app_config';
 const appConfigDocument = 'main';
 const analyticsEventsCollection = 'analytics_events';
 const notificationLogsCollection = 'notificationLogs';
+const notificationSchedulesCollection = 'notificationSchedules';
 const storageUploadsCollection = 'storageUploads';
 const healthCollections = ['app_errors', 'function_errors', 'system_health'];
 const managedCollections = [
@@ -23,6 +25,7 @@ const managedCollections = [
   'app_config',
   'analytics_events',
   'notificationLogs',
+  'notificationSchedules',
   'auditLogs',
   'app_errors',
   'function_errors',
@@ -530,7 +533,14 @@ exports.listStorageFiles = onCall({ region }, async (request) => {
   const items = await Promise.all(
     files.map(async (file) => {
       const [metadata] = await file.getMetadata();
-      const downloadUrl = await createSignedReadUrl(file);
+      const originalFileName =
+        metadata.metadata?.originalFileName ||
+        file.name.split('/').pop() ||
+        'download';
+      const viewUrl = await createSignedReadUrl(file);
+      const downloadUrl = await createSignedReadUrl(file, {
+        responseDisposition: `attachment; filename="${safeDownloadFileName(originalFileName)}"`,
+      });
 
       return {
         name: file.name,
@@ -539,6 +549,7 @@ exports.listStorageFiles = onCall({ region }, async (request) => {
         size: Number(metadata.size || 0),
         updated: metadata.updated || '',
         customMetadata: metadata.metadata || {},
+        viewUrl,
         downloadUrl,
       };
     }),
@@ -550,17 +561,26 @@ exports.listStorageFiles = onCall({ region }, async (request) => {
   };
 });
 
-async function createSignedReadUrl(file) {
+async function createSignedReadUrl(file, options = {}) {
   try {
     const [downloadUrl] = await file.getSignedUrl({
       action: 'read',
       expires: Date.now() + 15 * 60 * 1000,
+      ...options,
     });
     return downloadUrl;
   } catch (error) {
     console.warn(`Unable to create signed URL for ${file.name}:`, error.message);
     return '';
   }
+}
+
+function safeDownloadFileName(value) {
+  const normalized = String(value)
+    .trim()
+    .replace(/["\\\r\n]+/g, '')
+    .replace(/[/:*?<>|]+/g, '_');
+  return normalized || 'download';
 }
 
 exports.uploadStorageFile = onCall({ region }, async (request) => {
@@ -750,13 +770,7 @@ exports.sendTopicMessage = onCall({ region }, async (request) => {
   return { messageId };
 });
 
-exports.sendUserMessage = onCall({ region }, async (request) => {
-  const authContext = assertAdmin(request);
-  const uid = request.data?.uid;
-  const email = request.data?.email;
-  const title = request.data?.title;
-  const body = request.data?.body;
-
+async function sendDirectUserNotification({ uid, email, title, body }) {
   if ((!uid && !email) || !title || !body) {
     throw new HttpsError('invalid-argument', 'User uid/email, title, and body are required.');
   }
@@ -788,34 +802,14 @@ exports.sendUserMessage = onCall({ region }, async (request) => {
     },
   });
 
-  await writeAuditLog(authContext, 'sendUserMessage', userRecord.uid, null, {
-    email: userRecord.email || '',
-    successCount: response.successCount,
-    failureCount: response.failureCount,
-    title,
-    body,
-  });
-  await writeNotificationLog(authContext, {
-    mode: 'user',
-    target: userRecord.uid,
-    targetEmail: userRecord.email || '',
-    title,
-    body,
-    successCount: response.successCount,
-    failureCount: response.failureCount,
-  });
-
   return {
+    userRecord,
     successCount: response.successCount,
     failureCount: response.failureCount,
   };
-});
+}
 
-exports.sendAllUsersMessage = onCall({ region }, async (request) => {
-  const authContext = assertAdmin(request);
-  const title = request.data?.title;
-  const body = request.data?.body;
-
+async function sendAllUsersNotification({ title, body }) {
   if (!title || !body) {
     throw new HttpsError('invalid-argument', 'Title and body are required.');
   }
@@ -829,8 +823,50 @@ exports.sendAllUsersMessage = onCall({ region }, async (request) => {
     },
   });
 
+  return { messageId };
+}
+
+exports.sendUserMessage = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const uid = request.data?.uid;
+  const email = request.data?.email;
+  const title = request.data?.title;
+  const body = request.data?.body;
+
+  const result = await sendDirectUserNotification({ uid, email, title, body });
+
+  await writeAuditLog(authContext, 'sendUserMessage', result.userRecord.uid, null, {
+    email: result.userRecord.email || '',
+    successCount: result.successCount,
+    failureCount: result.failureCount,
+    title,
+    body,
+  });
+  await writeNotificationLog(authContext, {
+    mode: 'user',
+    target: result.userRecord.uid,
+    targetEmail: result.userRecord.email || '',
+    title,
+    body,
+    successCount: result.successCount,
+    failureCount: result.failureCount,
+  });
+
+  return {
+    successCount: result.successCount,
+    failureCount: result.failureCount,
+  };
+});
+
+exports.sendAllUsersMessage = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const title = request.data?.title;
+  const body = request.data?.body;
+
+  const result = await sendAllUsersNotification({ title, body });
+
   await writeAuditLog(authContext, 'sendAllUsersMessage', 'announcements', null, {
-    messageId,
+    messageId: result.messageId,
     title,
     body,
   });
@@ -841,11 +877,162 @@ exports.sendAllUsersMessage = onCall({ region }, async (request) => {
     body,
     successCount: 1,
     failureCount: 0,
-    messageId,
+    messageId: result.messageId,
   });
 
-  return { messageId };
+  return { messageId: result.messageId };
 });
+
+exports.scheduleNotification = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const mode = request.data?.mode;
+  const recipient = request.data?.recipient || '';
+  const title = request.data?.title;
+  const body = request.data?.body;
+  const scheduledAtText = request.data?.scheduledAt;
+  const scheduledAt = new Date(scheduledAtText);
+
+  if (!['allUsers', 'user'].includes(mode)) {
+    throw new HttpsError('invalid-argument', 'Mode must be allUsers or user.');
+  }
+  if (!title || !body || Number.isNaN(scheduledAt.getTime())) {
+    throw new HttpsError('invalid-argument', 'Title, body, and scheduledAt are required.');
+  }
+  if (scheduledAt.getTime() <= Date.now() + 30 * 1000) {
+    throw new HttpsError('invalid-argument', 'Scheduled time must be at least 30 seconds in the future.');
+  }
+  if (mode === 'user' && !recipient) {
+    throw new HttpsError('invalid-argument', 'Recipient email or uid is required for user notifications.');
+  }
+
+  const payload = {
+    mode,
+    target: mode === 'allUsers' ? 'announcements' : recipient,
+    title,
+    body,
+    status: 'scheduled',
+    scheduledAt,
+    createdAt: FieldValue.serverTimestamp(),
+    adminUid: authContext.uid,
+    adminEmail: authContext.token.email || '',
+  };
+
+  const document = await getFirestore()
+    .collection(notificationSchedulesCollection)
+    .add(payload);
+
+  await writeAuditLog(authContext, 'scheduleNotification', document.id, null, payload);
+  await writeNotificationLog(authContext, {
+    mode,
+    target: payload.target,
+    title,
+    body,
+    successCount: 0,
+    failureCount: 0,
+    status: 'scheduled',
+    scheduleId: document.id,
+    scheduledAt,
+  });
+
+  return { scheduleId: document.id };
+});
+
+exports.processScheduledNotifications = onSchedule(
+  {
+    region,
+    schedule: 'every 1 minutes',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  },
+  async () => {
+    const firestore = getFirestore();
+    const snapshot = await firestore
+      .collection(notificationSchedulesCollection)
+      .where('status', '==', 'scheduled')
+      .where('scheduledAt', '<=', new Date())
+      .orderBy('scheduledAt', 'asc')
+      .limit(20)
+      .get();
+
+    await Promise.all(
+      snapshot.docs.map(async (document) => {
+        const data = document.data();
+        await document.ref.update({
+          status: 'processing',
+          processingStartedAt: FieldValue.serverTimestamp(),
+        });
+
+        const systemAuthContext = {
+          uid: data.adminUid || 'system',
+          token: { email: data.adminEmail || 'system' },
+        };
+
+        try {
+          if (data.mode === 'user') {
+            const target = data.target || '';
+            const result = await sendDirectUserNotification({
+              uid: target.includes('@') ? '' : target,
+              email: target.includes('@') ? target : '',
+              title: data.title,
+              body: data.body,
+            });
+            await writeNotificationLog(systemAuthContext, {
+              mode: 'user',
+              target: result.userRecord.uid,
+              targetEmail: result.userRecord.email || '',
+              title: data.title,
+              body: data.body,
+              successCount: result.successCount,
+              failureCount: result.failureCount,
+              status: 'sent',
+              scheduleId: document.id,
+              scheduledAt: data.scheduledAt || '',
+            });
+          } else {
+            const result = await sendAllUsersNotification({
+              title: data.title,
+              body: data.body,
+            });
+            await writeNotificationLog(systemAuthContext, {
+              mode: 'allUsers',
+              target: 'announcements',
+              title: data.title,
+              body: data.body,
+              successCount: 1,
+              failureCount: 0,
+              messageId: result.messageId,
+              status: 'sent',
+              scheduleId: document.id,
+              scheduledAt: data.scheduledAt || '',
+            });
+          }
+
+          await document.ref.update({
+            status: 'sent',
+            sentAt: FieldValue.serverTimestamp(),
+          });
+        } catch (error) {
+          await document.ref.update({
+            status: 'failed',
+            failureReason: error.message || String(error),
+            failedAt: FieldValue.serverTimestamp(),
+          });
+          await writeNotificationLog(systemAuthContext, {
+            mode: data.mode || 'unknown',
+            target: data.target || '',
+            title: data.title || '',
+            body: data.body || '',
+            successCount: 0,
+            failureCount: 1,
+            status: 'failed',
+            scheduleId: document.id,
+            scheduledAt: data.scheduledAt || '',
+            error: error.message || String(error),
+          });
+        }
+      }),
+    );
+  },
+);
 
 exports.listNotificationLogs = onCall({ region }, async (request) => {
   assertAdmin(request);

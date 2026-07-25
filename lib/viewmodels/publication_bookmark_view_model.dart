@@ -11,6 +11,8 @@ class PublicationBookmarkViewModel extends ChangeNotifier {
 
   List<Publication> _bookmarks = [];
   String? _syncMessage;
+  String? _lastSyncedUserId;
+  bool _isSyncingCloud = false;
   final SavedItemsSyncService? _syncService;
 
   List<Publication> get bookmarks => List.unmodifiable(_bookmarks);
@@ -47,12 +49,25 @@ class PublicationBookmarkViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> syncForSignedInUser(String? userId) async {
+    if (userId == null || userId.isEmpty || _lastSyncedUserId == userId) {
+      return;
+    }
+    if (_isSyncingCloud) return;
+
+    _lastSyncedUserId = userId;
+    await _syncLocalBookmarksToCloud();
+    await _mergeCloudBookmarks();
+    notifyListeners();
+  }
+
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     _bookmarks = _decodePublications(
       prefs.getStringList(_bookmarkedPublicationsKey) ?? [],
     );
     await _mergeCloudBookmarks();
+    await _syncLocalBookmarksToCloud();
     notifyListeners();
   }
 
@@ -103,6 +118,29 @@ class PublicationBookmarkViewModel extends ChangeNotifier {
     } catch (error) {
       _syncMessage = 'Unable to load saved publications from Firestore: $error';
       debugPrint(_syncMessage);
+    }
+  }
+
+  Future<void> _syncLocalBookmarksToCloud() async {
+    if (_bookmarks.isEmpty ||
+        (_syncService == null &&
+            !SavedItemsSyncService.canUseDefaultFirebase)) {
+      return;
+    }
+
+    final service = _syncService ?? SavedItemsSyncService();
+    if (!service.hasSignedInUser) return;
+
+    _isSyncingCloud = true;
+    try {
+      await service.savePublications(_bookmarks);
+      _syncMessage = null;
+    } catch (error) {
+      _syncMessage =
+          'Saved publications were kept locally but were not synced to Firestore. Check sign-in and Firestore Rules. $error';
+      debugPrint(_syncMessage);
+    } finally {
+      _isSyncingCloud = false;
     }
   }
 

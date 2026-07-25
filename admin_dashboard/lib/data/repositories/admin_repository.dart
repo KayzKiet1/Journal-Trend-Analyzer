@@ -147,6 +147,14 @@ abstract class AdminRepository {
     required String title,
     required String body,
   });
+
+  Future<String> scheduleNotification({
+    required String mode,
+    required String recipient,
+    required String title,
+    required String body,
+    required DateTime scheduledAt,
+  });
 }
 
 class FirebaseAdminRepository implements AdminRepository {
@@ -458,6 +466,24 @@ class FirebaseAdminRepository implements AdminRepository {
       'body': body,
     });
     return data['messageId']?.toString() ?? '';
+  }
+
+  @override
+  Future<String> scheduleNotification({
+    required String mode,
+    required String recipient,
+    required String title,
+    required String body,
+    required DateTime scheduledAt,
+  }) async {
+    final data = await _call('scheduleNotification', {
+      'mode': mode,
+      'recipient': recipient,
+      'title': title,
+      'body': body,
+      'scheduledAt': scheduledAt.toUtc().toIso8601String(),
+    });
+    return data['scheduleId']?.toString() ?? '';
   }
 
   Future<Map<String, dynamic>> _call(
