@@ -253,6 +253,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         SavedBookmarksPanel(
                           publications: publicationBookmarks.bookmarks,
                           journals: journalLibrary.favorites,
+                          syncMessage:
+                              publicationBookmarks.syncMessage ??
+                              journalLibrary.syncMessage,
                           onOpenPublication: _openBookmarkedPublication,
                           onRemovePublication:
                               publicationBookmarks.toggleBookmark,

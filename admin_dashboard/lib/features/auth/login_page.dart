@@ -60,17 +60,23 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          
+
           // Decorative Abstract Shapes
           Positioned(
             top: -size.height * 0.1,
             left: -size.width * 0.05,
-            child: _buildBlurCircle(size.width * 0.4, const Color(0xFF6366F1).withOpacity(0.08)),
+            child: _buildBlurCircle(
+              size.width * 0.4,
+              const Color(0xFF6366F1).withValues(alpha: 0.08),
+            ),
           ),
           Positioned(
             bottom: -size.height * 0.2,
             right: -size.width * 0.1,
-            child: _buildBlurCircle(size.width * 0.5, const Color(0xFF818CF8).withOpacity(0.1)),
+            child: _buildBlurCircle(
+              size.width * 0.5,
+              const Color(0xFF818CF8).withValues(alpha: 0.1),
+            ),
           ),
 
           Center(
@@ -83,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
                     borderRadius: BorderRadius.circular(32),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.15),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.15),
                         blurRadius: 50,
                         offset: const Offset(0, 20),
                       ),
@@ -91,7 +97,9 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: Card(
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(32),
+                    ),
                     clipBehavior: Clip.antiAlias,
                     child: IntrinsicHeight(
                       child: Row(
@@ -121,17 +129,22 @@ class _LoginPageState extends State<LoginPage> {
                                     _buildBrandLogo(),
                                     const Spacer(),
                                     ShaderMask(
-                                      shaderCallback: (bounds) => const LinearGradient(
-                                        colors: [Colors.white, Color(0xFFC7D2FE)],
-                                      ).createShader(bounds),
+                                      shaderCallback: (bounds) =>
+                                          const LinearGradient(
+                                            colors: [
+                                              Colors.white,
+                                              Color(0xFFC7D2FE),
+                                            ],
+                                          ).createShader(bounds),
                                       child: Text(
                                         'Quản trị dữ liệu\nnghiên cứu thông minh.',
-                                        style: theme.textTheme.headlineMedium?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w900,
-                                          height: 1.1,
-                                          letterSpacing: -1,
-                                        ),
+                                        style: theme.textTheme.headlineMedium
+                                            ?.copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w900,
+                                              height: 1.1,
+                                              letterSpacing: -1,
+                                            ),
                                       ),
                                     ),
                                     const SizedBox(height: 24),
@@ -144,9 +157,18 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     ),
                                     const Spacer(),
-                                    _buildFeatureItem(Icons.auto_graph_rounded, 'Phân tích xu hướng thời gian thực'),
-                                    _buildFeatureItem(Icons.verified_user_rounded, 'Kiểm soát truy cập Claim-based'),
-                                    _buildFeatureItem(Icons.shield_rounded, 'Bảo mật dữ liệu chuẩn Enterprise'),
+                                    _buildFeatureItem(
+                                      Icons.auto_graph_rounded,
+                                      'Phân tích xu hướng thời gian thực',
+                                    ),
+                                    _buildFeatureItem(
+                                      Icons.verified_user_rounded,
+                                      'Kiểm soát truy cập Claim-based',
+                                    ),
+                                    _buildFeatureItem(
+                                      Icons.shield_rounded,
+                                      'Bảo mật dữ liệu chuẩn Enterprise',
+                                    ),
                                   ],
                                 ),
                               ),
@@ -157,14 +179,18 @@ class _LoginPageState extends State<LoginPage> {
                             flex: 11,
                             child: Container(
                               color: Colors.white,
-                              padding: EdgeInsets.all(size.width >= 850 ? 64 : 32),
+                              padding: EdgeInsets.all(
+                                size.width >= 850 ? 64 : 32,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  if (size.width < 850) _buildBrandLogo(dark: false),
-                                  if (size.width < 850) const SizedBox(height: 48),
-                                  
+                                  if (size.width < 850)
+                                    _buildBrandLogo(dark: false),
+                                  if (size.width < 850)
+                                    const SizedBox(height: 48),
+
                                   const Text(
                                     'Đăng nhập Admin',
                                     style: TextStyle(
@@ -177,17 +203,20 @@ class _LoginPageState extends State<LoginPage> {
                                   const SizedBox(height: 12),
                                   const Text(
                                     'Vui lòng nhập thông tin xác thực để tiếp tục.',
-                                    style: TextStyle(color: Color(0xFF64748B), fontSize: 15),
+                                    style: TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 15,
+                                    ),
                                   ),
                                   const SizedBox(height: 48),
-                                  
+
                                   _buildForm(),
-                                  
+
                                   if (_errorMessage != null) ...[
                                     const SizedBox(height: 24),
                                     _buildErrorBanner(_errorMessage!),
                                   ],
-                                  
+
                                   const SizedBox(height: 40),
                                   _buildActionButtons(),
                                 ],
@@ -211,10 +240,7 @@ class _LoginPageState extends State<LoginPage> {
     return Container(
       width: radius,
       height: radius,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 
@@ -231,13 +257,17 @@ class _LoginPageState extends State<LoginPage> {
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6366F1).withOpacity(0.3),
+                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: const Icon(Icons.analytics_rounded, color: Colors.white, size: 24),
+          child: const Icon(
+            Icons.analytics_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
         ),
         const SizedBox(width: 16),
         Text(
@@ -261,7 +291,7 @@ class _LoginPageState extends State<LoginPage> {
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: const Color(0xFF818CF8), size: 18),
@@ -269,7 +299,11 @@ class _LoginPageState extends State<LoginPage> {
           const SizedBox(width: 14),
           Text(
             text,
-            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500, fontSize: 14),
+            style: const TextStyle(
+              color: Colors.white70,
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
           ),
         ],
       ),
@@ -288,7 +322,8 @@ class _LoginPageState extends State<LoginPage> {
               hintText: 'admin@journal.com',
               prefixIcon: Icon(Icons.alternate_email_rounded),
             ),
-            validator: (v) => (v?.contains('@') ?? false) ? null : 'Email không hợp lệ',
+            validator: (v) =>
+                (v?.contains('@') ?? false) ? null : 'Email không hợp lệ',
           ),
           const SizedBox(height: 24),
           TextFormField(
@@ -298,8 +333,13 @@ class _LoginPageState extends State<LoginPage> {
               labelText: 'Mật khẩu',
               prefixIcon: const Icon(Icons.lock_rounded),
               suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
             ),
           ),
@@ -310,7 +350,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildActionButtons() {
     final bool isBusy = _isLoading || _isGoogleLoading;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -322,7 +362,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6366F1).withOpacity(0.25),
+                color: const Color(0xFF6366F1).withValues(alpha: 0.25),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
@@ -336,7 +376,14 @@ class _LoginPageState extends State<LoginPage> {
               minimumSize: const Size(double.infinity, 56),
             ),
             child: _isLoading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                 : const Text('Đăng nhập hệ thống'),
           ),
         ),
@@ -346,7 +393,15 @@ class _LoginPageState extends State<LoginPage> {
             const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text('HOẶC', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF94A3B8), letterSpacing: 1.5)),
+              child: Text(
+                'HOẶC',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF94A3B8),
+                  letterSpacing: 1.5,
+                ),
+              ),
             ),
             const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
           ],
@@ -355,8 +410,17 @@ class _LoginPageState extends State<LoginPage> {
         OutlinedButton.icon(
           onPressed: isBusy ? null : _signInWithGoogle,
           icon: _isGoogleLoading
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : Image.network('https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg', height: 20, errorBuilder: (_, __, ___) => const Icon(Icons.login)),
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Image.network(
+                  'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
+                  height: 20,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.login),
+                ),
           label: const Text('Tiếp tục với Google Workspace'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 56),
@@ -377,9 +441,22 @@ class _LoginPageState extends State<LoginPage> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFE11D48), size: 20),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFE11D48),
+            size: 20,
+          ),
           const SizedBox(width: 12),
-          Expanded(child: Text(message, style: const TextStyle(color: Color(0xFF9F1239), fontSize: 14, fontWeight: FontWeight.w600))),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFF9F1239),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -387,14 +464,22 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _isLoading = true; _errorMessage = null; });
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
-      final ok = await _viewModel.signInAsAdmin(email: _emailController.text, password: _passwordController.text);
+      final ok = await _viewModel.signInAsAdmin(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
       if (!mounted) return;
       if (!ok) {
         setState(() => _errorMessage = 'Tài khoản không có quyền Admin.');
       } else {
-        Navigator.of(context).pushNamedAndRemoveUntil(AdminRoutes.dashboard, (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(AdminRoutes.dashboard, (route) => false);
       }
     } catch (e) {
       setState(() => _errorMessage = e.toString());
@@ -404,14 +489,21 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _signInWithGoogle() async {
-    setState(() { _isGoogleLoading = true; _errorMessage = null; });
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
     try {
       final ok = await _viewModel.signInWithGoogleAsAdmin();
       if (!mounted) return;
       if (!ok) {
-        setState(() => _errorMessage = 'Tài khoản Google này không có quyền Admin.');
+        setState(
+          () => _errorMessage = 'Tài khoản Google này không có quyền Admin.',
+        );
       } else {
-        Navigator.of(context).pushNamedAndRemoveUntil(AdminRoutes.dashboard, (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(AdminRoutes.dashboard, (route) => false);
       }
     } catch (e) {
       setState(() => _errorMessage = e.toString());

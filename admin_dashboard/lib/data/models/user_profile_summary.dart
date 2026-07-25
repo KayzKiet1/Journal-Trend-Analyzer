@@ -6,6 +6,7 @@ class UserReportFile {
     required this.contentType,
     required this.size,
     required this.updated,
+    required this.downloadUrl,
     required this.customMetadata,
   });
 
@@ -13,7 +14,16 @@ class UserReportFile {
   final String contentType;
   final int size;
   final String updated;
+  final String downloadUrl;
   final Map<String, dynamic> customMetadata;
+
+  String get originalFileName =>
+      customMetadata['originalFileName']?.toString() ?? fileName;
+
+  String get fileName {
+    final segments = name.split('/');
+    return segments.isEmpty ? name : segments.last;
+  }
 
   factory UserReportFile.fromMap(Map<String, dynamic> map) {
     return UserReportFile(
@@ -21,6 +31,7 @@ class UserReportFile {
       contentType: map['contentType']?.toString() ?? '',
       size: _readInt(map['size']),
       updated: map['updated']?.toString() ?? '',
+      downloadUrl: map['downloadUrl']?.toString() ?? '',
       customMetadata: Map<String, dynamic>.from(
         map['customMetadata'] as Map? ?? const {},
       ),

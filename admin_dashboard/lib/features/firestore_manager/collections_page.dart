@@ -41,20 +41,27 @@ class _CollectionsPageState extends State<CollectionsPage> {
             return const LoadingView();
           }
 
-          if (_viewModel.errorMessage != null && _viewModel.collections.isEmpty) {
+          if (_viewModel.errorMessage != null &&
+              _viewModel.collections.isEmpty) {
             return ErrorView(message: _viewModel.errorMessage!);
           }
 
-          final filteredCollections = _viewModel.collections.where((c) => 
-            c.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+          final filteredCollections = _viewModel.collections
+              .where(
+                (c) =>
+                    c.name.toLowerCase().contains(_searchQuery.toLowerCase()),
+              )
+              .toList();
 
           return RefreshIndicator(
             onRefresh: _viewModel.loadCollections,
             child: ListView(
-              padding: const EdgeInsets.all(32),
+              padding: EdgeInsets.all(
+                MediaQuery.sizeOf(context).width < 700 ? 20 : 32,
+              ),
               children: [
                 _buildHeader(context),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
                 if (filteredCollections.isEmpty)
                   _buildEmptyState()
                 else
@@ -71,34 +78,51 @@ class _CollectionsPageState extends State<CollectionsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 260, maxWidth: 900),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Firestore Collections',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: const Color(0xFF0F172A),
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF0F172A),
+                    ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Quản lý và chỉnh sửa trực tiếp các bộ sưu tập dữ liệu trong hệ thống.',
-                    style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                    'Chỉ hiển thị collection nghiệp vụ cần kiểm tra. Bookmark publication/journal nằm trong User Detail theo từng tài khoản.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.45,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
             IconButton(
-              onPressed: _viewModel.isLoading ? null : _viewModel.loadCollections,
-              icon: const Icon(Icons.refresh),
+              onPressed: _viewModel.isLoading
+                  ? null
+                  : _viewModel.loadCollections,
+              icon: _viewModel.isLoading
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
               tooltip: 'Làm mới dữ liệu',
               style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
+                backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
                 foregroundColor: const Color(0xFF6366F1),
+                fixedSize: const Size(48, 48),
               ),
             ),
           ],
@@ -112,10 +136,10 @@ class _CollectionsPageState extends State<CollectionsPage> {
             decoration: InputDecoration(
               hintText: 'Tìm kiếm bộ sưu tập...',
               prefixIcon: const Icon(Icons.search),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+              fillColor: const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
               ),
             ),
@@ -125,19 +149,35 @@ class _CollectionsPageState extends State<CollectionsPage> {
     );
   }
 
-  Widget _buildCollectionGrid(BuildContext context, List<ManagedCollection> collections) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: MediaQuery.of(context).size.width > 1400 
-            ? 4 : (MediaQuery.of(context).size.width > 900 ? 3 : 1),
-        mainAxisSpacing: 20,
-        crossAxisSpacing: 20,
-        childAspectRatio: 2.8,
-      ),
-      itemCount: collections.length,
-      itemBuilder: (context, index) => _CollectionCard(collection: collections[index]),
+  Widget _buildCollectionGrid(
+    BuildContext context,
+    List<ManagedCollection> collections,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final crossAxisCount = width >= 1240
+            ? 4
+            : width >= 880
+            ? 3
+            : width >= 580
+            ? 2
+            : 1;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            mainAxisExtent: 128,
+          ),
+          itemCount: collections.length,
+          itemBuilder: (context, index) =>
+              _CollectionCard(collection: collections[index]),
+        );
+      },
     );
   }
 
@@ -151,7 +191,10 @@ class _CollectionsPageState extends State<CollectionsPage> {
             const SizedBox(height: 16),
             const Text(
               'Không tìm thấy bộ sưu tập nào khớp với từ khóa.',
-              style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -173,11 +216,15 @@ class _CollectionCardState extends State<_CollectionCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isCritical = ['users', 'publications', 'journals'].contains(widget.collection.name.toLowerCase());
-    final bool isConfig = widget.collection.name.toLowerCase().contains('config') || 
-                          widget.collection.name.toLowerCase().contains('health');
-    
-    final Color accentColor = isCritical ? const Color(0xFF6366F1) : (isConfig ? const Color(0xFFF59E0B) : const Color(0xFF64748B));
+    final purpose = _collectionPurposes[widget.collection.name];
+    final bool isCritical = ['users'].contains(widget.collection.name);
+    final bool isConfig =
+        widget.collection.name.contains('config') ||
+        widget.collection.name.contains('health');
+
+    final Color accentColor = isCritical
+        ? const Color(0xFF6366F1)
+        : (isConfig ? const Color(0xFFF59E0B) : const Color(0xFF64748B));
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -190,17 +237,21 @@ class _CollectionCardState extends State<_CollectionCard> {
         ),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: _isHovered ? accentColor.withOpacity(0.5) : const Color(0xFFE2E8F0),
+              color: _isHovered
+                  ? accentColor.withValues(alpha: 0.5)
+                  : const Color(0xFFE2E8F0),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: _isHovered ? accentColor.withOpacity(0.1) : Colors.black.withOpacity(0.02),
+                color: _isHovered
+                    ? accentColor.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.02),
                 blurRadius: _isHovered ? 15 : 5,
                 offset: const Offset(0, 4),
               ),
@@ -209,19 +260,29 @@ class _CollectionCardState extends State<_CollectionCard> {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [accentColor.withOpacity(0.1), accentColor.withOpacity(0.05)],
+                    colors: [
+                      accentColor.withValues(alpha: 0.1),
+                      accentColor.withValues(alpha: 0.05),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  isCritical ? Icons.storage : (isConfig ? Icons.settings : Icons.folder_shared),
-                  color: accentColor,
-                  size: 24,
+                child: Center(
+                  child: Icon(
+                    isCritical
+                        ? Icons.storage_rounded
+                        : (isConfig
+                              ? Icons.settings_rounded
+                              : Icons.folder_shared_rounded),
+                    color: accentColor,
+                    size: 23,
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -241,9 +302,30 @@ class _CollectionCardState extends State<_CollectionCard> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
+                    if (purpose != null) ...[
+                      Tooltip(
+                        message: purpose,
+                        waitDuration: const Duration(milliseconds: 400),
+                        child: Text(
+                          purpose,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            height: 1.25,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(6),
@@ -252,6 +334,7 @@ class _CollectionCardState extends State<_CollectionCard> {
                         '${widget.collection.count} documents',
                         style: const TextStyle(
                           fontSize: 11,
+                          height: 1,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF475569),
                         ),
@@ -271,3 +354,16 @@ class _CollectionCardState extends State<_CollectionCard> {
     );
   }
 }
+
+const _collectionPurposes = {
+  'users': 'Hồ sơ người dùng và dữ liệu con theo tài khoản.',
+  'publications': 'Bản ghi publication top-level, không phải bookmark.',
+  'journals': 'Bản ghi journal top-level, không phải saved journal.',
+  'app_config': 'Cấu hình nội bộ lưu trong Firestore.',
+  'analytics_events': 'Event từ mobile app để admin analytics tổng hợp.',
+  'notificationLogs': 'Lịch sử gửi notification.',
+  'auditLogs': 'Log thao tác admin.',
+  'app_errors': 'Lỗi app tự ghi để theo dõi sức khỏe hệ thống.',
+  'function_errors': 'Lỗi Cloud Functions tự ghi nếu có.',
+  'system_health': 'Trạng thái và cảnh báo hệ thống.',
+};

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../../data/models/app_config.dart';
 import '../../data/repositories/admin_repository.dart';
 
 class AppConfigViewModel extends ChangeNotifier {
@@ -10,30 +11,87 @@ class AppConfigViewModel extends ChangeNotifier {
 
   final AdminRepository _adminRepository;
 
-  Map<String, dynamic> _config = {};
+  RemoteAppConfig _remoteConfig = RemoteAppConfig.defaults();
+  RemoteConfigVersion? _remoteVersion;
+  Map<String, dynamic> _firestoreConfig = {};
   bool _isLoading = false;
+  bool _isSavingRemote = false;
+  bool _isSavingFirestore = false;
   String? _errorMessage;
 
-  Map<String, dynamic> get config => Map.unmodifiable(_config);
+  RemoteAppConfig get remoteConfig => _remoteConfig;
+
+  RemoteConfigVersion? get remoteVersion => _remoteVersion;
+
+  Map<String, dynamic> get firestoreConfig =>
+      Map.unmodifiable(_firestoreConfig);
 
   bool get isLoading => _isLoading;
 
+  bool get isSavingRemote => _isSavingRemote;
+
+  bool get isSavingFirestore => _isSavingFirestore;
+
+  bool get isBusy => _isLoading || _isSavingRemote || _isSavingFirestore;
+
   String? get errorMessage => _errorMessage;
 
-  String get jsonText => const JsonEncoder.withIndent('  ').convert(_config);
-
-  Future<void> loadConfig() async {
-    await _run(() async {
-      _config = await _adminRepository.getAppConfig();
-    });
+  String get firestoreJsonText {
+    return const JsonEncoder.withIndent('  ').convert(_firestoreConfig);
   }
 
-  Future<void> saveConfig(String jsonText) async {
+  Future<void> load() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final results = await Future.wait([
+        _adminRepository.getRemoteAppConfig(),
+        _adminRepository.getAppConfig(),
+      ]);
+      final remoteResult = results[0] as RemoteAppConfigResult;
+      _remoteConfig = remoteResult.config;
+      _remoteVersion = remoteResult.version;
+      _firestoreConfig = Map<String, dynamic>.from(results[1] as Map);
+    } on Exception catch (error) {
+      _errorMessage = error.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveRemoteConfig(RemoteAppConfig config) async {
+    final validationError = validateRemoteConfig(config);
+    if (validationError != null) {
+      _errorMessage = validationError;
+      notifyListeners();
+      return;
+    }
+
+    _isSavingRemote = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await _adminRepository.saveRemoteAppConfig(config);
+      _remoteConfig = result.config;
+      _remoteVersion = result.version;
+    } on Exception catch (error) {
+      _errorMessage = error.toString();
+    } finally {
+      _isSavingRemote = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveFirestoreConfig(String jsonText) async {
     late final Map<String, dynamic> decoded;
     try {
-      final value = jsonDecode(jsonText);
+      final value = jsonDecode(jsonText.trim().isEmpty ? '{}' : jsonText);
       if (value is! Map<String, dynamic>) {
-        throw const FormatException('App config JSON must be an object.');
+        throw const FormatException('Firestore config JSON must be an object.');
       }
       decoded = value;
     } on FormatException catch (error) {
@@ -42,62 +100,27 @@ class AppConfigViewModel extends ChangeNotifier {
       return;
     }
 
-    await _run(() async {
-      _config = await _adminRepository.saveAppConfig(decoded);
-    });
-  }
-
-  Future<void> saveTypedConfig({
-    required bool maintenanceMode,
-    required bool enableReportExport,
-    required int maxJournalsDisplay,
-    required String announcementText,
-    required String advancedJson,
-  }) async {
-    if (maxJournalsDisplay < 1) {
-      _errorMessage = 'Max journals display must be greater than 0.';
-      notifyListeners();
-      return;
-    }
-
-    Map<String, dynamic> advancedConfig = {};
-    try {
-      final decoded = jsonDecode(
-        advancedJson.trim().isEmpty ? '{}' : advancedJson,
-      );
-      if (decoded is! Map<String, dynamic>) {
-        throw const FormatException('Advanced config JSON must be an object.');
-      }
-      advancedConfig = decoded;
-    } on FormatException catch (error) {
-      _errorMessage = error.message;
-      notifyListeners();
-      return;
-    }
-
-    await _run(() async {
-      _config = await _adminRepository.saveAppConfig({
-        ...advancedConfig,
-        'maintenanceMode': maintenanceMode,
-        'enableReportExport': enableReportExport,
-        'maxJournalsDisplay': maxJournalsDisplay,
-        'announcementText': announcementText,
-      });
-    });
-  }
-
-  Future<void> _run(Future<void> Function() action) async {
-    _isLoading = true;
+    _isSavingFirestore = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await action();
+      _firestoreConfig = await _adminRepository.saveAppConfig(decoded);
     } on Exception catch (error) {
       _errorMessage = error.toString();
     } finally {
-      _isLoading = false;
+      _isSavingFirestore = false;
       notifyListeners();
     }
+  }
+
+  String? validateRemoteConfig(RemoteAppConfig config) {
+    if (config.maxJournalsDisplay < 1 || config.maxJournalsDisplay > 100) {
+      return 'Max journals display must be from 1 to 100.';
+    }
+    if (config.maxKeywordsDisplay < 1 || config.maxKeywordsDisplay > 100) {
+      return 'Max keywords display must be from 1 to 100.';
+    }
+    return null;
   }
 }

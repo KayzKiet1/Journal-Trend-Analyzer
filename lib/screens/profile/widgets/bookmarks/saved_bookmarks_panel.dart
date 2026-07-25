@@ -13,6 +13,7 @@ class SavedBookmarksPanel extends StatefulWidget {
   final ValueChanged<Publication> onRemovePublication;
   final ValueChanged<Journal> onOpenJournal;
   final ValueChanged<Journal> onRemoveJournal;
+  final String? syncMessage;
 
   const SavedBookmarksPanel({
     super.key,
@@ -22,6 +23,7 @@ class SavedBookmarksPanel extends StatefulWidget {
     required this.onRemovePublication,
     required this.onOpenJournal,
     required this.onRemoveJournal,
+    this.syncMessage,
   });
 
   @override
@@ -56,10 +58,14 @@ class _SavedBookmarksPanelState extends State<SavedBookmarksPanel> {
                     Text('Saved bookmarks', style: AppTextStyles.h2),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      totalBookmarks == 0
+                      widget.syncMessage?.isNotEmpty == true
+                          ? widget.syncMessage!
+                          : totalBookmarks == 0
                           ? 'No saved items yet'
                           : '${widget.publications.length} publications • ${widget.journals.length} journals',
                       style: AppTextStyles.bodySmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

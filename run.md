@@ -97,3 +97,4 @@ Nếu bạn Pull code về mà thấy báo lỗi đỏ hoặc không biên dịc
 
 *Chúc nhóm hoàn thành tốt dự án!*
 lệnh chạy web flutter run -d chrome
+build apk app: flutter build apk

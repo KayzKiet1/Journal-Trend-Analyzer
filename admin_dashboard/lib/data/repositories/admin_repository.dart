@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../models/admin_user.dart';
 import '../models/analytics_summary.dart';
+import '../models/app_config.dart';
 import '../models/audit_log.dart';
 import '../models/dashboard_summary.dart';
 import '../models/managed_collection.dart';
@@ -105,6 +106,10 @@ abstract class AdminRepository {
   Future<Map<String, dynamic>> getAppConfig();
 
   Future<Map<String, dynamic>> saveAppConfig(Map<String, dynamic> config);
+
+  Future<RemoteAppConfigResult> getRemoteAppConfig();
+
+  Future<RemoteAppConfigResult> saveRemoteAppConfig(RemoteAppConfig config);
 
   Future<StorageFileListResult> listStorageFiles({
     String prefix = '',
@@ -318,6 +323,20 @@ class FirebaseAdminRepository implements AdminRepository {
   }
 
   @override
+  Future<RemoteAppConfigResult> getRemoteAppConfig() async {
+    final data = await _call('getRemoteAppConfig');
+    return RemoteAppConfigResult.fromMap(data);
+  }
+
+  @override
+  Future<RemoteAppConfigResult> saveRemoteAppConfig(
+    RemoteAppConfig config,
+  ) async {
+    final data = await _call('saveRemoteAppConfig', {'config': config.toMap()});
+    return RemoteAppConfigResult.fromMap(data);
+  }
+
+  @override
   Future<StorageFileListResult> listStorageFiles({
     String prefix = '',
     String? pageToken,
@@ -452,7 +471,16 @@ class FirebaseAdminRepository implements AdminRepository {
       );
       return Map<String, dynamic>.from(result.data);
     } on FirebaseFunctionsException catch (error) {
-      throw Exception(error.message ?? error.code);
+      final message = error.message?.trim();
+      final details = error.details?.toString();
+      final readableMessage = message == null || message.isEmpty
+          ? error.code
+          : message;
+      throw Exception(
+        details == null || details.isEmpty
+            ? readableMessage
+            : '$readableMessage ($details)',
+      );
     }
   }
 }

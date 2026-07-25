@@ -2,6 +2,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldPath, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { getRemoteConfig } = require('firebase-admin/remote-config');
 const { getStorage } = require('firebase-admin/storage');
 const { HttpsError, onCall } = require('firebase-functions/v2/https');
 
@@ -18,15 +19,13 @@ const healthCollections = ['app_errors', 'function_errors', 'system_health'];
 const managedCollections = [
   'users',
   'journals',
-  'trends',
-  'configs',
+  'publications',
   'app_config',
   'analytics_events',
-  'app_errors',
+  'notificationLogs',
   'auditLogs',
-  'audit_logs',
+  'app_errors',
   'function_errors',
-  'publications',
   'system_health',
 ];
 const dashboardCollections = ['users', 'journals', 'trends', 'publications', appConfigCollection];
@@ -136,15 +135,27 @@ function parsePlainObject(value, label) {
 async function countAuthUsers() {
   const auth = getAuth();
   let count = 0;
+  let newUsers7d = 0;
+  let newUsers30d = 0;
   let pageToken;
+  const now = Date.now();
+  const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
 
   do {
     const result = await auth.listUsers(1000, pageToken);
     count += result.users.length;
+    result.users.forEach((user) => {
+      const createdAt = Date.parse(user.metadata.creationTime || '');
+      if (!Number.isNaN(createdAt)) {
+        if (createdAt >= sevenDaysAgo) newUsers7d += 1;
+        if (createdAt >= thirtyDaysAgo) newUsers30d += 1;
+      }
+    });
     pageToken = result.pageToken;
   } while (pageToken);
 
-  return count;
+  return { total: count, newUsers7d, newUsers30d };
 }
 
 async function countFirestoreCollection(collectionName) {
@@ -152,9 +163,70 @@ async function countFirestoreCollection(collectionName) {
   return snapshot.data().count || 0;
 }
 
-async function countStorageFiles() {
+async function getStorageSummary() {
   const [files] = await getStorage().bucket().getFiles();
-  return files.length;
+  let totalBytes = 0;
+  const folderCounts = {};
+
+  await Promise.all(
+    files.map(async (file) => {
+      const [metadata] = await file.getMetadata();
+      totalBytes += Number(metadata.size || 0);
+      const folder = file.name.split('/')[0] || '(root)';
+      folderCounts[folder] = (folderCounts[folder] || 0) + 1;
+    }),
+  );
+
+  return {
+    fileCount: files.length,
+    totalBytes,
+    folderCounts,
+  };
+}
+
+async function getRecentSystemHealthCount() {
+  const since = new Date();
+  since.setDate(since.getDate() - 7);
+  since.setHours(0, 0, 0, 0);
+
+  const snapshots = await Promise.all(
+    healthCollections.map((collectionName) =>
+      getFirestore()
+        .collection(collectionName)
+        .where('createdAt', '>=', since)
+        .count()
+        .get()),
+  );
+
+  return snapshots.reduce(
+    (total, snapshot) => total + (snapshot.data().count || 0),
+    0,
+  );
+}
+
+async function getDashboardAnalyticsSummary() {
+  const since = new Date();
+  since.setDate(since.getDate() - 7);
+  since.setHours(0, 0, 0, 0);
+
+  const snapshot = await getFirestore()
+    .collection(analyticsEventsCollection)
+    .where('createdAt', '>=', since)
+    .orderBy('createdAt', 'desc')
+    .limit(2000)
+    .get();
+  const activeUsers = new Set();
+
+  snapshot.docs.forEach((document) => {
+    const data = document.data();
+    const userKey = data.userId || data.userEmail || '';
+    if (userKey) activeUsers.add(userKey);
+  });
+
+  return {
+    events7d: snapshot.size,
+    activeUsers7d: activeUsers.size,
+  };
 }
 
 exports.getAdminDashboardSummary = onCall({ region }, async (request) => {
@@ -168,14 +240,28 @@ exports.getAdminDashboardSummary = onCall({ region }, async (request) => {
     }),
   );
 
-  const [userCount, storageFileCount] = await Promise.all([
+  const [
+    authSummary,
+    storageSummary,
+    recentSystemHealthCount,
+    analyticsSummary,
+  ] = await Promise.all([
     countAuthUsers(),
-    countStorageFiles(),
+    getStorageSummary(),
+    getRecentSystemHealthCount(),
+    getDashboardAnalyticsSummary(),
   ]);
 
   return {
-    userCount,
-    storageFileCount,
+    userCount: authSummary.total,
+    newUsers7d: authSummary.newUsers7d,
+    newUsers30d: authSummary.newUsers30d,
+    storageFileCount: storageSummary.fileCount,
+    storageTotalBytes: storageSummary.totalBytes,
+    storageFolderCounts: storageSummary.folderCounts,
+    recentSystemHealthCount,
+    analyticsEvents7d: analyticsSummary.events7d,
+    activeUsers7d: analyticsSummary.activeUsers7d,
     collectionCounts,
     generatedAt: new Date().toISOString(),
   };
@@ -310,6 +396,125 @@ exports.saveAppConfig = onCall({ region }, async (request) => {
   return { config: after.data };
 });
 
+exports.getRemoteAppConfig = onCall({ region }, async (request) => {
+  assertAdmin(request);
+
+  const template = await getRemoteConfig().getTemplate();
+  return {
+    config: readRemoteAppConfig(template),
+    version: template.version || null,
+  };
+});
+
+exports.saveRemoteAppConfig = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const config = parsePlainObject(request.data?.config, 'Remote app config');
+  const remoteConfig = getRemoteConfig();
+  const template = await remoteConfig.getTemplate();
+  template.parameters = template.parameters || {};
+  const before = readRemoteAppConfig(template);
+  const nextConfig = normalizeRemoteAppConfig(config);
+
+  template.parameters.max_journals_display = remoteParameter({
+    value: String(nextConfig.maxJournalsDisplay),
+    valueType: 'NUMBER',
+    description: 'Maximum journals shown in topic dashboards.',
+  });
+  template.parameters.max_keywords_display = remoteParameter({
+    value: String(nextConfig.maxKeywordsDisplay),
+    valueType: 'NUMBER',
+    description: 'Maximum keywords shown in keyword dashboards.',
+  });
+  template.parameters.enable_report_export = remoteParameter({
+    value: String(nextConfig.enableReportExport),
+    valueType: 'BOOLEAN',
+    description: 'Enable report export features in the mobile app.',
+  });
+
+  const published = await remoteConfig.publishTemplate(template);
+  const after = readRemoteAppConfig(published);
+
+  await writeAuditLog(
+    authContext,
+    'saveRemoteAppConfig',
+    'remote_config/mobile_runtime',
+    before,
+    after,
+  );
+
+  return {
+    config: after,
+    version: published.version || null,
+  };
+});
+
+function readRemoteAppConfig(template) {
+  const parameters = template.parameters || {};
+  return {
+    maxJournalsDisplay: readRemoteNumber(
+      parameters.max_journals_display,
+      10,
+    ),
+    maxKeywordsDisplay: readRemoteNumber(
+      parameters.max_keywords_display,
+      10,
+    ),
+    enableReportExport: readRemoteBoolean(
+      parameters.enable_report_export,
+      true,
+    ),
+  };
+}
+
+function normalizeRemoteAppConfig(config) {
+  const maxJournalsDisplay = positiveInteger(
+    config.maxJournalsDisplay,
+    'maxJournalsDisplay',
+  );
+  const maxKeywordsDisplay = positiveInteger(
+    config.maxKeywordsDisplay,
+    'maxKeywordsDisplay',
+  );
+
+  if (typeof config.enableReportExport !== 'boolean') {
+    throw new HttpsError('invalid-argument', 'enableReportExport must be a boolean.');
+  }
+
+  return {
+    maxJournalsDisplay,
+    maxKeywordsDisplay,
+    enableReportExport: config.enableReportExport,
+  };
+}
+
+function readRemoteNumber(parameter, fallback) {
+  const value = Number(parameter?.defaultValue?.value);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function readRemoteBoolean(parameter, fallback) {
+  const rawValue = parameter?.defaultValue?.value;
+  if (rawValue === 'true') return true;
+  if (rawValue === 'false') return false;
+  return fallback;
+}
+
+function positiveInteger(value, fieldName) {
+  const numberValue = Number(value);
+  if (!Number.isInteger(numberValue) || numberValue < 1 || numberValue > 100) {
+    throw new HttpsError('invalid-argument', `${fieldName} must be an integer from 1 to 100.`);
+  }
+  return numberValue;
+}
+
+function remoteParameter({ value, valueType, description }) {
+  return {
+    defaultValue: { value },
+    valueType,
+    description,
+  };
+}
+
 exports.listStorageFiles = onCall({ region }, async (request) => {
   assertAdmin(request);
 
@@ -325,10 +530,7 @@ exports.listStorageFiles = onCall({ region }, async (request) => {
   const items = await Promise.all(
     files.map(async (file) => {
       const [metadata] = await file.getMetadata();
-      const [downloadUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 15 * 60 * 1000,
-      });
+      const downloadUrl = await createSignedReadUrl(file);
 
       return {
         name: file.name,
@@ -347,6 +549,19 @@ exports.listStorageFiles = onCall({ region }, async (request) => {
     nextPageToken: nextQuery?.pageToken || '',
   };
 });
+
+async function createSignedReadUrl(file) {
+  try {
+    const [downloadUrl] = await file.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 15 * 60 * 1000,
+    });
+    return downloadUrl;
+  } catch (error) {
+    console.warn(`Unable to create signed URL for ${file.name}:`, error.message);
+    return '';
+  }
+}
 
 exports.uploadStorageFile = onCall({ region }, async (request) => {
   const authContext = assertAdmin(request);
@@ -724,8 +939,8 @@ exports.getUserProfileSummary = onCall({ region }, async (request) => {
   ] = await Promise.all([
     userRef.collection('fcmTokens').limit(20).get(),
     firestore.collection(analyticsEventsCollection).where('userId', '==', uid).limit(50).get(),
-    userRef.collection('savedJournals').limit(20).get(),
-    userRef.collection('savedPublications').limit(20).get(),
+    userRef.collection('savedJournals').orderBy('savedAt', 'desc').limit(50).get(),
+    userRef.collection('savedPublications').orderBy('savedAt', 'desc').limit(50).get(),
     listReportFiles(uid),
   ]);
 
@@ -750,18 +965,20 @@ exports.getUserProfileSummary = onCall({ region }, async (request) => {
 async function listReportFiles(uid) {
   const [files] = await getStorage().bucket().getFiles({
     prefix: `reports/${uid}/`,
-    maxResults: 20,
+    maxResults: 50,
   });
 
   return Promise.all(
     files.map(async (file) => {
       const [metadata] = await file.getMetadata();
+      const downloadUrl = await createSignedReadUrl(file);
       return {
         name: file.name,
         contentType: metadata.contentType || '',
         size: Number(metadata.size || 0),
         updated: metadata.updated || '',
         customMetadata: metadata.metadata || {},
+        downloadUrl,
       };
     }),
   );

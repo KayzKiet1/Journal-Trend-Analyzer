@@ -65,7 +65,11 @@ class FirebaseAnalyticsService {
   }
 
   Future<void> logExportPdf({required String topic}) {
-    return _logEvent('export_pdf', {'topic': topic});
+    return logExportReport(topic: topic);
+  }
+
+  Future<void> logExportReport({required String topic}) {
+    return _logEvent('export_report', {'topic': topic});
   }
 
   Future<void> _logEvent(
