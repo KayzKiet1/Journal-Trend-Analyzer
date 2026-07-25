@@ -6,7 +6,7 @@ import 'sidebar.dart';
 
 class AdminShell extends StatelessWidget {
   AdminShell({required this.title, required this.child, super.key})
-    : _authRepository = FirebaseAuthRepository();
+      : _authRepository = FirebaseAuthRepository();
 
   final String title;
   final Widget child;
@@ -14,55 +14,59 @@ class AdminShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final size = MediaQuery.sizeOf(context);
+    final isMobile = size.width < 1100;
     final currentRoute = ModalRoute.of(context)?.settings.name ?? AdminRoutes.dashboard;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 1100;
-
-        return Scaffold(
-          backgroundColor: const Color(0xFFF8FAFC),
-          appBar: AppBar(
-            backgroundColor: const Color(0xFFF8FAFC),
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            title: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF8FAFC),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        actions: [
+          _buildAuthAction(context),
+          const SizedBox(width: 16),
+        ],
+      ),
+      drawer: isMobile ? Sidebar(currentRoute: currentRoute) : null,
+      body: Row(
+        children: [
+          if (!isMobile) Sidebar(currentRoute: currentRoute),
+          Expanded(
+            child: Container(
+              margin: isMobile ? EdgeInsets.zero : const EdgeInsets.only(right: 16, bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: isMobile ? BorderRadius.zero : BorderRadius.circular(24),
+                border: isMobile ? null : Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  if (!isMobile)
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withOpacity(0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: isMobile ? BorderRadius.zero : BorderRadius.circular(24),
+                child: child,
               ),
             ),
-            actions: [
-              _buildAuthAction(context),
-              const SizedBox(width: 16),
-            ],
           ),
-          drawer: isMobile ? Sidebar(currentRoute: currentRoute) : null,
-          body: Row(
-            children: [
-              if (!isMobile) Sidebar(currentRoute: currentRoute),
-              Expanded(
-                child: Container(
-                  margin: isMobile ? EdgeInsets.zero : const EdgeInsets.only(right: 16, bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: isMobile ? BorderRadius.zero : BorderRadius.circular(24),
-                    border: isMobile ? null : Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: isMobile ? BorderRadius.zero : BorderRadius.circular(24),
-                    child: child,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -113,10 +117,7 @@ class AdminShell extends StatelessWidget {
                   ),
                   Text(
                     user.email ?? '',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                 ],
               ),

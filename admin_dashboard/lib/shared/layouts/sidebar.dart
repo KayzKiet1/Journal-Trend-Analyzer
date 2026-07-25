@@ -26,10 +26,7 @@ class Sidebar extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E1B4B), // Indigo 950
-            Color(0xFF0F172A), // Slate 900
-          ],
+          colors: [Color(0xFF1E1B4B), Color(0xFF0F172A)],
         ),
       ),
       child: Column(
@@ -39,54 +36,62 @@ class Sidebar extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
               children: [
-                const _SidebarCategory(label: 'MENU CHÍNH'),
+                const _SidebarCategory(label: 'MENU CHÍNH', key: ValueKey('cat_main')),
                 _SidebarItem(
+                  key: const ValueKey('nav_dashboard'),
                   label: 'Dashboard',
                   icon: Icons.grid_view_rounded,
                   routeName: AdminRoutes.dashboard,
                   isActive: currentRoute == AdminRoutes.dashboard,
                 ),
                 _SidebarItem(
+                  key: const ValueKey('nav_analytics'),
                   label: 'Phân tích (Analytics)',
                   icon: Icons.bar_chart_rounded,
                   routeName: AdminRoutes.analytics,
                   isActive: currentRoute == AdminRoutes.analytics,
                 ),
                 const SizedBox(height: 32),
-                const _SidebarCategory(label: 'QUẢN LÝ DỮ LIỆU'),
+                const _SidebarCategory(label: 'QUẢN LÝ DỮ LIỆU', key: ValueKey('cat_mgmt')),
                 _SidebarItem(
+                  key: const ValueKey('nav_users'),
                   label: 'Người dùng',
                   icon: Icons.people_outline_rounded,
                   routeName: AdminRoutes.users,
                   isActive: currentRoute.startsWith(AdminRoutes.users),
                 ),
                 _SidebarItem(
+                  key: const ValueKey('nav_firestore'),
                   label: 'Firestore Collections',
                   icon: Icons.dns_outlined,
                   routeName: AdminRoutes.firestoreCollections,
                   isActive: currentRoute.startsWith(AdminRoutes.firestoreCollections),
                 ),
                 _SidebarItem(
+                  key: const ValueKey('nav_storage'),
                   label: 'Cloud Storage',
                   icon: Icons.folder_open_rounded,
                   routeName: AdminRoutes.storage,
                   isActive: currentRoute.startsWith(AdminRoutes.storage),
                 ),
                 const SizedBox(height: 32),
-                const _SidebarCategory(label: 'HỆ THỐNG'),
+                const _SidebarCategory(label: 'HỆ THỐNG', key: ValueKey('cat_sys')),
                 _SidebarItem(
+                  key: const ValueKey('nav_config'),
                   label: 'Cấu hình App',
                   icon: Icons.tune_rounded,
                   routeName: AdminRoutes.appConfig,
                   isActive: currentRoute == AdminRoutes.appConfig,
                 ),
                 _SidebarItem(
+                  key: const ValueKey('nav_msg'),
                   label: 'Gửi Thông báo',
                   icon: Icons.send_and_archive_outlined,
                   routeName: AdminRoutes.messaging,
                   isActive: currentRoute == AdminRoutes.messaging,
                 ),
                 _SidebarItem(
+                  key: const ValueKey('nav_audit'),
                   label: 'Lịch sử Audit',
                   icon: Icons.history_rounded,
                   routeName: AdminRoutes.auditLogs,
@@ -114,9 +119,7 @@ class _SidebarHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-              ),
+              color: Sidebar._accentColor,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
@@ -126,7 +129,7 @@ class _SidebarHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(Icons.analytics_rounded, color: Colors.white, size: 24),
+            child: const Icon(Icons.auto_graph_rounded, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 14),
           const Expanded(
@@ -147,7 +150,7 @@ class _SidebarHeader extends StatelessWidget {
 }
 
 class _SidebarCategory extends StatelessWidget {
-  const _SidebarCategory({required this.label});
+  const _SidebarCategory({required this.label, super.key});
   final String label;
 
   @override
@@ -173,6 +176,7 @@ class _SidebarItem extends StatefulWidget {
     required this.icon,
     required this.routeName,
     required this.isActive,
+    super.key,
   });
 
   final String label;
@@ -202,13 +206,6 @@ class _SidebarItemState extends State<_SidebarItem> {
               ? const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)])
               : null,
             color: !widget.isActive && _isHovered ? Colors.white.withOpacity(0.05) : Colors.transparent,
-            boxShadow: widget.isActive ? [
-              BoxShadow(
-                color: const Color(0xFF6366F1).withOpacity(0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              )
-            ] : null,
           ),
           child: Material(
             color: Colors.transparent,
@@ -216,10 +213,7 @@ class _SidebarItemState extends State<_SidebarItem> {
               borderRadius: BorderRadius.circular(14),
               onTap: widget.isActive
                   ? null
-                  : () {
-                      if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
-                      Navigator.of(context).pushReplacementNamed(widget.routeName);
-                    },
+                  : () => Navigator.of(context).pushReplacementNamed(widget.routeName),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                 child: Row(
@@ -273,9 +267,9 @@ class _SidebarFooter extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)]),
+                  gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)]),
                 ),
                 child: CircleAvatar(
                   radius: 16,

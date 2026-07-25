@@ -21,7 +21,15 @@ ThemeData buildAdminTheme() {
       outlineVariant: border,
     ),
     scaffoldBackgroundColor: background,
-    fontFamily: 'Inter', // Assumes you have this font or fallback to system
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: _SmoothFadePageTransitionsBuilder(),
+        TargetPlatform.iOS: _SmoothFadePageTransitionsBuilder(),
+        TargetPlatform.linux: _SmoothFadePageTransitionsBuilder(),
+        TargetPlatform.macOS: _SmoothFadePageTransitionsBuilder(),
+        TargetPlatform.windows: _SmoothFadePageTransitionsBuilder(),
+      },
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: background,
       foregroundColor: textPrimary,
@@ -69,8 +77,6 @@ ThemeData buildAdminTheme() {
         color: primary,
         fontWeight: FontWeight.bold,
       ),
-      prefixIconColor: textSecondary,
-      suffixIconColor: textSecondary,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -79,14 +85,6 @@ ThemeData buildAdminTheme() {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         backgroundColor: primary,
         foregroundColor: Colors.white,
-        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, letterSpacing: 0.2),
-      ),
-    ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
       ),
     ),
@@ -99,16 +97,13 @@ ThemeData buildAdminTheme() {
         textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
       ),
     ),
-    dividerTheme: const DividerThemeData(
-      color: border,
-      thickness: 1,
-      space: 1,
-    ),
   );
 }
 
-class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
-  const _NoAnimationPageTransitionsBuilder();
+/// Hiệu ứng chuyển trang mượt mà cho Dashboard.
+/// Thay thế việc nhảy trang đột ngột bằng hiệu ứng Fade nhẹ 300ms.
+class _SmoothFadePageTransitionsBuilder extends PageTransitionsBuilder {
+  const _SmoothFadePageTransitionsBuilder();
 
   @override
   Widget buildTransitions<T>(
@@ -118,6 +113,9 @@ class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return child;
+    return FadeTransition(
+      opacity: animation.drive(CurveTween(curve: Curves.easeOutCubic)),
+      child: child,
+    );
   }
 }
