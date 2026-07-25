@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../shared/layouts/admin_shell.dart';
 import 'messaging_view_model.dart';
 
-enum MessageTarget { allUsers, user, topic }
+enum MessageTarget { allUsers, user }
 
 class MessagingPage extends StatefulWidget {
   const MessagingPage({super.key});
@@ -16,10 +16,13 @@ class _MessagingPageState extends State<MessagingPage> {
   final _formKey = GlobalKey<FormState>();
   late final MessagingViewModel _viewModel;
   final _recipientController = TextEditingController();
-  final _topicController = TextEditingController(text: 'announcements');
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
   MessageTarget _target = MessageTarget.allUsers;
+  bool _scheduleLater = false;
+  DateTime? _scheduledDate;
+  TimeOfDay? _scheduledTime;
+  bool _didApplyDraft = false;
 
   @override
   void initState() {
@@ -28,10 +31,30 @@ class _MessagingPageState extends State<MessagingPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didApplyDraft) return;
+    _didApplyDraft = true;
+
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+    if (arguments is Map) {
+      final mode = arguments['mode']?.toString() ?? '';
+      final recipient = arguments['recipient']?.toString() ?? '';
+      if (mode == 'user') {
+        _target = MessageTarget.user;
+        _recipientController.text = recipient;
+      } else {
+        _target = MessageTarget.allUsers;
+      }
+      _titleController.text = arguments['title']?.toString() ?? '';
+      _bodyController.text = arguments['body']?.toString() ?? '';
+    }
+  }
+
+  @override
   void dispose() {
     _viewModel.dispose();
     _recipientController.dispose();
-    _topicController.dispose();
     _titleController.dispose();
     _bodyController.dispose();
     super.dispose();
@@ -64,17 +87,12 @@ class _MessagingPageState extends State<MessagingPage> {
                               ButtonSegment(
                                 value: MessageTarget.allUsers,
                                 icon: Icon(Icons.groups_outlined),
-                                label: Text('All users'),
+                                label: Text('Tất cả người dùng'),
                               ),
                               ButtonSegment(
                                 value: MessageTarget.user,
                                 icon: Icon(Icons.person_outline),
-                                label: Text('User'),
-                              ),
-                              ButtonSegment(
-                                value: MessageTarget.topic,
-                                icon: Icon(Icons.topic_outlined),
-                                label: Text('Topic'),
+                                label: Text('Một người dùng'),
                               ),
                             ],
                             selected: {_target},
@@ -85,11 +103,57 @@ class _MessagingPageState extends State<MessagingPage> {
                                   },
                           ),
                           const SizedBox(height: 18),
+                          SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(
+                                value: false,
+                                icon: Icon(Icons.send_outlined),
+                                label: Text('Gửi ngay'),
+                              ),
+                              ButtonSegment(
+                                value: true,
+                                icon: Icon(Icons.schedule_outlined),
+                                label: Text('Lên lịch'),
+                              ),
+                            ],
+                            selected: {_scheduleLater},
+                            onSelectionChanged: _viewModel.isLoading
+                                ? null
+                                : (value) {
+                                    setState(
+                                      () => _scheduleLater = value.single,
+                                    );
+                                  },
+                          ),
+                          if (_scheduleLater) ...[
+                            const SizedBox(height: 14),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: _viewModel.isLoading
+                                      ? null
+                                      : _pickDate,
+                                  icon: const Icon(Icons.calendar_today),
+                                  label: Text(_dateLabel),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: _viewModel.isLoading
+                                      ? null
+                                      : _pickTime,
+                                  icon: const Icon(Icons.access_time),
+                                  label: Text(_timeLabel),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 18),
                           if (_target == MessageTarget.user) ...[
                             TextFormField(
                               controller: _recipientController,
                               decoration: const InputDecoration(
-                                labelText: 'User email or uid',
+                                labelText: 'Email hoặc UID người nhận',
                                 prefixIcon: Icon(Icons.person_search_outlined),
                               ),
                               validator: (value) {
@@ -104,30 +168,10 @@ class _MessagingPageState extends State<MessagingPage> {
                             ),
                             const SizedBox(height: 14),
                           ],
-                          if (_target == MessageTarget.topic) ...[
-                            TextFormField(
-                              controller: _topicController,
-                              decoration: const InputDecoration(
-                                labelText: 'Topic',
-                                hintText: 'announcements',
-                                prefixIcon: Icon(Icons.tag_outlined),
-                              ),
-                              validator: (value) {
-                                if (_target != MessageTarget.topic) {
-                                  return null;
-                                }
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Nhập topic cần gửi.';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 14),
-                          ],
                           TextFormField(
                             controller: _titleController,
                             decoration: const InputDecoration(
-                              labelText: 'Title',
+                              labelText: 'Tiêu đề',
                               prefixIcon: Icon(Icons.title),
                             ),
                             validator: (value) {
@@ -143,7 +187,7 @@ class _MessagingPageState extends State<MessagingPage> {
                             minLines: 4,
                             maxLines: 8,
                             decoration: const InputDecoration(
-                              labelText: 'Body',
+                              labelText: 'Nội dung',
                               alignLabelWithHint: true,
                               prefixIcon: Icon(Icons.subject),
                             ),
@@ -190,13 +234,12 @@ class _MessagingPageState extends State<MessagingPage> {
   }
 
   String get _buttonLabel {
+    if (_scheduleLater) return 'Lưu lịch gửi';
     switch (_target) {
       case MessageTarget.allUsers:
-        return 'Send to all users';
+        return 'Gửi cho tất cả';
       case MessageTarget.user:
-        return 'Send to user';
-      case MessageTarget.topic:
-        return 'Send to topic';
+        return 'Gửi cho người dùng';
     }
   }
 
@@ -212,7 +255,56 @@ class _MessagingPageState extends State<MessagingPage> {
           '${directResult['failureCount']} thất bại.';
     }
 
+    final scheduleId = _viewModel.lastScheduleId;
+    if (scheduleId != null) {
+      return 'Đã lên lịch gửi thông báo. Schedule ID: $scheduleId';
+    }
+
     return null;
+  }
+
+  String get _dateLabel {
+    final date = _scheduledDate;
+    if (date == null) return 'Chọn ngày';
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String get _timeLabel {
+    final time = _scheduledTime;
+    if (time == null) return 'Chọn giờ';
+    return '${time.hour.toString().padLeft(2, '0')}:'
+        '${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  DateTime? get _scheduledAt {
+    final date = _scheduledDate;
+    final time = _scheduledTime;
+    if (date == null || time == null) return null;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _scheduledDate ?? now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (selected != null) {
+      setState(() => _scheduledDate = selected);
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: _scheduledTime ?? TimeOfDay.now(),
+    );
+    if (selected != null) {
+      setState(() => _scheduledTime = selected);
+    }
   }
 
   Future<void> _send() async {
@@ -223,18 +315,47 @@ class _MessagingPageState extends State<MessagingPage> {
     final title = _titleController.text.trim();
     final body = _bodyController.text.trim();
 
+    if (_scheduleLater) {
+      final scheduledAt = _scheduledAt;
+      if (scheduledAt == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Chọn ngày và giờ gửi thông báo.')),
+        );
+        return;
+      }
+      if (scheduledAt.isBefore(
+        DateTime.now().add(const Duration(minutes: 1)),
+      )) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Thời gian gửi phải sau hiện tại ít nhất 1 phút.'),
+          ),
+        );
+        return;
+      }
+
+      await _viewModel.scheduleNotification(
+        mode: _target == MessageTarget.allUsers ? 'allUsers' : 'user',
+        recipient: _target == MessageTarget.user
+            ? _recipientController.text.trim()
+            : '',
+        title: title,
+        body: body,
+        scheduledAt: scheduledAt,
+      );
+      if (mounted && _viewModel.errorMessage == null) {
+        _titleController.clear();
+        _bodyController.clear();
+      }
+      return;
+    }
+
     switch (_target) {
       case MessageTarget.allUsers:
         await _viewModel.sendAllUsersMessage(title: title, body: body);
       case MessageTarget.user:
         await _viewModel.sendUserMessage(
           recipient: _recipientController.text.trim(),
-          title: title,
-          body: body,
-        );
-      case MessageTarget.topic:
-        await _viewModel.sendTopicMessage(
-          topic: _topicController.text.trim(),
           title: title,
           body: body,
         );
@@ -280,7 +401,7 @@ class _MessagingHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Tin nhắn được gửi qua Cloud Functions và Firebase Admin SDK.',
+                'Gửi thông báo trực tiếp qua Cloud Functions và Firebase Admin SDK.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),

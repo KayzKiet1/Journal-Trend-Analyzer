@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../data/models/storage_file.dart';
 import '../../data/repositories/storage_repository.dart';
@@ -18,7 +19,7 @@ class StoragePage extends StatefulWidget {
 
 class _StoragePageState extends State<StoragePage> {
   static const _folders = [
-    StorageFolderOption(value: '', label: 'All files'),
+    StorageFolderOption(value: '', label: 'Tất cả'),
     StorageFolderOption(value: 'admin_uploads', label: 'Admin uploads'),
     StorageFolderOption(value: 'reports', label: 'Reports'),
     StorageFolderOption(value: 'announcements', label: 'Announcements'),
@@ -114,6 +115,8 @@ class _StoragePageState extends State<StoragePage> {
                       group: folderGroup,
                       onDelete: _delete,
                       onOpen: _openFile,
+                      onDownload: _downloadFile,
+                      onCopyLink: _copyFileLink,
                     ),
                   ),
                 ),
@@ -127,7 +130,7 @@ class _StoragePageState extends State<StoragePage> {
                             prefix: _prefixController.text.trim(),
                           ),
                     icon: const Icon(Icons.expand_more),
-                    label: const Text('Load more'),
+                    label: const Text('Tải thêm'),
                   ),
                 ),
             ],
@@ -149,16 +152,16 @@ class _StoragePageState extends State<StoragePage> {
         await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete storage file?'),
+            title: const Text('Xóa file Storage?'),
             content: Text(file.name),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+                child: const Text('Hủy'),
               ),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Delete'),
+                child: const Text('Xóa'),
               ),
             ],
           ),
@@ -171,21 +174,59 @@ class _StoragePageState extends State<StoragePage> {
   }
 
   Future<void> _openFile(StorageFile file) async {
-    if (file.downloadUrl.isEmpty) {
+    if (file.effectiveViewUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Signed URL unavailable for this file.')),
+        const SnackBar(
+          content: Text('Chưa có link truy cập cho file này. Hãy làm mới lại.'),
+        ),
       );
       return;
     }
 
     try {
-      await _urlOpener.open(file.downloadUrl);
+      await _urlOpener.open(file.effectiveViewUrl);
     } on Exception catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
+  }
+
+  Future<void> _downloadFile(StorageFile file) async {
+    if (file.effectiveDownloadUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chưa có link tải cho file này. Hãy làm mới lại.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _urlOpener.open(file.effectiveDownloadUrl);
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _copyFileLink(StorageFile file) async {
+    final url = file.effectiveDownloadUrl;
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chưa có link để sao chép.')),
+      );
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã sao chép link tải vào clipboard.')),
+    );
   }
 
   Future<void> _pickAndUpload() async {
@@ -201,7 +242,7 @@ class _StoragePageState extends State<StoragePage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Upload limit is 8 MB per file from admin web.'),
+          content: Text('Admin web chỉ hỗ trợ upload tối đa 8 MB mỗi file.'),
         ),
       );
       return;
@@ -328,14 +369,14 @@ class _StorageHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Storage manager',
+                    'Quản lý Storage',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$fileCount files • ${_formatBytes(totalBytes)} loaded',
+                    '$fileCount file • đã tải ${_formatBytes(totalBytes)}',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -422,12 +463,12 @@ class _StorageToolbar extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: isLoading ? null : onSearch,
                   icon: const Icon(Icons.search),
-                  label: const Text('Search'),
+                  label: const Text('Tìm kiếm'),
                 ),
                 DropdownMenu<String>(
                   width: 210,
                   initialSelection: uploadFolder,
-                  label: const Text('Upload folder'),
+                  label: const Text('Thư mục upload'),
                   onSelected: (value) {
                     if (value != null) {
                       onUploadFolderChanged(value);
@@ -460,7 +501,7 @@ class _StorageToolbar extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Upload path: $uploadFolder/{adminUid}/{timestamp}_{fileName}',
+              'Đường dẫn upload: $uploadFolder/{adminUid}/{timestamp}_{fileName}',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12,
@@ -478,11 +519,15 @@ class _FolderGroupCard extends StatelessWidget {
     required this.group,
     required this.onDelete,
     required this.onOpen,
+    required this.onDownload,
+    required this.onCopyLink,
   });
 
   final StorageFolderGroup group;
   final ValueChanged<StorageFile> onDelete;
   final ValueChanged<StorageFile> onOpen;
+  final ValueChanged<StorageFile> onDownload;
+  final ValueChanged<StorageFile> onCopyLink;
 
   @override
   Widget build(BuildContext context) {
@@ -508,7 +553,7 @@ class _FolderGroupCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${group.fileCount} files • ${_formatBytes(group.totalBytes)}',
+                  '${group.fileCount} file • ${_formatBytes(group.totalBytes)}',
                   style: theme.textTheme.labelLarge,
                 ),
               ],
@@ -519,6 +564,8 @@ class _FolderGroupCard extends StatelessWidget {
                 owner: owner,
                 onDelete: onDelete,
                 onOpen: onOpen,
+                onDownload: onDownload,
+                onCopyLink: onCopyLink,
               ),
             ),
           ],
@@ -533,11 +580,15 @@ class _OwnerSection extends StatelessWidget {
     required this.owner,
     required this.onDelete,
     required this.onOpen,
+    required this.onDownload,
+    required this.onCopyLink,
   });
 
   final StorageOwnerGroup owner;
   final ValueChanged<StorageFile> onDelete;
   final ValueChanged<StorageFile> onOpen;
+  final ValueChanged<StorageFile> onDownload;
+  final ValueChanged<StorageFile> onCopyLink;
 
   @override
   Widget build(BuildContext context) {
@@ -565,7 +616,7 @@ class _OwnerSection extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             subtitle: Text(
-              '${owner.files.length} files • ${_formatBytes(owner.totalBytes)}',
+              '${owner.files.length} file • ${_formatBytes(owner.totalBytes)}',
               style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
             children: [
@@ -580,6 +631,8 @@ class _OwnerSection extends StatelessWidget {
                           file: file,
                           onDelete: onDelete,
                           onOpen: onOpen,
+                          onDownload: onDownload,
+                          onCopyLink: onCopyLink,
                         ),
                       )
                       .toList(),
@@ -598,11 +651,15 @@ class _StorageFileCard extends StatelessWidget {
     required this.file,
     required this.onDelete,
     required this.onOpen,
+    required this.onDownload,
+    required this.onCopyLink,
   });
 
   final StorageFile file;
   final ValueChanged<StorageFile> onDelete;
   final ValueChanged<StorageFile> onOpen;
+  final ValueChanged<StorageFile> onDownload;
+  final ValueChanged<StorageFile> onCopyLink;
 
   @override
   Widget build(BuildContext context) {
@@ -622,9 +679,9 @@ class _StorageFileCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   child: ColoredBox(
                     color: colorScheme.surfaceContainerHighest,
-                    child: file.isImage && file.downloadUrl.isNotEmpty
+                    child: file.isImage && file.effectiveViewUrl.isNotEmpty
                         ? Image.network(
-                            file.downloadUrl,
+                            file.effectiveViewUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) =>
                                 const Icon(Icons.broken_image_outlined),
@@ -658,16 +715,34 @@ class _StorageFileCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   IconButton(
-                    tooltip: file.downloadUrl.isEmpty
-                        ? 'Signed URL unavailable'
-                        : 'Open file',
-                    onPressed: file.downloadUrl.isEmpty
+                    tooltip: file.effectiveViewUrl.isEmpty
+                        ? 'Chưa có link truy cập'
+                        : 'Mở file',
+                    onPressed: file.effectiveViewUrl.isEmpty
                         ? null
                         : () => onOpen(file),
-                    icon: const Icon(Icons.open_in_new),
+                    icon: const Icon(Icons.open_in_new_rounded),
                   ),
                   IconButton(
-                    tooltip: 'Delete',
+                    tooltip: file.effectiveDownloadUrl.isEmpty
+                        ? 'Chưa có link tải'
+                        : 'Tải về máy',
+                    onPressed: file.effectiveDownloadUrl.isEmpty
+                        ? null
+                        : () => onDownload(file),
+                    icon: const Icon(Icons.download_rounded),
+                  ),
+                  IconButton(
+                    tooltip: file.effectiveDownloadUrl.isEmpty
+                        ? 'Chưa có link để sao chép'
+                        : 'Sao chép link tải',
+                    onPressed: file.effectiveDownloadUrl.isEmpty
+                        ? null
+                        : () => onCopyLink(file),
+                    icon: const Icon(Icons.link_rounded),
+                  ),
+                  IconButton(
+                    tooltip: 'Xóa',
                     onPressed: () => onDelete(file),
                     icon: const Icon(Icons.delete_outline),
                   ),
@@ -730,7 +805,7 @@ class _EmptyStorageCard extends StatelessWidget {
     return const Card(
       child: Padding(
         padding: EdgeInsets.all(28),
-        child: Center(child: Text('No files found for this prefix.')),
+        child: Center(child: Text('Không tìm thấy file nào với prefix này.')),
       ),
     );
   }

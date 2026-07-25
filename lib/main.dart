@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'firebase/firebase_initializer.dart';
@@ -52,8 +54,31 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
             return controller;
           },
         ),
-        ChangeNotifierProvider(create: (_) => JournalLibraryViewModel()),
-        ChangeNotifierProvider(create: (_) => PublicationBookmarkViewModel()),
+        ChangeNotifierProxyProvider<UserViewModel, JournalLibraryViewModel>(
+          create: (_) => JournalLibraryViewModel(),
+          update: (_, userViewModel, journalLibraryViewModel) {
+            final controller =
+                journalLibraryViewModel ?? JournalLibraryViewModel();
+            unawaited(
+              controller.syncForSignedInUser(userViewModel.firebaseUser?.uid),
+            );
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<
+          UserViewModel,
+          PublicationBookmarkViewModel
+        >(
+          create: (_) => PublicationBookmarkViewModel(),
+          update: (_, userViewModel, publicationBookmarkViewModel) {
+            final controller =
+                publicationBookmarkViewModel ?? PublicationBookmarkViewModel();
+            unawaited(
+              controller.syncForSignedInUser(userViewModel.firebaseUser?.uid),
+            );
+            return controller;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => FirebaseViewModel()),
         ChangeNotifierProvider(create: (_) => NotificationViewModel()),
       ],

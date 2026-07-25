@@ -16,6 +16,7 @@ dependencies:
   cloud_functions: ^6.3.5
   file_picker: ^11.0.2
   url_launcher: ^6.3.2
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

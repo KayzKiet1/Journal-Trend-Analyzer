@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../app/router.dart';
 import '../../data/models/notification_log.dart';
 import '../../shared/layouts/admin_shell.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_view.dart';
 import 'notification_history_view_model.dart';
 
-enum NotificationModeFilter { all, allUsers, user, topic }
+enum NotificationModeFilter { all, allUsers, user }
 
 enum NotificationResultFilter { all, success, failed }
 
@@ -79,7 +80,10 @@ class _NotificationHistoryPageState extends State<NotificationHistoryPage> {
                 ...logs.map(
                   (log) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _NotificationLogCard(log: log),
+                    child: _NotificationLogCard(
+                      log: log,
+                      onDuplicate: () => _duplicateLog(log),
+                    ),
                   ),
                 ),
               const SizedBox(height: 16),
@@ -107,7 +111,6 @@ class _NotificationHistoryPageState extends State<NotificationHistoryPage> {
         NotificationModeFilter.all => true,
         NotificationModeFilter.allUsers => log.mode == 'allUsers',
         NotificationModeFilter.user => log.mode == 'user',
-        NotificationModeFilter.topic => log.mode == 'topic',
       };
       final resultMatches = switch (_resultFilter) {
         NotificationResultFilter.all => true,
@@ -117,6 +120,18 @@ class _NotificationHistoryPageState extends State<NotificationHistoryPage> {
 
       return modeMatches && resultMatches;
     }).toList();
+  }
+
+  void _duplicateLog(NotificationLog log) {
+    Navigator.of(context).pushNamed(
+      AdminRoutes.messaging,
+      arguments: {
+        'mode': log.mode == 'user' ? 'user' : 'allUsers',
+        'recipient': log.targetEmail.isNotEmpty ? log.targetEmail : log.target,
+        'title': log.title,
+        'body': log.body,
+      },
+    );
   }
 }
 
@@ -189,10 +204,6 @@ class _HistoryHeader extends StatelessWidget {
                       value: NotificationModeFilter.user,
                       label: Text('User'),
                     ),
-                    ButtonSegment(
-                      value: NotificationModeFilter.topic,
-                      label: Text('Topic'),
-                    ),
                   ],
                   selected: {modeFilter},
                   onSelectionChanged: (value) => onModeChanged(value.single),
@@ -225,9 +236,10 @@ class _HistoryHeader extends StatelessWidget {
 }
 
 class _NotificationLogCard extends StatelessWidget {
-  const _NotificationLogCard({required this.log});
+  const _NotificationLogCard({required this.log, required this.onDuplicate});
 
   final NotificationLog log;
+  final VoidCallback onDuplicate;
 
   @override
   Widget build(BuildContext context) {
@@ -266,6 +278,11 @@ class _NotificationLogCard extends StatelessWidget {
                         color: hasFailure
                             ? colorScheme.error
                             : colorScheme.primary,
+                      ),
+                      IconButton(
+                        tooltip: 'Nhân bản thông báo',
+                        onPressed: onDuplicate,
+                        icon: const Icon(Icons.content_copy_rounded),
                       ),
                     ],
                   ),

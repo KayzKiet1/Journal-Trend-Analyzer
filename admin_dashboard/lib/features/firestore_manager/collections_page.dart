@@ -49,6 +49,7 @@ class _CollectionsPageState extends State<CollectionsPage> {
           final filteredCollections = _viewModel.collections
               .where(
                 (c) =>
+                    !_hiddenCollectionNames.contains(c.name) &&
                     c.name.toLowerCase().contains(_searchQuery.toLowerCase()),
               )
               .toList();
@@ -89,7 +90,7 @@ class _CollectionsPageState extends State<CollectionsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Firestore Collections',
+                    'Danh sách collection',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w900,
                       color: const Color(0xFF0F172A),
@@ -97,7 +98,7 @@ class _CollectionsPageState extends State<CollectionsPage> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Chỉ hiển thị collection nghiệp vụ cần kiểm tra. Bookmark publication/journal nằm trong User Detail theo từng tài khoản.',
+                    'Chỉ hiển thị collection nghiệp vụ ổn định để kiểm tra dữ liệu demo.',
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.45,
@@ -134,7 +135,7 @@ class _CollectionsPageState extends State<CollectionsPage> {
           child: TextField(
             onChanged: (value) => setState(() => _searchQuery = value),
             decoration: InputDecoration(
-              hintText: 'Tìm kiếm bộ sưu tập...',
+              hintText: 'Tìm kiếm collection...',
               prefixIcon: const Icon(Icons.search),
               contentPadding: const EdgeInsets.symmetric(vertical: 16),
               fillColor: const Color(0xFFF8FAFC),
@@ -190,7 +191,7 @@ class _CollectionsPageState extends State<CollectionsPage> {
             const Icon(Icons.search_off, size: 64, color: Color(0xFFCBD5E1)),
             const SizedBox(height: 16),
             const Text(
-              'Không tìm thấy bộ sưu tập nào khớp với từ khóa.',
+              'Không tìm thấy collection nào khớp với từ khóa.',
               style: TextStyle(
                 color: Color(0xFF64748B),
                 fontWeight: FontWeight.w600,
@@ -331,7 +332,7 @@ class _CollectionCardState extends State<_CollectionCard> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        '${widget.collection.count} documents',
+                        '${widget.collection.count} tài liệu',
                         style: const TextStyle(
                           fontSize: 11,
                           height: 1,
@@ -357,8 +358,6 @@ class _CollectionCardState extends State<_CollectionCard> {
 
 const _collectionPurposes = {
   'users': 'Hồ sơ người dùng và dữ liệu con theo tài khoản.',
-  'publications': 'Bản ghi publication top-level, không phải bookmark.',
-  'journals': 'Bản ghi journal top-level, không phải saved journal.',
   'app_config': 'Cấu hình nội bộ lưu trong Firestore.',
   'analytics_events': 'Event từ mobile app để admin analytics tổng hợp.',
   'notificationLogs': 'Lịch sử gửi notification.',
@@ -367,3 +366,5 @@ const _collectionPurposes = {
   'function_errors': 'Lỗi Cloud Functions tự ghi nếu có.',
   'system_health': 'Trạng thái và cảnh báo hệ thống.',
 };
+
+const _hiddenCollectionNames = {'journals', 'publications'};

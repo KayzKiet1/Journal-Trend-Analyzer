@@ -14,6 +14,8 @@ class JournalLibraryViewModel extends ChangeNotifier {
   List<Journal> _favorites = [];
   List<Journal> _recentViewed = [];
   String? _syncMessage;
+  String? _lastSyncedUserId;
+  bool _isSyncingCloud = false;
   final SavedItemsSyncService? _syncService;
 
   List<Journal> get favorites => List.unmodifiable(_favorites);
@@ -34,6 +36,7 @@ class JournalLibraryViewModel extends ChangeNotifier {
       prefs.getStringList(_recentViewedJournalsKey) ?? [],
     );
     await _mergeCloudFavorites();
+    await _syncLocalFavoritesToCloud();
     notifyListeners();
   }
 
@@ -51,6 +54,18 @@ class JournalLibraryViewModel extends ChangeNotifier {
       await _syncSavedJournal(journal, saved: true);
     }
     await _saveList(_favoriteJournalsKey, _favorites);
+    notifyListeners();
+  }
+
+  Future<void> syncForSignedInUser(String? userId) async {
+    if (userId == null || userId.isEmpty || _lastSyncedUserId == userId) {
+      return;
+    }
+    if (_isSyncingCloud) return;
+
+    _lastSyncedUserId = userId;
+    await _syncLocalFavoritesToCloud();
+    await _mergeCloudFavorites();
     notifyListeners();
   }
 
@@ -117,6 +132,29 @@ class JournalLibraryViewModel extends ChangeNotifier {
     } catch (error) {
       _syncMessage = 'Unable to load saved journals from Firestore: $error';
       debugPrint(_syncMessage);
+    }
+  }
+
+  Future<void> _syncLocalFavoritesToCloud() async {
+    if (_favorites.isEmpty ||
+        (_syncService == null &&
+            !SavedItemsSyncService.canUseDefaultFirebase)) {
+      return;
+    }
+
+    final service = _syncService ?? SavedItemsSyncService();
+    if (!service.hasSignedInUser) return;
+
+    _isSyncingCloud = true;
+    try {
+      await service.saveJournals(_favorites);
+      _syncMessage = null;
+    } catch (error) {
+      _syncMessage =
+          'Saved journals were kept locally but were not synced to Firestore. Check sign-in and Firestore Rules. $error';
+      debugPrint(_syncMessage);
+    } finally {
+      _isSyncingCloud = false;
     }
   }
 

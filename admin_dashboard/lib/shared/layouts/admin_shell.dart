@@ -4,13 +4,21 @@ import '../../app/router.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'sidebar.dart';
 
-class AdminShell extends StatelessWidget {
-  AdminShell({required this.title, required this.child, super.key})
-    : _authRepository = FirebaseAuthRepository();
+class AdminShell extends StatefulWidget {
+  const AdminShell({required this.title, required this.child, super.key});
 
   final String title;
   final Widget child;
+
+  @override
+  State<AdminShell> createState() => _AdminShellState();
+}
+
+class _AdminShellState extends State<AdminShell> {
+  _AdminShellState() : _authRepository = FirebaseAuthRepository();
+
   final AuthRepository _authRepository;
+  bool _isSidebarCollapsed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -21,14 +29,22 @@ class AdminShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        leading: _buildBackButton(context, isMobile),
-        title: Text(title),
+        leading: Builder(
+          builder: (context) => _buildMenuButton(context, isMobile),
+        ),
+        title: Text(widget.title),
         actions: [_buildAuthAction(context), const SizedBox(width: 16)],
       ),
-      drawer: isMobile ? Sidebar(currentRoute: currentRoute) : null,
+      drawer: isMobile
+          ? Sidebar(currentRoute: currentRoute, isCollapsed: false)
+          : null,
       body: Row(
         children: [
-          if (!isMobile) Sidebar(currentRoute: currentRoute),
+          if (!isMobile)
+            Sidebar(
+              currentRoute: currentRoute,
+              isCollapsed: _isSidebarCollapsed,
+            ),
           Expanded(
             child: Container(
               margin: isMobile
@@ -44,7 +60,7 @@ class AdminShell extends StatelessWidget {
                     : Border.all(color: const Color(0xFFE2E8F0)),
               ),
               clipBehavior: Clip.antiAlias,
-              child: child,
+              child: widget.child,
             ),
           ),
         ],
@@ -52,25 +68,17 @@ class AdminShell extends StatelessWidget {
     );
   }
 
-  Widget? _buildBackButton(BuildContext context, bool isMobile) {
-    if (isMobile) {
-      return Builder(
-        builder: (context) => IconButton(
-          tooltip: 'Open menu',
-          onPressed: () => Scaffold.of(context).openDrawer(),
-          icon: const Icon(Icons.menu_rounded),
-        ),
-      );
-    }
-
-    if (!Navigator.of(context).canPop()) {
-      return null;
-    }
-
+  Widget _buildMenuButton(BuildContext context, bool isMobile) {
     return IconButton(
-      tooltip: 'Back',
-      onPressed: () => Navigator.of(context).maybePop(),
-      icon: const Icon(Icons.arrow_back_rounded),
+      tooltip: isMobile
+          ? 'Mở menu'
+          : (_isSidebarCollapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'),
+      onPressed: isMobile
+          ? () => Scaffold.of(context).openDrawer()
+          : () {
+              setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
+            },
+      icon: const Icon(Icons.menu_rounded),
     );
   }
 
@@ -82,7 +90,7 @@ class AdminShell extends StatelessWidget {
         final user = snapshot.data;
         if (user == null) return const SizedBox.shrink();
 
-        final displayName = user.displayName ?? 'Admin Account';
+        final displayName = user.displayName ?? 'Tài khoản admin';
         final email = user.email ?? '';
         final avatarText = (displayName.isNotEmpty ? displayName : email)
             .characters
@@ -162,7 +170,7 @@ class AdminShell extends StatelessWidget {
                 }
               },
               child: const Text(
-                'Dang xuat',
+                'Đăng xuất',
                 style: TextStyle(
                   color: Color(0xFFDC2626),
                   fontWeight: FontWeight.w700,

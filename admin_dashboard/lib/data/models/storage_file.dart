@@ -5,6 +5,7 @@ class StorageFile {
     required this.contentType,
     required this.size,
     required this.updated,
+    required this.viewUrl,
     required this.downloadUrl,
     required this.customMetadata,
   });
@@ -14,6 +15,7 @@ class StorageFile {
   final String contentType;
   final int size;
   final String updated;
+  final String viewUrl;
   final String downloadUrl;
   final Map<String, dynamic> customMetadata;
 
@@ -58,6 +60,11 @@ class StorageFile {
 
   bool get isImage => contentType.startsWith('image/');
 
+  String get effectiveViewUrl => viewUrl.isNotEmpty ? viewUrl : downloadUrl;
+
+  String get effectiveDownloadUrl =>
+      downloadUrl.isNotEmpty ? downloadUrl : viewUrl;
+
   factory StorageFile.fromMap(Map<String, dynamic> map) {
     return StorageFile(
       name: map['name']?.toString() ?? '',
@@ -65,6 +72,7 @@ class StorageFile {
       contentType: map['contentType']?.toString() ?? '',
       size: _readInt(map['size']),
       updated: map['updated']?.toString() ?? '',
+      viewUrl: map['viewUrl']?.toString() ?? '',
       downloadUrl: map['downloadUrl']?.toString() ?? '',
       customMetadata: Map<String, dynamic>.from(
         map['customMetadata'] as Map? ?? const {},
