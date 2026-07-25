@@ -14,12 +14,12 @@ class CrashlyticsService implements CrashlyticsClient {
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
   }) : _crashlytics = crashlytics ?? FirebaseCrashlytics.instance,
-       _firestore = firestore ?? FirebaseFirestore.instance,
-       _auth = auth ?? FirebaseAuth.instance;
+       _firestore = firestore,
+       _auth = auth;
 
   final FirebaseCrashlytics _crashlytics;
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final FirebaseFirestore? _firestore;
+  final FirebaseAuth? _auth;
 
   @override
   Future<void> recordHandledException() async {
@@ -79,8 +79,10 @@ class CrashlyticsService implements CrashlyticsClient {
     required StackTrace stackTrace,
   }) async {
     try {
-      final user = _auth.currentUser;
-      await _firestore.collection('app_errors').add({
+      final firestore = _firestore ?? FirebaseFirestore.instance;
+      final auth = _auth ?? FirebaseAuth.instance;
+      final user = auth.currentUser;
+      await firestore.collection('app_errors').add({
         'title': title,
         'message': message,
         'severity': severity,
