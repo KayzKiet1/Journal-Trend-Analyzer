@@ -4,9 +4,6 @@ import '../../app/router.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'sidebar.dart';
 
-/// Lớp vỏ bọc giao diện Admin (Shell).
-/// Cung cấp cấu trúc điều hướng thống nhất cho toàn bộ hệ thống quản trị,
-/// bao gồm Sidebar trên màn hình rộng và Drawer trên màn hình nhỏ.
 class AdminShell extends StatelessWidget {
   AdminShell({required this.title, required this.child, super.key})
     : _authRepository = FirebaseAuthRepository();
@@ -19,39 +16,49 @@ class AdminShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
-    // Lấy tên route hiện tại để làm nổi bật mục tương ứng trong Sidebar.
-    final currentRoute =
-        ModalRoute.of(context)?.settings.name ?? AdminRoutes.dashboard;
+    final currentRoute = ModalRoute.of(context)?.settings.name ?? AdminRoutes.dashboard;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Xác định xem có nên dùng giao diện Mobile (dưới 900px) hay không.
-        final isMobile = constraints.maxWidth < 900;
+        final isMobile = constraints.maxWidth < 1100;
 
         return Scaffold(
-          backgroundColor: colorScheme.surfaceContainerLowest,
+          backgroundColor: const Color(0xFFF8FAFC),
           appBar: AppBar(
+            backgroundColor: const Color(0xFFF8FAFC),
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
             title: Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
             ),
-            elevation: 0,
-            scrolledUnderElevation: 2,
-            centerTitle: false,
-            // Header chỉ hiện màu nền trên mobile để đồng bộ với thanh AppBar.
-            backgroundColor: isMobile
-                ? colorScheme.surface
-                : Colors.transparent,
-            actions: [_buildAuthAction(context), const SizedBox(width: 8)],
+            actions: [
+              _buildAuthAction(context),
+              const SizedBox(width: 16),
+            ],
           ),
-          // Chỉ hiển thị Drawer nếu là màn hình nhỏ.
           drawer: isMobile ? Sidebar(currentRoute: currentRoute) : null,
           body: Row(
             children: [
-              // Hiển thị Sidebar cố định trên màn hình rộng.
               if (!isMobile) Sidebar(currentRoute: currentRoute),
-              Expanded(child: ClipRRect(child: child)),
+              Expanded(
+                child: Container(
+                  margin: isMobile ? EdgeInsets.zero : const EdgeInsets.only(right: 16, bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: isMobile ? BorderRadius.zero : BorderRadius.circular(24),
+                    border: isMobile ? null : Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: isMobile ? BorderRadius.zero : BorderRadius.circular(24),
+                    child: child,
+                  ),
+                ),
+              ),
             ],
           ),
         );
@@ -59,130 +66,71 @@ class AdminShell extends StatelessWidget {
     );
   }
 
-  /// Xây dựng cụm nút hành động liên quan đến tài khoản (Đăng xuất) chuyên nghiệp hơn.
   Widget _buildAuthAction(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return StreamBuilder(
       stream: _authRepository.authStateChanges(),
       builder: (context, snapshot) {
         final user = snapshot.data;
-        if (user == null) {
-          return const SizedBox.shrink();
-        }
+        if (user == null) return const SizedBox.shrink();
 
         return MenuAnchor(
-          style: MenuStyle(
-            padding: WidgetStateProperty.all(
-              const EdgeInsets.symmetric(vertical: 8),
-            ),
-            elevation: WidgetStateProperty.all(8),
-          ),
           builder: (context, controller, child) {
             return InkWell(
-              onTap: () {
-                if (controller.isOpen) {
-                  controller.close();
-                } else {
-                  controller.open();
-                }
-              },
-              borderRadius: BorderRadius.circular(24),
+              onTap: () => controller.isOpen ? controller.close() : controller.open(),
+              borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.all(8.0),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Hiển thị tên và email ở phía trước Avatar (chỉ trên màn hình lớn).
-                    if (MediaQuery.of(context).size.width > 600)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            user.displayName ?? 'Admin Account',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              height: 1.1,
-                            ),
-                          ),
-                          Text(
-                            user.email ?? '',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: colorScheme.outline,
-                            ),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(width: 12),
-                    // Avatar với chữ cái đầu của người dùng.
                     CircleAvatar(
-                      radius: 18,
-                      backgroundColor: colorScheme.primaryContainer,
+                      radius: 16,
+                      backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
                       child: Text(
-                        (user.displayName ?? user.email ?? 'A')[0]
-                            .toUpperCase(),
-                        style: TextStyle(
+                        (user.displayName ?? user.email ?? 'A')[0].toUpperCase(),
+                        style: const TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF6366F1),
                         ),
                       ),
                     ),
-                    const Icon(Icons.arrow_drop_down, size: 20),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
                   ],
                 ),
               ),
             );
           },
           menuChildren: [
-            // Header bên trong menu xổ xuống.
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Tài khoản quản trị',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  Text(
+                    user.displayName ?? 'Admin Account',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                   ),
-                  const SizedBox(height: 4),
                   Text(
                     user.email ?? '',
-                    style: TextStyle(fontSize: 12, color: colorScheme.outline),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
+                    ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1),
-            // Nút đăng xuất nổi bật.
+            const Divider(),
             MenuItemButton(
               onPressed: () async {
                 await _authRepository.signOut();
                 if (context.mounted) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    AdminRoutes.login,
-                    (route) => false,
-                  );
+                  Navigator.of(context).pushNamedAndRemoveUntil(AdminRoutes.login, (route) => false);
                 }
               },
-              leadingIcon: const Icon(
-                Icons.logout,
-                size: 18,
-                color: Colors.redAccent,
-              ),
-              child: const Text(
-                'Đăng xuất',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              leadingIcon: const Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
+              child: const Text('Đăng xuất', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
             ),
           ],
         );
