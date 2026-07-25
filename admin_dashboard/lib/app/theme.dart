@@ -1,33 +1,35 @@
 import 'package:flutter/material.dart';
 
 ThemeData buildAdminTheme() {
-  const primary = Color(0xFF6366F1); // Indigo 600
-  const secondary = Color(0xFF0F172A); // Slate 900
-  const background = Color(0xFFF8FAFC); // Slate 50
+  const primary = Color(0xFF4F46E5);
+  const secondary = Color(0xFF0F172A);
+  const background = Color(0xFFF8FAFC);
   const surface = Colors.white;
-  const border = Color(0xFFE2E8F0); // Slate 200
-  const textPrimary = Color(0xFF0F172A); 
-  const textSecondary = Color(0xFF64748B); 
+  const border = Color(0xFFE2E8F0);
+  const textPrimary = Color(0xFF0F172A);
+  const textSecondary = Color(0xFF64748B);
+
+  final colorScheme = ColorScheme.fromSeed(
+    seedColor: primary,
+    primary: primary,
+    secondary: secondary,
+    surface: surface,
+    onSurface: textPrimary,
+    surfaceContainerLowest: background,
+    outlineVariant: border,
+  );
 
   return ThemeData(
     useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: primary,
-      primary: primary,
-      secondary: secondary,
-      surface: surface,
-      onSurface: textPrimary,
-      surfaceContainerLowest: background,
-      outlineVariant: border,
-    ),
+    colorScheme: colorScheme,
     scaffoldBackgroundColor: background,
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
-        TargetPlatform.android: _SmoothFadePageTransitionsBuilder(),
-        TargetPlatform.iOS: _SmoothFadePageTransitionsBuilder(),
-        TargetPlatform.linux: _SmoothFadePageTransitionsBuilder(),
-        TargetPlatform.macOS: _SmoothFadePageTransitionsBuilder(),
-        TargetPlatform.windows: _SmoothFadePageTransitionsBuilder(),
+        TargetPlatform.android: _NoAnimationPageTransitionsBuilder(),
+        TargetPlatform.iOS: _NoAnimationPageTransitionsBuilder(),
+        TargetPlatform.linux: _NoAnimationPageTransitionsBuilder(),
+        TargetPlatform.macOS: _NoAnimationPageTransitionsBuilder(),
+        TargetPlatform.windows: _NoAnimationPageTransitionsBuilder(),
       },
     ),
     appBarTheme: const AppBarTheme(
@@ -38,35 +40,35 @@ ThemeData buildAdminTheme() {
       centerTitle: false,
       titleTextStyle: TextStyle(
         fontSize: 20,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w800,
         color: textPrimary,
-        letterSpacing: -0.5,
       ),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: border),
-      ),
       color: surface,
       margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: border),
+      ),
     ),
+    dividerTheme: const DividerThemeData(color: border, thickness: 1, space: 1),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: primary, width: 2),
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: primary, width: 1.5),
       ),
       labelStyle: const TextStyle(
         fontSize: 14,
@@ -75,35 +77,41 @@ ThemeData buildAdminTheme() {
       ),
       floatingLabelStyle: const TextStyle(
         color: primary,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         backgroundColor: primary,
         foregroundColor: Colors.white,
-        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        side: const BorderSide(color: border, width: 2),
-        foregroundColor: textPrimary,
-        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        side: const BorderSide(color: border),
+        foregroundColor: secondary,
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
       ),
     ),
   );
 }
 
-/// Hiệu ứng chuyển trang mượt mà cho Dashboard.
-/// Thay thế việc nhảy trang đột ngột bằng hiệu ứng Fade nhẹ 300ms.
-class _SmoothFadePageTransitionsBuilder extends PageTransitionsBuilder {
-  const _SmoothFadePageTransitionsBuilder();
+class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoAnimationPageTransitionsBuilder();
 
   @override
   Widget buildTransitions<T>(
@@ -113,9 +121,6 @@ class _SmoothFadePageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return FadeTransition(
-      opacity: animation.drive(CurveTween(curve: Curves.easeOutCubic)),
-      child: child,
-    );
+    return child;
   }
 }

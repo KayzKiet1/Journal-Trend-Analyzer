@@ -10,9 +10,11 @@ class PublicationBookmarkViewModel extends ChangeNotifier {
   static const String _bookmarkedPublicationsKey = 'bookmarked_publications';
 
   List<Publication> _bookmarks = [];
+  String? _syncMessage;
   final SavedItemsSyncService? _syncService;
 
   List<Publication> get bookmarks => List.unmodifiable(_bookmarks);
+  String? get syncMessage => _syncMessage;
 
   PublicationBookmarkViewModel({SavedItemsSyncService? syncService})
     : _syncService = syncService {
@@ -50,6 +52,7 @@ class PublicationBookmarkViewModel extends ChangeNotifier {
     _bookmarks = _decodePublications(
       prefs.getStringList(_bookmarkedPublicationsKey) ?? [],
     );
+    await _mergeCloudBookmarks();
     notifyListeners();
   }
 
@@ -77,10 +80,40 @@ class PublicationBookmarkViewModel extends ChangeNotifier {
     );
   }
 
+  Future<void> _mergeCloudBookmarks() async {
+    if (_syncService == null && !SavedItemsSyncService.canUseDefaultFirebase) {
+      return;
+    }
+
+    try {
+      final service = _syncService ?? SavedItemsSyncService();
+      final cloudBookmarks = await service.fetchSavedPublications();
+      if (cloudBookmarks.isEmpty) return;
+
+      final merged = <String, Publication>{};
+      for (final publication in cloudBookmarks.reversed) {
+        merged[publication.id] = publication;
+      }
+      for (final publication in _bookmarks.reversed) {
+        merged[publication.id] = publication;
+      }
+      _bookmarks = merged.values.toList().reversed.toList();
+      await _saveBookmarks();
+      _syncMessage = null;
+    } catch (error) {
+      _syncMessage = 'Unable to load saved publications from Firestore: $error';
+      debugPrint(_syncMessage);
+    }
+  }
+
   Future<void> _syncBookmark(
     Publication publication, {
     required bool saved,
   }) async {
+    if (_syncService == null && !SavedItemsSyncService.canUseDefaultFirebase) {
+      return;
+    }
+
     try {
       final service = _syncService ?? SavedItemsSyncService();
       if (saved) {
@@ -88,8 +121,10 @@ class PublicationBookmarkViewModel extends ChangeNotifier {
       } else {
         await service.removePublication(publication.id);
       }
-    } catch (_) {
-      // Saved item sync must never interrupt local bookmarks.
+      _syncMessage = null;
+    } catch (error) {
+      _syncMessage =
+          'Saved publication was kept locally but was not synced to Firestore. Check sign-in and Firestore Rules. $error';
     }
   }
 }

@@ -13,10 +13,12 @@ class JournalLibraryViewModel extends ChangeNotifier {
 
   List<Journal> _favorites = [];
   List<Journal> _recentViewed = [];
+  String? _syncMessage;
   final SavedItemsSyncService? _syncService;
 
   List<Journal> get favorites => List.unmodifiable(_favorites);
   List<Journal> get recentViewed => List.unmodifiable(_recentViewed);
+  String? get syncMessage => _syncMessage;
 
   JournalLibraryViewModel({SavedItemsSyncService? syncService})
     : _syncService = syncService {
@@ -31,6 +33,7 @@ class JournalLibraryViewModel extends ChangeNotifier {
     _recentViewed = _decodeJournals(
       prefs.getStringList(_recentViewedJournalsKey) ?? [],
     );
+    await _mergeCloudFavorites();
     notifyListeners();
   }
 
@@ -91,7 +94,37 @@ class JournalLibraryViewModel extends ChangeNotifier {
     await prefs.setStringList(key, encodedItems);
   }
 
+  Future<void> _mergeCloudFavorites() async {
+    if (_syncService == null && !SavedItemsSyncService.canUseDefaultFirebase) {
+      return;
+    }
+
+    try {
+      final service = _syncService ?? SavedItemsSyncService();
+      final cloudFavorites = await service.fetchSavedJournals();
+      if (cloudFavorites.isEmpty) return;
+
+      final merged = <String, Journal>{};
+      for (final journal in cloudFavorites.reversed) {
+        merged[journal.id] = journal;
+      }
+      for (final journal in _favorites.reversed) {
+        merged[journal.id] = journal;
+      }
+      _favorites = merged.values.toList().reversed.toList();
+      await _saveList(_favoriteJournalsKey, _favorites);
+      _syncMessage = null;
+    } catch (error) {
+      _syncMessage = 'Unable to load saved journals from Firestore: $error';
+      debugPrint(_syncMessage);
+    }
+  }
+
   Future<void> _syncSavedJournal(Journal journal, {required bool saved}) async {
+    if (_syncService == null && !SavedItemsSyncService.canUseDefaultFirebase) {
+      return;
+    }
+
     try {
       final service = _syncService ?? SavedItemsSyncService();
       if (saved) {
@@ -99,8 +132,10 @@ class JournalLibraryViewModel extends ChangeNotifier {
       } else {
         await service.removeJournal(journal.id);
       }
+      _syncMessage = null;
     } catch (_) {
-      // Saved item sync must never interrupt the local library workflow.
+      _syncMessage =
+          'Saved journal was kept locally but was not synced to Firestore. Check sign-in and Firestore Rules.';
     }
   }
 }

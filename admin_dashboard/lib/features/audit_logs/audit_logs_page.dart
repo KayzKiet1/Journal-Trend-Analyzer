@@ -74,24 +74,30 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             Text(
               'Audit Logs',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFF0F172A),
-                  ),
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF0F172A),
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               'Theo dõi mọi thay đổi và hành động của quản trị viên trong hệ thống.',
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
         const Spacer(),
         IconButton(
-          onPressed: _viewModel.isLoading ? null : () => _viewModel.loadLogs(refresh: true),
+          onPressed: _viewModel.isLoading
+              ? null
+              : () => _viewModel.loadLogs(refresh: true),
           icon: const Icon(Icons.refresh),
           tooltip: 'Làm mới',
           style: IconButton.styleFrom(
-            backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
+            backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
             foregroundColor: const Color(0xFF6366F1),
           ),
         ),
@@ -132,12 +138,50 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
           dataRowMaxHeight: 64,
           columnSpacing: 32,
           columns: const [
-            DataColumn(label: Text('THỜI GIAN', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF475569)))),
-            DataColumn(label: Text('ADMIN', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF475569)))),
-            DataColumn(label: Text('HÀNH ĐỘNG', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF475569)))),
-            DataColumn(label: Text('MỤC TIÊU', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF475569)))),
+            DataColumn(
+              label: Text(
+                'THỜI GIAN',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: Color(0xFF475569),
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'ADMIN',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: Color(0xFF475569),
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'HÀNH ĐỘNG',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: Color(0xFF475569),
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'MỤC TIÊU',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: Color(0xFF475569),
+                ),
+              ),
+            ),
           ],
-          rows: _viewModel.logs.map((log) => _buildLogRow(context, log)).toList(),
+          rows: _viewModel.logs
+              .map((log) => _buildLogRow(context, log))
+              .toList(),
         ),
       ),
     );
@@ -153,7 +197,11 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             children: [
               Text(
                 _formatDate(log.createdAt),
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1E293B)),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: Color(0xFF1E293B),
+                ),
               ),
               Text(
                 _formatTime(log.createdAt),
@@ -168,16 +216,25 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             children: [
               CircleAvatar(
                 radius: 12,
-                backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
+                backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
                 child: Text(
-                  log.adminEmail.isNotEmpty ? log.adminEmail[0].toUpperCase() : '?',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
+                  log.adminEmail.isNotEmpty
+                      ? log.adminEmail[0].toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF6366F1),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
               Text(
                 log.adminEmail.isEmpty ? 'Unknown' : log.adminEmail,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -192,7 +249,11 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             ),
             child: Text(
               log.target,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF475569),
+              ),
             ),
           ),
         ),
@@ -206,8 +267,15 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       child: FilledButton.icon(
         onPressed: _viewModel.isLoading ? null : _viewModel.loadLogs,
         icon: _viewModel.isLoading
-          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-          : const Icon(Icons.expand_more),
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.expand_more),
         label: const Text('Tải thêm nhật ký'),
       ),
     );
@@ -227,7 +295,9 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       final date = DateTime.parse(isoString);
       return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}:${date.second.toString().padLeft(2, '0')}';
     } catch (_) {
-      return isoString.contains('T') ? isoString.split('T').last.split('.').first : '';
+      return isoString.contains('T')
+          ? isoString.split('T').last.split('.').first
+          : '';
     }
   }
 }
@@ -241,13 +311,17 @@ class _ActionChip extends StatelessWidget {
     Color color = const Color(0xFF64748B);
     IconData icon = Icons.info_outline;
 
-    if (action.toLowerCase().contains('delete') || action.toLowerCase().contains('remove')) {
+    if (action.toLowerCase().contains('delete') ||
+        action.toLowerCase().contains('remove')) {
       color = const Color(0xFFEF4444);
       icon = Icons.delete_outline;
-    } else if (action.toLowerCase().contains('create') || action.toLowerCase().contains('add') || action.toLowerCase().contains('send')) {
+    } else if (action.toLowerCase().contains('create') ||
+        action.toLowerCase().contains('add') ||
+        action.toLowerCase().contains('send')) {
       color = const Color(0xFF10B981);
       icon = Icons.add_circle_outline;
-    } else if (action.toLowerCase().contains('update') || action.toLowerCase().contains('set')) {
+    } else if (action.toLowerCase().contains('update') ||
+        action.toLowerCase().contains('set')) {
       color = const Color(0xFFF59E0B);
       icon = Icons.edit_outlined;
     }
@@ -255,9 +329,9 @@ class _ActionChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -266,7 +340,11 @@ class _ActionChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             action,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
         ],
       ),

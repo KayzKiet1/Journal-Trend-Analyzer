@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
+import '../../data/models/app_config.dart';
 import '../../shared/layouts/admin_shell.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_view.dart';
@@ -16,43 +15,39 @@ class AppConfigPage extends StatefulWidget {
 
 class _AppConfigPageState extends State<AppConfigPage> {
   late final AppConfigViewModel _viewModel;
-  final _maxJournalsController = TextEditingController(text: '10');
-  final _announcementController = TextEditingController();
-  final _advancedJsonController = TextEditingController(text: '{}');
-  bool _maintenanceMode = false;
+  final _maxJournalsController = TextEditingController();
+  final _maxKeywordsController = TextEditingController();
+  final _firestoreJsonController = TextEditingController(text: '{}');
   bool _enableReportExport = true;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = AppConfigViewModel();
-    _loadConfig();
+    _viewModel = AppConfigViewModel()..load().then((_) => _syncControllers());
   }
 
   @override
   void dispose() {
     _viewModel.dispose();
     _maxJournalsController.dispose();
-    _announcementController.dispose();
-    _advancedJsonController.dispose();
+    _maxKeywordsController.dispose();
+    _firestoreJsonController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return AdminShell(
       title: 'App Config',
       child: AnimatedBuilder(
         animation: _viewModel,
         builder: (context, _) {
-          if (_viewModel.isLoading && _viewModel.config.isEmpty) {
+          if (_viewModel.isLoading && _viewModel.firestoreConfig.isEmpty) {
             return const LoadingView();
           }
 
-          if (_viewModel.errorMessage != null && _viewModel.config.isEmpty) {
+          if (_viewModel.errorMessage != null &&
+              _viewModel.firestoreConfig.isEmpty) {
             return ErrorView(message: _viewModel.errorMessage!);
           }
 
@@ -60,35 +55,41 @@ class _AppConfigPageState extends State<AppConfigPage> {
             padding: const EdgeInsets.all(28),
             children: [
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1040),
+                constraints: const BoxConstraints(maxWidth: 1100),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _PageIntro(colorScheme: colorScheme),
-                    const SizedBox(height: 20),
+                    const _ConfigIntro(),
+                    const SizedBox(height: 16),
                     LayoutBuilder(
                       builder: (context, constraints) {
-                        final useTwoColumns = constraints.maxWidth >= 900;
-                        final form = _ConfigForm(
-                          maintenanceMode: _maintenanceMode,
-                          enableReportExport: _enableReportExport,
+                        final twoColumns = constraints.maxWidth >= 920;
+                        final remoteCard = _RemoteConfigCard(
                           maxJournalsController: _maxJournalsController,
-                          announcementController: _announcementController,
-                          onMaintenanceChanged: (value) =>
-                              setState(() => _maintenanceMode = value),
-                          onReportExportChanged: (value) =>
-                              setState(() => _enableReportExport = value),
+                          maxKeywordsController: _maxKeywordsController,
+                          enableReportExport: _enableReportExport,
+                          version: _viewModel.remoteVersion,
+                          isSaving: _viewModel.isSavingRemote,
+                          onExportChanged: (value) {
+                            setState(() => _enableReportExport = value);
+                          },
+                          onSave: _saveRemoteConfig,
                         );
-                        final advanced = _AdvancedConfigEditor(
-                          controller: _advancedJsonController,
+                        final firestoreCard = _FirestoreConfigCard(
+                          controller: _firestoreJsonController,
+                          isSaving: _viewModel.isSavingFirestore,
+                          onReload: _viewModel.isBusy ? null : _reload,
+                          onSave: _viewModel.isBusy
+                              ? null
+                              : _saveFirestoreConfig,
                         );
 
-                        if (!useTwoColumns) {
+                        if (!twoColumns) {
                           return Column(
                             children: [
-                              form,
+                              remoteCard,
                               const SizedBox(height: 16),
-                              advanced,
+                              firestoreCard,
                             ],
                           );
                         }
@@ -96,28 +97,17 @@ class _AppConfigPageState extends State<AppConfigPage> {
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(flex: 5, child: form),
+                            Expanded(flex: 5, child: remoteCard),
                             const SizedBox(width: 16),
-                            Expanded(flex: 4, child: advanced),
+                            Expanded(flex: 4, child: firestoreCard),
                           ],
                         );
                       },
                     ),
                     if (_viewModel.errorMessage != null) ...[
                       const SizedBox(height: 16),
-                      _StatusBanner(
-                        icon: Icons.error_outline,
-                        message: _viewModel.errorMessage!,
-                        color: colorScheme.errorContainer,
-                        foregroundColor: colorScheme.onErrorContainer,
-                      ),
+                      _StatusBanner(message: _viewModel.errorMessage!),
                     ],
-                    const SizedBox(height: 20),
-                    _SaveBar(
-                      isLoading: _viewModel.isLoading,
-                      onReload: _viewModel.isLoading ? null : _loadConfig,
-                      onSave: _viewModel.isLoading ? null : _save,
-                    ),
                   ],
                 ),
               ),
@@ -128,62 +118,56 @@ class _AppConfigPageState extends State<AppConfigPage> {
     );
   }
 
-  Future<void> _loadConfig() async {
-    await _viewModel.loadConfig();
+  Future<void> _reload() async {
+    await _viewModel.load();
     if (mounted && _viewModel.errorMessage == null) {
-      setState(_syncControllers);
+      _syncControllers();
     }
   }
 
   void _syncControllers() {
-    final config = _viewModel.config;
-    _maintenanceMode = config['maintenanceMode'] == true;
-    _enableReportExport = config['enableReportExport'] != false;
-    _maxJournalsController.text =
-        config['maxJournalsDisplay']?.toString() ?? '10';
-    _announcementController.text = config['announcementText']?.toString() ?? '';
-
-    final advanced = Map<String, dynamic>.from(config)
-      ..remove('maintenanceMode')
-      ..remove('enableReportExport')
-      ..remove('maxJournalsDisplay')
-      ..remove('announcementText')
-      ..remove('updatedAt');
-
-    _advancedJsonController.text = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(advanced);
+    if (!mounted) return;
+    final remoteConfig = _viewModel.remoteConfig;
+    setState(() {
+      _maxJournalsController.text = remoteConfig.maxJournalsDisplay.toString();
+      _maxKeywordsController.text = remoteConfig.maxKeywordsDisplay.toString();
+      _enableReportExport = remoteConfig.enableReportExport;
+      _firestoreJsonController.text = _viewModel.firestoreJsonText;
+    });
   }
 
-  Future<void> _save() async {
-    await _viewModel.saveTypedConfig(
-      maintenanceMode: _maintenanceMode,
-      enableReportExport: _enableReportExport,
-      maxJournalsDisplay: int.tryParse(_maxJournalsController.text) ?? 10,
-      announcementText: _announcementController.text.trim(),
-      advancedJson: _advancedJsonController.text.trim().isEmpty
-          ? '{}'
-          : _advancedJsonController.text,
+  Future<void> _saveRemoteConfig() async {
+    await _viewModel.saveRemoteConfig(
+      RemoteAppConfig(
+        maxJournalsDisplay: int.tryParse(_maxJournalsController.text) ?? 0,
+        maxKeywordsDisplay: int.tryParse(_maxKeywordsController.text) ?? 0,
+        enableReportExport: _enableReportExport,
+      ),
     );
 
-    if (!mounted || _viewModel.errorMessage != null) {
-      return;
-    }
+    if (!mounted || _viewModel.errorMessage != null) return;
+    _syncControllers();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã publish Remote Config cho mobile app.')),
+    );
+  }
 
-    setState(_syncControllers);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Đã lưu cấu hình app.')));
+  Future<void> _saveFirestoreConfig() async {
+    await _viewModel.saveFirestoreConfig(_firestoreJsonController.text);
+    if (!mounted || _viewModel.errorMessage != null) return;
+    _syncControllers();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã lưu Firestore app_config/main.')),
+    );
   }
 }
 
-class _PageIntro extends StatelessWidget {
-  const _PageIntro({required this.colorScheme});
-
-  final ColorScheme colorScheme;
+class _ConfigIntro extends StatelessWidget {
+  const _ConfigIntro();
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Card(
@@ -193,8 +177,8 @@ class _PageIntro extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(8),
@@ -207,14 +191,14 @@ class _PageIntro extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Firestore document: app_config/main',
-                    style: textTheme.titleMedium?.copyWith(
+                    'Configuration center',
+                    style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
-                    'Các thay đổi tại đây được lưu qua Cloud Functions, có kiểm tra admin claim và ghi audit log.',
+                    'Runtime settings for mobile use Firebase Remote Config. Internal admin settings stay in Firestore app_config/main.',
                     style: textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -229,22 +213,24 @@ class _PageIntro extends StatelessWidget {
   }
 }
 
-class _ConfigForm extends StatelessWidget {
-  const _ConfigForm({
-    required this.maintenanceMode,
-    required this.enableReportExport,
+class _RemoteConfigCard extends StatelessWidget {
+  const _RemoteConfigCard({
     required this.maxJournalsController,
-    required this.announcementController,
-    required this.onMaintenanceChanged,
-    required this.onReportExportChanged,
+    required this.maxKeywordsController,
+    required this.enableReportExport,
+    required this.version,
+    required this.isSaving,
+    required this.onExportChanged,
+    required this.onSave,
   });
 
-  final bool maintenanceMode;
-  final bool enableReportExport;
   final TextEditingController maxJournalsController;
-  final TextEditingController announcementController;
-  final ValueChanged<bool> onMaintenanceChanged;
-  final ValueChanged<bool> onReportExportChanged;
+  final TextEditingController maxKeywordsController;
+  final bool enableReportExport;
+  final RemoteConfigVersion? version;
+  final bool isSaving;
+  final ValueChanged<bool> onExportChanged;
+  final VoidCallback onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -254,46 +240,51 @@ class _ConfigForm extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionHeader(
-              icon: Icons.settings_applications_outlined,
-              title: 'General controls',
-              subtitle: 'Các cấu hình nên chỉnh bằng form để giảm lỗi dữ liệu.',
+            const _SectionHeader(
+              icon: Icons.mobile_friendly_outlined,
+              title: 'Mobile Runtime Config',
+              subtitle:
+                  'Publish trực tiếp lên Firebase Remote Config cho mobile app.',
             ),
-            const SizedBox(height: 12),
-            _ConfigSwitchTile(
-              title: 'Maintenance mode',
-              subtitle: 'Bật khi cần tạm ngưng app cho người dùng.',
-              icon: Icons.construction_outlined,
-              value: maintenanceMode,
-              onChanged: onMaintenanceChanged,
-            ),
-            const Divider(),
-            _ConfigSwitchTile(
-              title: 'Report export',
-              subtitle: 'Cho phép người dùng export report từ app.',
-              icon: Icons.picture_as_pdf_outlined,
-              value: enableReportExport,
-              onChanged: onReportExportChanged,
-            ),
-            const SizedBox(height: 18),
-            TextField(
+            const SizedBox(height: 16),
+            _NumberField(
               controller: maxJournalsController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Max journals display',
-                prefixIcon: Icon(Icons.format_list_numbered_outlined),
-              ),
+              label: 'Max journals display',
+              helperText: 'Remote key: max_journals_display',
             ),
             const SizedBox(height: 14),
-            TextField(
-              controller: announcementController,
-              minLines: 3,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Announcement text',
-                alignLabelWithHint: true,
-                prefixIcon: Icon(Icons.campaign_outlined),
+            _NumberField(
+              controller: maxKeywordsController,
+              label: 'Max keywords display',
+              helperText: 'Remote key: max_keywords_display',
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: enableReportExport,
+              onChanged: onExportChanged,
+              secondary: const Icon(Icons.picture_as_pdf_outlined),
+              title: const Text(
+                'Enable report export',
+                style: TextStyle(fontWeight: FontWeight.w800),
               ),
+              subtitle: const Text('Remote key: enable_report_export'),
+            ),
+            const Divider(),
+            _RemoteVersionInfo(version: version),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: isSaving ? null : onSave,
+              icon: isSaving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.cloud_upload_outlined),
+              label: const Text('Publish Remote Config'),
             ),
           ],
         ),
@@ -302,10 +293,18 @@ class _ConfigForm extends StatelessWidget {
   }
 }
 
-class _AdvancedConfigEditor extends StatelessWidget {
-  const _AdvancedConfigEditor({required this.controller});
+class _FirestoreConfigCard extends StatelessWidget {
+  const _FirestoreConfigCard({
+    required this.controller,
+    required this.isSaving,
+    required this.onReload,
+    required this.onSave,
+  });
 
   final TextEditingController controller;
+  final bool isSaving;
+  final VoidCallback? onReload;
+  final VoidCallback? onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -317,23 +316,49 @@ class _AdvancedConfigEditor extends StatelessWidget {
           children: [
             const _SectionHeader(
               icon: Icons.data_object,
-              title: 'Advanced JSON',
-              subtitle: 'Chỉ thêm các key nâng cao chưa có form riêng.',
+              title: 'Internal Firestore Config',
+              subtitle:
+                  'Dành cho cấu hình nội bộ admin/backend: app_config/main.',
             ),
             const SizedBox(height: 14),
             TextField(
               controller: controller,
-              minLines: 15,
-              maxLines: 24,
+              minLines: 18,
+              maxLines: 26,
               style: const TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 13,
                 height: 1.35,
               ),
               decoration: const InputDecoration(
-                labelText: 'Additional config',
+                labelText: 'Firestore JSON',
                 alignLabelWithHint: true,
               ),
+            ),
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                FilledButton.icon(
+                  onPressed: onSave,
+                  icon: isSaving
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: const Text('Save Firestore Config'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onReload,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reload'),
+                ),
+              ],
             ),
           ],
         ),
@@ -342,32 +367,81 @@ class _AdvancedConfigEditor extends StatelessWidget {
   }
 }
 
-class _ConfigSwitchTile extends StatelessWidget {
-  const _ConfigSwitchTile({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.value,
-    required this.onChanged,
+class _NumberField extends StatelessWidget {
+  const _NumberField({
+    required this.controller,
+    required this.label,
+    required this.helperText,
   });
 
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool value;
-  final ValueChanged<bool> onChanged;
+  final TextEditingController controller;
+  final String label;
+  final String helperText;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: label,
+        helperText: '$helperText • allowed: 1-100',
+        prefixIcon: const Icon(Icons.format_list_numbered_outlined),
+      ),
+    );
+  }
+}
+
+class _RemoteVersionInfo extends StatelessWidget {
+  const _RemoteVersionInfo({required this.version});
+
+  final RemoteConfigVersion? version;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final currentVersion = version;
 
-    return SwitchListTile(
-      value: value,
-      onChanged: onChanged,
-      contentPadding: EdgeInsets.zero,
-      secondary: Icon(icon, color: colorScheme.primary),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(subtitle),
+    if (currentVersion == null) {
+      return Text(
+        'Remote Config version chưa có trong response.',
+        style: TextStyle(color: colorScheme.onSurfaceVariant),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _InfoLine(label: 'Version', value: currentVersion.versionNumber),
+        _InfoLine(label: 'Updated', value: currentVersion.updateTime),
+        _InfoLine(label: 'By', value: currentVersion.updateUserEmail),
+      ],
+    );
+  }
+}
+
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 72,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          Expanded(child: SelectableText(value.isEmpty ? '-' : value)),
+        ],
+      ),
     );
   }
 }
@@ -419,75 +493,32 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({
-    required this.icon,
-    required this.message,
-    required this.color,
-    required this.foregroundColor,
-  });
+  const _StatusBanner({required this.message});
 
-  final IconData icon;
   final String message;
-  final Color color;
-  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color,
+        color: colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(icon, color: foregroundColor),
+          Icon(Icons.error_outline, color: colorScheme.onErrorContainer),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(message, style: TextStyle(color: foregroundColor)),
+            child: Text(
+              message,
+              style: TextStyle(color: colorScheme.onErrorContainer),
+            ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SaveBar extends StatelessWidget {
-  const _SaveBar({
-    required this.isLoading,
-    required this.onReload,
-    required this.onSave,
-  });
-
-  final bool isLoading;
-  final VoidCallback? onReload;
-  final VoidCallback? onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        FilledButton.icon(
-          onPressed: onSave,
-          icon: isLoading
-              ? const SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Icon(Icons.save_outlined),
-          label: const Text('Save config'),
-        ),
-        OutlinedButton.icon(
-          onPressed: onReload,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Reload'),
-        ),
-      ],
     );
   }
 }

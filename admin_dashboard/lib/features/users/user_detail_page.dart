@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/admin_user.dart';
 import '../../data/models/user_profile_summary.dart';
 import '../../shared/layouts/admin_shell.dart';
+import '../../shared/utils/url_opener.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_view.dart';
 import 'user_detail_view_model.dart';
@@ -297,6 +298,7 @@ class _UserProfileSections extends StatelessWidget {
   const _UserProfileSections({required this.summary});
 
   final UserProfileSummary? summary;
+  static const _urlOpener = UrlOpener();
 
   @override
   Widget build(BuildContext context) {
@@ -368,10 +370,11 @@ class _UserProfileSections extends StatelessWidget {
                   ? const [_MutedText('No uploaded reports.')]
                   : data.reports
                         .map(
-                          (report) => _InfoRow(
-                            label: report.name,
-                            value:
-                                '${_formatBytes(report.size)} • ${report.updated}',
+                          (report) => _ReportRow(
+                            report: report,
+                            onOpen: report.downloadUrl.isEmpty
+                                ? null
+                                : () => _openUrl(context, report.downloadUrl),
                           ),
                         )
                         .toList(),
@@ -397,18 +400,133 @@ class _UserProfileSections extends StatelessWidget {
         _SectionCard(
           title: 'Saved journals/publications',
           icon: Icons.bookmark_outline,
-          children: [
-            _InfoRow(
-              label: 'Saved journals',
-              value: '${data.savedJournals.length}',
-            ),
-            _InfoRow(
-              label: 'Saved publications',
-              value: '${data.savedPublications.length}',
-            ),
-          ],
+          children: _savedItems(data),
         ),
       ],
+    );
+  }
+
+  static List<Widget> _savedItems(UserProfileSummary data) {
+    final rows = <Widget>[
+      _InfoRow(label: 'Saved journals', value: '${data.savedJournals.length}'),
+      _InfoRow(
+        label: 'Saved publications',
+        value: '${data.savedPublications.length}',
+      ),
+      const Divider(),
+    ];
+
+    if (data.savedJournals.isEmpty && data.savedPublications.isEmpty) {
+      rows.add(const _MutedText('No saved journals or publications.'));
+      return rows;
+    }
+
+    rows.addAll(
+      data.savedJournals.map(
+        (document) => _SavedItemRow(
+          type: 'Journal',
+          title:
+              document.data['name']?.toString() ??
+              document.data['displayName']?.toString() ??
+              document.data['itemId']?.toString() ??
+              document.id,
+          subtitle: document.data['publisher']?.toString() ?? document.path,
+          savedAt: document.data['savedAt']?.toString() ?? '',
+        ),
+      ),
+    );
+    rows.addAll(
+      data.savedPublications.map(
+        (document) => _SavedItemRow(
+          type: 'Publication',
+          title:
+              document.data['title']?.toString() ??
+              document.data['publicationTitle']?.toString() ??
+              document.data['itemId']?.toString() ??
+              document.id,
+          subtitle:
+              document.data['journalName']?.toString() ??
+              document.data['doi']?.toString() ??
+              document.path,
+          savedAt: document.data['savedAt']?.toString() ?? '',
+        ),
+      ),
+    );
+    return rows;
+  }
+
+  static Future<void> _openUrl(BuildContext context, String url) async {
+    try {
+      await _urlOpener.open(url);
+    } on Exception catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+}
+
+class _ReportRow extends StatelessWidget {
+  const _ReportRow({required this.report, required this.onOpen});
+
+  final UserReportFile report;
+  final VoidCallback? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.picture_as_pdf_outlined),
+      title: SelectableText(
+        report.originalFileName,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text('${_formatBytes(report.size)} • ${report.updated}'),
+      trailing: IconButton(
+        tooltip: onOpen == null ? 'Signed URL unavailable' : 'Open file',
+        onPressed: onOpen,
+        icon: const Icon(Icons.open_in_new),
+      ),
+    );
+  }
+}
+
+class _SavedItemRow extends StatelessWidget {
+  const _SavedItemRow({
+    required this.type,
+    required this.title,
+    required this.subtitle,
+    required this.savedAt,
+  });
+
+  final String type;
+  final String title;
+  final String subtitle;
+  final String savedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(Icons.bookmark_outline, color: colorScheme.primary),
+      title: SelectableText(
+        title.isEmpty ? '-' : title,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(
+        [
+          type,
+          if (subtitle.isNotEmpty) subtitle,
+          if (savedAt.isNotEmpty) savedAt,
+        ].join(' • '),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 }

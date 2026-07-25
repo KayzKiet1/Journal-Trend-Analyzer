@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/storage_file.dart';
 import '../../data/repositories/storage_repository.dart';
 import '../../shared/layouts/admin_shell.dart';
+import '../../shared/utils/url_opener.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_view.dart';
 import 'storage_view_model.dart';
@@ -25,6 +26,7 @@ class _StoragePageState extends State<StoragePage> {
   ];
 
   late final StorageViewModel _viewModel;
+  static const _urlOpener = UrlOpener();
   final _prefixController = TextEditingController();
   String _selectedFolder = '';
   String _uploadFolder = 'admin_uploads';
@@ -111,6 +113,7 @@ class _StoragePageState extends State<StoragePage> {
                     child: _FolderGroupCard(
                       group: folderGroup,
                       onDelete: _delete,
+                      onOpen: _openFile,
                     ),
                   ),
                 ),
@@ -164,6 +167,24 @@ class _StoragePageState extends State<StoragePage> {
 
     if (confirmed) {
       await _viewModel.deleteFile(file.name);
+    }
+  }
+
+  Future<void> _openFile(StorageFile file) async {
+    if (file.downloadUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Signed URL unavailable for this file.')),
+      );
+      return;
+    }
+
+    try {
+      await _urlOpener.open(file.downloadUrl);
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -267,6 +288,8 @@ class StorageOwnerGroup {
 
   final String owner;
   final List<StorageFile> files;
+
+  int get totalBytes => files.fold(0, (total, file) => total + file.size);
 }
 
 class _StorageHeader extends StatelessWidget {
@@ -451,10 +474,15 @@ class _StorageToolbar extends StatelessWidget {
 }
 
 class _FolderGroupCard extends StatelessWidget {
-  const _FolderGroupCard({required this.group, required this.onDelete});
+  const _FolderGroupCard({
+    required this.group,
+    required this.onDelete,
+    required this.onOpen,
+  });
 
   final StorageFolderGroup group;
   final ValueChanged<StorageFile> onDelete;
+  final ValueChanged<StorageFile> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -487,7 +515,11 @@ class _FolderGroupCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             ...group.owners.map(
-              (owner) => _OwnerSection(owner: owner, onDelete: onDelete),
+              (owner) => _OwnerSection(
+                owner: owner,
+                onDelete: onDelete,
+                onOpen: onOpen,
+              ),
             ),
           ],
         ),
@@ -497,10 +529,15 @@ class _FolderGroupCard extends StatelessWidget {
 }
 
 class _OwnerSection extends StatelessWidget {
-  const _OwnerSection({required this.owner, required this.onDelete});
+  const _OwnerSection({
+    required this.owner,
+    required this.onDelete,
+    required this.onOpen,
+  });
 
   final StorageOwnerGroup owner;
   final ValueChanged<StorageFile> onDelete;
+  final ValueChanged<StorageFile> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -514,38 +551,39 @@ class _OwnerSection extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: colorScheme.outlineVariant),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+            childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            leading: Icon(
+              Icons.account_circle_outlined,
+              color: colorScheme.primary,
+            ),
+            title: SelectableText(
+              owner.owner,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text(
+              '${owner.files.length} files • ${_formatBytes(owner.totalBytes)}',
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.account_circle_outlined,
-                    size: 20,
-                    color: colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: SelectableText(
-                      owner.owner,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  Text('${owner.files.length} files'),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: owner.files
-                    .map(
-                      (file) =>
-                          _StorageFileCard(file: file, onDelete: onDelete),
-                    )
-                    .toList(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: owner.files
+                      .map(
+                        (file) => _StorageFileCard(
+                          file: file,
+                          onDelete: onDelete,
+                          onOpen: onOpen,
+                        ),
+                      )
+                      .toList(),
+                ),
               ),
             ],
           ),
@@ -556,10 +594,15 @@ class _OwnerSection extends StatelessWidget {
 }
 
 class _StorageFileCard extends StatelessWidget {
-  const _StorageFileCard({required this.file, required this.onDelete});
+  const _StorageFileCard({
+    required this.file,
+    required this.onDelete,
+    required this.onOpen,
+  });
 
   final StorageFile file;
   final ValueChanged<StorageFile> onDelete;
+  final ValueChanged<StorageFile> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -611,13 +654,24 @@ class _StorageFileCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  tooltip: 'Delete',
-                  onPressed: () => onDelete(file),
-                  icon: const Icon(Icons.delete_outline),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    tooltip: file.downloadUrl.isEmpty
+                        ? 'Signed URL unavailable'
+                        : 'Open file',
+                    onPressed: file.downloadUrl.isEmpty
+                        ? null
+                        : () => onOpen(file),
+                    icon: const Icon(Icons.open_in_new),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete',
+                    onPressed: () => onDelete(file),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
               ),
             ],
           ),
