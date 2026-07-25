@@ -415,13 +415,8 @@ class _LoginPageState extends State<LoginPage> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Image.network(
-                  'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
-                  height: 20,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.login),
-                ),
-          label: const Text('Tiếp tục với Google Workspace'),
+              : const _GoogleLogo(),
+          label: const Text('Tiếp tục với Google'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 56),
             side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
@@ -511,4 +506,58 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
+}
+
+class _GoogleLogo extends StatelessWidget {
+  const _GoogleLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final strokeWidth = size.width * 0.16;
+    final rect = Rect.fromLTWH(
+      strokeWidth,
+      strokeWidth,
+      size.width - strokeWidth * 2,
+      size.height - strokeWidth * 2,
+    );
+
+    void drawArc(Color color, double start, double sweep) {
+      final paint = Paint()
+        ..color = color
+        ..strokeWidth = strokeWidth
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(rect, start, sweep, false, paint);
+    }
+
+    drawArc(const Color(0xFF4285F4), -0.10, 1.45);
+    drawArc(const Color(0xFF34A853), 1.35, 1.15);
+    drawArc(const Color(0xFFFBBC05), 2.50, 0.88);
+    drawArc(const Color(0xFFEA4335), 3.38, 1.55);
+
+    final bluePaint = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.square;
+    canvas.drawLine(
+      Offset(size.width * 0.54, size.height * 0.50),
+      Offset(size.width * 0.90, size.height * 0.50),
+      bluePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

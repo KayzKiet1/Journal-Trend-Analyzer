@@ -61,7 +61,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 const SizedBox(height: 16),
                 _MetricGrid(summary: summary),
                 const SizedBox(height: 16),
-                _DailyEventsPanel(events: summary.dailyEvents),
+                _AnalyticsChartGrid(summary: summary),
                 const SizedBox(height: 16),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -266,17 +266,121 @@ class _MetricTile extends StatelessWidget {
   }
 }
 
-class _DailyEventsPanel extends StatelessWidget {
-  const _DailyEventsPanel({required this.events});
+class _AnalyticsChartGrid extends StatelessWidget {
+  const _AnalyticsChartGrid({required this.summary});
 
-  final List<DailyEventMetric> events;
+  final AnalyticsSummary summary;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final maxCount = events.fold<int>(
-      1,
-      (max, event) => event.count > max ? event.count : max,
+    final dailyValues = summary.dailyEvents
+        .map((event) => ChartPoint(label: event.date, value: event.count))
+        .toList();
+
+    var runningTotal = 0;
+    final cumulativeValues = summary.dailyEvents.map((event) {
+      runningTotal += event.count;
+      return ChartPoint(label: event.date, value: runningTotal);
+    }).toList();
+
+    final topEventValues = summary.topEvents
+        .map((event) => ChartPoint(label: event.name, value: event.count))
+        .toList();
+
+    final topJournalValues = summary.topJournals
+        .map((journal) => ChartPoint(label: journal.name, value: journal.count))
+        .toList();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns = constraints.maxWidth >= 980;
+        final cards = [
+          _LineChartPanel(
+            title: 'Xu hướng events theo ngày',
+            subtitle: 'Số event ghi nhận từng ngày trong khoảng đã chọn.',
+            icon: Icons.show_chart_rounded,
+            points: dailyValues,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          _LineChartPanel(
+            title: 'Events tích lũy',
+            subtitle: 'Tổng event cộng dồn, giúp nhìn tốc độ tăng hoạt động.',
+            icon: Icons.trending_up_rounded,
+            points: cumulativeValues,
+            color: const Color(0xFF0F766E),
+          ),
+          _LineChartPanel(
+            title: 'Phân bố top events',
+            subtitle: 'Độ chênh giữa các loại event được dùng nhiều nhất.',
+            icon: Icons.bolt_outlined,
+            points: topEventValues,
+            color: const Color(0xFFB45309),
+          ),
+          _LineChartPanel(
+            title: 'Phân bố journals/searches',
+            subtitle: 'Các journal hoặc từ khóa search xuất hiện nhiều nhất.',
+            icon: Icons.menu_book_outlined,
+            points: topJournalValues,
+            color: const Color(0xFF2563EB),
+          ),
+        ];
+
+        if (!twoColumns) {
+          return Column(
+            children: [
+              for (final card in cards) ...[card, const SizedBox(height: 16)],
+            ]..removeLast(),
+          );
+        }
+
+        return Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: cards[0]),
+                const SizedBox(width: 16),
+                Expanded(child: cards[1]),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: cards[2]),
+                const SizedBox(width: 16),
+                Expanded(child: cards[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LineChartPanel extends StatelessWidget {
+  const _LineChartPanel({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.points,
+    required this.color,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<ChartPoint> points;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final maxValue = points.fold<int>(
+      0,
+      (max, point) => point.value > max ? point.value : max,
     );
 
     return Card(
@@ -285,53 +389,280 @@ class _DailyEventsPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Daily events',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 14),
-            if (events.isEmpty)
-              Text(
-                'No analytics events yet.',
-                style: TextStyle(color: colorScheme.onSurfaceVariant),
-              )
-            else
-              ...events.map(
-                (event) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 7),
-                  child: Row(
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 21),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(width: 96, child: Text(event.date)),
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: event.count / maxCount,
-                            minHeight: 12,
-                            backgroundColor:
-                                colorScheme.surfaceContainerHighest,
-                          ),
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: 48,
-                        child: Text(
-                          '${event.count}',
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 12),
+                Text(
+                  maxValue == 0 ? '-' : '$maxValue',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (points.isEmpty)
+              Text(
+                'Chưa có dữ liệu để vẽ chart.',
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              )
+            else ...[
+              SizedBox(
+                height: 220,
+                width: double.infinity,
+                child: CustomPaint(
+                  painter: _LineChartPainter(
+                    points: points,
+                    color: color,
+                    gridColor: colorScheme.outlineVariant,
+                    labelColor: colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
+              const SizedBox(height: 8),
+              _ChartLegend(points: points, color: color),
+            ],
           ],
         ),
       ),
     );
+  }
+}
+
+class _ChartLegend extends StatelessWidget {
+  const _ChartLegend({required this.points, required this.color});
+
+  final List<ChartPoint> points;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = points.first.label;
+    final last = points.last.label;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            first == last ? first : '$first  →  $last',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class ChartPoint {
+  const ChartPoint({required this.label, required this.value});
+
+  final String label;
+  final int value;
+}
+
+class _LineChartPainter extends CustomPainter {
+  const _LineChartPainter({
+    required this.points,
+    required this.color,
+    required this.gridColor,
+    required this.labelColor,
+  });
+
+  final List<ChartPoint> points;
+  final Color color;
+  final Color gridColor;
+  final Color labelColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const leftPadding = 42.0;
+    const rightPadding = 12.0;
+    const topPadding = 12.0;
+    const bottomPadding = 34.0;
+
+    final chartRect = Rect.fromLTWH(
+      leftPadding,
+      topPadding,
+      size.width - leftPadding - rightPadding,
+      size.height - topPadding - bottomPadding,
+    );
+
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+
+    for (var i = 0; i <= 3; i++) {
+      final y = chartRect.top + chartRect.height * i / 3;
+      canvas.drawLine(
+        Offset(chartRect.left, y),
+        Offset(chartRect.right, y),
+        gridPaint,
+      );
+    }
+
+    final maxValue = points.fold<int>(
+      1,
+      (max, point) => point.value > max ? point.value : max,
+    );
+
+    _drawLabel(canvas, '$maxValue', Offset(0, chartRect.top - 2), labelColor);
+    _drawLabel(canvas, '0', Offset(0, chartRect.bottom - 12), labelColor);
+
+    final offsets = <Offset>[];
+    for (var i = 0; i < points.length; i++) {
+      final x = points.length == 1
+          ? chartRect.center.dx
+          : chartRect.left + chartRect.width * i / (points.length - 1);
+      final y =
+          chartRect.bottom - (points[i].value / maxValue) * chartRect.height;
+      offsets.add(Offset(x, y));
+    }
+
+    final fillPath = Path()..moveTo(offsets.first.dx, chartRect.bottom);
+    for (final offset in offsets) {
+      fillPath.lineTo(offset.dx, offset.dy);
+    }
+    fillPath.lineTo(offsets.last.dx, chartRect.bottom);
+    fillPath.close();
+
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [color.withValues(alpha: 0.18), color.withValues(alpha: 0.02)],
+      ).createShader(chartRect);
+    canvas.drawPath(fillPath, fillPaint);
+
+    final linePath = Path()..moveTo(offsets.first.dx, offsets.first.dy);
+    for (var i = 1; i < offsets.length; i++) {
+      final previous = offsets[i - 1];
+      final current = offsets[i];
+      final controlX = (previous.dx + current.dx) / 2;
+      linePath.cubicTo(
+        controlX,
+        previous.dy,
+        controlX,
+        current.dy,
+        current.dx,
+        current.dy,
+      );
+    }
+
+    final linePaint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(linePath, linePaint);
+
+    final pointPaint = Paint()..color = color;
+    final pointStrokePaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    for (final offset in offsets) {
+      canvas.drawCircle(offset, 4, pointPaint);
+      canvas.drawCircle(offset, 4, pointStrokePaint);
+    }
+
+    if (points.isNotEmpty) {
+      _drawBottomLabel(canvas, points.first.label, chartRect.bottom + 10);
+      if (points.length > 1) {
+        _drawBottomLabel(
+          canvas,
+          points.last.label,
+          chartRect.bottom + 10,
+          alignRight: true,
+          chartRight: chartRect.right,
+        );
+      }
+    }
+  }
+
+  void _drawLabel(Canvas canvas, String text, Offset offset, Color color) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(color: color, fontSize: 11),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout(maxWidth: 36);
+    painter.paint(canvas, offset);
+  }
+
+  void _drawBottomLabel(
+    Canvas canvas,
+    String text,
+    double y, {
+    bool alignRight = false,
+    double chartRight = 0,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(color: labelColor, fontSize: 11),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '...',
+    )..layout(maxWidth: 120);
+    final x = alignRight ? chartRight - painter.width : 42.0;
+    painter.paint(canvas, Offset(x, y));
+  }
+
+  @override
+  bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
+    return oldDelegate.points != points ||
+        oldDelegate.color != color ||
+        oldDelegate.gridColor != gridColor ||
+        oldDelegate.labelColor != labelColor;
   }
 }
 
