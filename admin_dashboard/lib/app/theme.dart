@@ -1,21 +1,37 @@
 import 'package:flutter/material.dart';
 
-ThemeData buildAdminTheme() {
+final adminThemeMode = ValueNotifier<ThemeMode>(ThemeMode.light);
+
+ThemeData buildAdminTheme({Brightness brightness = Brightness.light}) {
+  final isDark = brightness == Brightness.dark;
   const primary = Color(0xFF4F46E5);
-  const secondary = Color(0xFF0F172A);
-  const background = Color(0xFFF8FAFC);
-  const surface = Colors.white;
-  const border = Color(0xFFE2E8F0);
-  const textPrimary = Color(0xFF0F172A);
-  const textSecondary = Color(0xFF64748B);
+  const primarySoft = Color(0xFF7C3AED);
+  final secondary = isDark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A);
+  final background = isDark ? const Color(0xFF0B1120) : const Color(0xFFF8FAFC);
+  final surface = isDark ? const Color(0xFF111827) : Colors.white;
+  final surfaceElevated = isDark
+      ? const Color(0xFF172033)
+      : const Color(0xFFFFFFFF);
+  final border = isDark ? const Color(0xFF263449) : const Color(0xFFE2E8F0);
+  final textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+  final textSecondary = isDark
+      ? const Color(0xFFB6C2D1)
+      : const Color(0xFF64748B);
 
   final colorScheme = ColorScheme.fromSeed(
     seedColor: primary,
+    brightness: brightness,
     primary: primary,
     secondary: secondary,
     surface: surface,
     onSurface: textPrimary,
+    onSurfaceVariant: textSecondary,
     surfaceContainerLowest: background,
+    surfaceContainerLow: surface,
+    surfaceContainer: surfaceElevated,
+    surfaceContainerHighest: isDark
+        ? const Color(0xFF273247)
+        : const Color(0xFFE5E7EB),
     outlineVariant: border,
   );
 
@@ -23,6 +39,53 @@ ThemeData buildAdminTheme() {
     useMaterial3: true,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: background,
+    extensions: [
+      AdminGradientTheme(
+        shellBackground: isDark
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF070B16),
+                  Color(0xFF111827),
+                  Color(0xFF1E1B4B),
+                ],
+              )
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF8FAFC),
+                  Color(0xFFEEF2FF),
+                  Color(0xFFE0F2FE),
+                ],
+              ),
+        sidebarBackground: isDark
+            ? const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF080D19),
+                  Color(0xFF111827),
+                  Color(0xFF1E1B4B),
+                ],
+              )
+            : const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF111827),
+                  Color(0xFF1E1B4B),
+                  Color(0xFF0F172A),
+                ],
+              ),
+        primaryAccent: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF6366F1), primarySoft],
+        ),
+      ),
+    ],
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
         TargetPlatform.android: _NoAnimationPageTransitionsBuilder(),
@@ -32,7 +95,7 @@ ThemeData buildAdminTheme() {
         TargetPlatform.windows: _NoAnimationPageTransitionsBuilder(),
       },
     ),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: background,
       foregroundColor: textPrimary,
       elevation: 0,
@@ -50,27 +113,27 @@ ThemeData buildAdminTheme() {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: border),
+        side: BorderSide(color: border),
       ),
     ),
-    dividerTheme: const DividerThemeData(color: border, thickness: 1, space: 1),
+    dividerTheme: DividerThemeData(color: border, thickness: 1, space: 1),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: border),
+        borderSide: BorderSide(color: border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: border),
+        borderSide: BorderSide(color: border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: primary, width: 1.5),
       ),
-      labelStyle: const TextStyle(
+      labelStyle: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: textSecondary,
@@ -102,12 +165,55 @@ ThemeData buildAdminTheme() {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        side: const BorderSide(color: border),
+        side: BorderSide(color: border),
         foregroundColor: secondary,
         textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
       ),
     ),
   );
+}
+
+class AdminGradientTheme extends ThemeExtension<AdminGradientTheme> {
+  const AdminGradientTheme({
+    required this.shellBackground,
+    required this.sidebarBackground,
+    required this.primaryAccent,
+  });
+
+  final LinearGradient shellBackground;
+  final LinearGradient sidebarBackground;
+  final LinearGradient primaryAccent;
+
+  @override
+  AdminGradientTheme copyWith({
+    LinearGradient? shellBackground,
+    LinearGradient? sidebarBackground,
+    LinearGradient? primaryAccent,
+  }) {
+    return AdminGradientTheme(
+      shellBackground: shellBackground ?? this.shellBackground,
+      sidebarBackground: sidebarBackground ?? this.sidebarBackground,
+      primaryAccent: primaryAccent ?? this.primaryAccent,
+    );
+  }
+
+  @override
+  AdminGradientTheme lerp(ThemeExtension<AdminGradientTheme>? other, double t) {
+    if (other is! AdminGradientTheme) return this;
+    return AdminGradientTheme(
+      shellBackground: LinearGradient.lerp(
+        shellBackground,
+        other.shellBackground,
+        t,
+      )!,
+      sidebarBackground: LinearGradient.lerp(
+        sidebarBackground,
+        other.sidebarBackground,
+        t,
+      )!,
+      primaryAccent: LinearGradient.lerp(primaryAccent, other.primaryAccent, t)!,
+    );
+  }
 }
 
 class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {

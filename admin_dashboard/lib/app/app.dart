@@ -8,12 +8,21 @@ class AdminDashboardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Journal Trend Admin',
-      debugShowCheckedModeBanner: false,
-      theme: buildAdminTheme(),
-      initialRoute: AdminRoutes.dashboard,
-      routes: buildAdminRoutes(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: adminThemeMode,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          title: 'Journal Trend Admin',
+          debugShowCheckedModeBanner: false,
+          theme: buildAdminTheme(),
+          darkTheme: buildAdminTheme(brightness: Brightness.dark),
+          themeMode: themeMode,
+          themeAnimationDuration: const Duration(milliseconds: 260),
+          themeAnimationCurve: Curves.easeInOutCubic,
+          initialRoute: AdminRoutes.dashboard,
+          routes: buildAdminRoutes(),
+        );
+      },
     );
   }
 }

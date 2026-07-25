@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/router.dart';
+import '../../app/theme.dart';
 import '../../data/repositories/auth_repository.dart';
 
 class Sidebar extends StatelessWidget {
@@ -15,18 +16,18 @@ class Sidebar extends StatelessWidget {
   final bool isCollapsed;
   final AuthRepository _authRepository;
 
-  static const _accentColor = Color(0xFF4F46E5);
-  static const _background = Color(0xFF111827);
   static const _mutedText = Color(0xFFCBD5E1);
   static const _sectionText = Color(0xFF94A3B8);
 
   @override
   Widget build(BuildContext context) {
+    final gradients = Theme.of(context).extension<AdminGradientTheme>()!;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       width: isCollapsed ? 80 : 280,
-      color: _background,
+      decoration: BoxDecoration(gradient: gradients.sidebarBackground),
       child: ClipRect(
         child: Column(
           children: [
@@ -138,6 +139,8 @@ class _SidebarHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gradients = Theme.of(context).extension<AdminGradientTheme>()!;
+
     return Padding(
       padding: EdgeInsets.fromLTRB(isCollapsed ? 18 : 20, 24, 18, 18),
       child: Row(
@@ -151,7 +154,7 @@ class _SidebarHeader extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: Sidebar._accentColor,
+                gradient: gradients.primaryAccent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -224,6 +227,7 @@ class _SidebarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = isActive ? Colors.white : Sidebar._mutedText;
+    final gradients = Theme.of(context).extension<AdminGradientTheme>()!;
 
     return Tooltip(
       message: isCollapsed ? label : '',
@@ -245,9 +249,8 @@ class _SidebarItem extends StatelessWidget {
                   },
             child: Ink(
               decoration: BoxDecoration(
-                color: isActive
-                    ? Sidebar._accentColor
-                    : Colors.white.withValues(alpha: 0.00),
+                gradient: isActive ? gradients.primaryAccent : null,
+                color: isActive ? null : Colors.white.withValues(alpha: 0.00),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: SizedBox(

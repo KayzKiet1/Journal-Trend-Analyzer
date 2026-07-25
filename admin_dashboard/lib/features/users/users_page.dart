@@ -67,6 +67,11 @@ class _UsersPageState extends State<UsersPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final titleColor = colorScheme.brightness == Brightness.dark
+        ? Colors.white
+        : colorScheme.onSurface;
+
     return Row(
       children: [
         Column(
@@ -76,13 +81,13 @@ class _UsersPageState extends State<UsersPage> {
               'Danh sách người dùng',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w900,
-                color: const Color(0xFF0F172A),
+                color: titleColor,
               ),
             ),
             Text(
               'Hiển thị ${_viewModel.users.length} tài khoản trong hệ thống.',
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -102,27 +107,40 @@ class _UsersPageState extends State<UsersPage> {
   }
 
   Widget _buildErrorBanner(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade100),
+        border: Border.all(color: colorScheme.error.withValues(alpha: 0.24)),
       ),
       child: Text(
         _viewModel.errorMessage!,
-        style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+        style: TextStyle(color: colorScheme.onErrorContainer, fontSize: 13),
       ),
     );
   }
 
   Widget _buildUsersTable(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+          headingRowColor: WidgetStateProperty.all(
+            colorScheme.surfaceContainerLowest,
+          ),
+          headingTextStyle: TextStyle(
+            color: colorScheme.onSurfaceVariant,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+          dataTextStyle: TextStyle(color: colorScheme.onSurface, fontSize: 13),
           dataRowMaxHeight: 64,
           columns: const [
             DataColumn(
@@ -195,6 +213,8 @@ class _UsersPageState extends State<UsersPage> {
   }
 
   DataRow _buildUserRow(BuildContext context, AdminUser user) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return DataRow(
       cells: [
         DataCell(
@@ -216,7 +236,10 @@ class _UsersPageState extends State<UsersPage> {
               const SizedBox(width: 12),
               Text(
                 user.email.isEmpty ? user.uid : user.email,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -233,7 +256,10 @@ class _UsersPageState extends State<UsersPage> {
         DataCell(
           Text(
             _shortDate(user.lastSignInTime),
-            style: const TextStyle(color: Color(0xFF475569), fontSize: 13),
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
+              fontSize: 13,
+            ),
           ),
         ),
         DataCell(
@@ -347,12 +373,17 @@ class _RoleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final neutralBackground = colorScheme.surfaceContainerHighest;
+    final neutralForeground = colorScheme.onSurfaceVariant;
+    const adminColor = Color(0xFF6366F1);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: isAdmin
-            ? const Color(0xFF6366F1).withValues(alpha: 0.1)
-            : const Color(0xFFF1F5F9),
+            ? adminColor.withValues(alpha: 0.14)
+            : neutralBackground,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -361,7 +392,7 @@ class _RoleChip extends StatelessWidget {
           Icon(
             isAdmin ? Icons.admin_panel_settings_rounded : Icons.person_rounded,
             size: 14,
-            color: isAdmin ? const Color(0xFF6366F1) : const Color(0xFF334155),
+            color: isAdmin ? adminColor : neutralForeground,
           ),
           const SizedBox(width: 4),
           Text(
@@ -369,9 +400,7 @@ class _RoleChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: isAdmin
-                  ? const Color(0xFF6366F1)
-                  : const Color(0xFF334155),
+              color: isAdmin ? adminColor : neutralForeground,
             ),
           ),
         ],
@@ -386,10 +415,15 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    const activeColor = Color(0xFF047857);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: disabled ? Colors.red.shade50 : const Color(0xFFECFDF5),
+        color: disabled
+            ? colorScheme.errorContainer
+            : activeColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -397,7 +431,7 @@ class _StatusChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: disabled ? Colors.red : const Color(0xFF047857),
+          color: disabled ? colorScheme.onErrorContainer : activeColor,
         ),
       ),
     );

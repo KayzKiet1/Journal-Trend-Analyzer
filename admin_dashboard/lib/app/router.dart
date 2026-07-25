@@ -16,6 +16,7 @@ import '../features/storage_manager/storage_page.dart';
 import '../features/system_health/system_health_page.dart';
 import '../features/users/user_detail_page.dart';
 import '../features/users/users_page.dart';
+import 'theme.dart';
 
 class AdminRoutes {
   const AdminRoutes._();
@@ -39,7 +40,8 @@ class AdminRoutes {
 
 Map<String, WidgetBuilder> buildAdminRoutes() {
   return {
-    AdminRoutes.login: (_) => const LoginPage(),
+    AdminRoutes.login: (_) =>
+        Theme(data: buildAdminTheme(), child: const LoginPage()),
     AdminRoutes.dashboard: (_) => AuthGuard(child: const DashboardPage()),
     AdminRoutes.users: (_) => AuthGuard(child: const UsersPage()),
     AdminRoutes.userDetail: (_) => AuthGuard(child: const UserDetailPage()),

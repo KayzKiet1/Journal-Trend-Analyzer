@@ -66,6 +66,11 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final titleColor = colorScheme.brightness == Brightness.dark
+        ? Colors.white
+        : colorScheme.onSurface;
+
     return Row(
       children: [
         Column(
@@ -75,14 +80,14 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
               'Audit Logs',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w900,
-                color: const Color(0xFF0F172A),
+                color: titleColor,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               'Theo dõi mọi thay đổi và hành động của quản trị viên trong hệ thống.',
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -97,8 +102,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
           icon: const Icon(Icons.refresh),
           tooltip: 'Làm mới',
           style: IconButton.styleFrom(
-            backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
-            foregroundColor: const Color(0xFF6366F1),
+            backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+            foregroundColor: colorScheme.primary,
           ),
         ),
       ],
@@ -106,21 +111,26 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   }
 
   Widget _buildErrorBanner(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
+        color: colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFEE2E2)),
+        border: Border.all(color: colorScheme.error.withValues(alpha: 0.24)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 18),
+          Icon(Icons.error_outline, color: colorScheme.error, size: 18),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               _viewModel.errorMessage!,
-              style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13),
+              style: TextStyle(
+                color: colorScheme.onErrorContainer,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -129,22 +139,32 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   }
 
   Widget _buildLogsTable(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+          headingRowColor: WidgetStateProperty.all(
+            colorScheme.surfaceContainerLowest,
+          ),
+          headingTextStyle: TextStyle(
+            color: colorScheme.onSurfaceVariant,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+          dataTextStyle: TextStyle(color: colorScheme.onSurface, fontSize: 13),
           dataRowMaxHeight: 64,
           columnSpacing: 32,
-          columns: const [
+          columns: [
             DataColumn(
               label: Text(
                 'THỜI GIAN',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 12,
-                  color: Color(0xFF475569),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -154,7 +174,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 12,
-                  color: Color(0xFF475569),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -164,7 +184,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 12,
-                  color: Color(0xFF475569),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -174,7 +194,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 12,
-                  color: Color(0xFF475569),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -188,6 +208,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   }
 
   DataRow _buildLogRow(BuildContext context, AuditLog log) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return DataRow(
       cells: [
         DataCell(
@@ -197,15 +219,18 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             children: [
               Text(
                 _formatDate(log.createdAt),
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: Color(0xFF1E293B),
+                  color: colorScheme.onSurface,
                 ),
               ),
               Text(
                 _formatTime(log.createdAt),
-                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -231,9 +256,10 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
               const SizedBox(width: 10),
               Text(
                 log.adminEmail.isEmpty ? 'Unknown' : log.adminEmail,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
+                  color: colorScheme.onSurface,
                 ),
               ),
             ],
@@ -244,15 +270,15 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               log.target,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF475569),
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ),

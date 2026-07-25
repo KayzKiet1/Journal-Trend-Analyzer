@@ -76,6 +76,11 @@ class _CollectionsPageState extends State<CollectionsPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final titleColor = colorScheme.brightness == Brightness.dark
+        ? Colors.white
+        : colorScheme.onSurface;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -93,16 +98,16 @@ class _CollectionsPageState extends State<CollectionsPage> {
                     'Danh sách collection',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w900,
-                      color: const Color(0xFF0F172A),
+                      color: titleColor,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Chỉ hiển thị collection nghiệp vụ ổn định để kiểm tra dữ liệu demo.',
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.45,
-                      color: Color(0xFF64748B),
+                      color: colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -121,8 +126,8 @@ class _CollectionsPageState extends State<CollectionsPage> {
                   : const Icon(Icons.refresh_rounded),
               tooltip: 'Làm mới dữ liệu',
               style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                foregroundColor: const Color(0xFF6366F1),
+                backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+                foregroundColor: colorScheme.primary,
                 fixedSize: const Size(48, 48),
               ),
             ),
@@ -138,10 +143,10 @@ class _CollectionsPageState extends State<CollectionsPage> {
               hintText: 'Tìm kiếm collection...',
               prefixIcon: const Icon(Icons.search),
               contentPadding: const EdgeInsets.symmetric(vertical: 16),
-              fillColor: const Color(0xFFF8FAFC),
+              fillColor: colorScheme.surfaceContainerLowest,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: BorderSide(color: colorScheme.outlineVariant),
               ),
             ),
           ),
@@ -183,17 +188,23 @@ class _CollectionsPageState extends State<CollectionsPage> {
   }
 
   Widget _buildEmptyState() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 64),
         child: Column(
           children: [
-            const Icon(Icons.search_off, size: 64, color: Color(0xFFCBD5E1)),
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.45),
+            ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Không tìm thấy collection nào khớp với từ khóa.',
               style: TextStyle(
-                color: Color(0xFF64748B),
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -217,6 +228,7 @@ class _CollectionCardState extends State<_CollectionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final purpose = _collectionPurposes[widget.collection.name];
     final bool isCritical = ['users'].contains(widget.collection.name);
     final bool isConfig =
@@ -240,19 +252,19 @@ class _CollectionCardState extends State<_CollectionCard> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colorScheme.surface,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: _isHovered
                   ? accentColor.withValues(alpha: 0.5)
-                  : const Color(0xFFE2E8F0),
+                  : colorScheme.outlineVariant,
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
                 color: _isHovered
                     ? accentColor.withValues(alpha: 0.1)
-                    : Colors.black.withValues(alpha: 0.02),
+                    : Colors.black.withValues(alpha: 0.04),
                 blurRadius: _isHovered ? 15 : 5,
                 offset: const Offset(0, 4),
               ),
@@ -294,10 +306,10 @@ class _CollectionCardState extends State<_CollectionCard> {
                   children: [
                     Text(
                       widget.collection.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
+                        color: colorScheme.onSurface,
                         letterSpacing: -0.2,
                       ),
                       maxLines: 1,
@@ -310,11 +322,11 @@ class _CollectionCardState extends State<_CollectionCard> {
                         waitDuration: const Duration(milliseconds: 400),
                         child: Text(
                           purpose,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             height: 1.25,
                             fontWeight: FontWeight.w500,
-                            color: Color(0xFF64748B),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -328,16 +340,16 @@ class _CollectionCardState extends State<_CollectionCard> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         '${widget.collection.count} tài liệu',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           height: 1,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF475569),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -346,7 +358,9 @@ class _CollectionCardState extends State<_CollectionCard> {
               ),
               Icon(
                 Icons.chevron_right,
-                color: _isHovered ? accentColor : const Color(0xFFCBD5E1),
+                color: _isHovered
+                    ? accentColor
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.45),
               ),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/router.dart';
+import '../../app/theme.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'sidebar.dart';
 
@@ -25,45 +26,60 @@ class _AdminShellState extends State<AdminShell> {
     final isMobile = MediaQuery.sizeOf(context).width < 1100;
     final currentRoute =
         ModalRoute.of(context)?.settings.name ?? AdminRoutes.dashboard;
+    final theme = Theme.of(context);
+    final gradients = theme.extension<AdminGradientTheme>()!;
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
         leading: Builder(
           builder: (context) => _buildMenuButton(context, isMobile),
         ),
         title: Text(widget.title),
-        actions: [_buildAuthAction(context), const SizedBox(width: 16)],
+        actions: [
+          _buildThemeToggle(context),
+          const SizedBox(width: 4),
+          _buildAuthAction(context),
+          const SizedBox(width: 16),
+        ],
       ),
       drawer: isMobile
           ? Sidebar(currentRoute: currentRoute, isCollapsed: false)
           : null,
-      body: Row(
-        children: [
-          if (!isMobile)
-            Sidebar(
-              currentRoute: currentRoute,
-              isCollapsed: _isSidebarCollapsed,
-            ),
-          Expanded(
-            child: Container(
-              margin: isMobile
-                  ? EdgeInsets.zero
-                  : const EdgeInsets.only(right: 16, bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: isMobile
-                    ? BorderRadius.zero
-                    : BorderRadius.circular(12),
-                border: isMobile
-                    ? null
-                    : Border.all(color: const Color(0xFFE2E8F0)),
+      body: AnimatedContainer(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeInOutCubic,
+        decoration: BoxDecoration(gradient: gradients.shellBackground),
+        child: Row(
+          children: [
+            if (!isMobile)
+              Sidebar(
+                currentRoute: currentRoute,
+                isCollapsed: _isSidebarCollapsed,
               ),
-              clipBehavior: Clip.antiAlias,
-              child: widget.child,
+            Expanded(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeInOutCubic,
+                margin: isMobile
+                    ? EdgeInsets.zero
+                    : const EdgeInsets.only(right: 16, bottom: 16),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: isMobile
+                      ? BorderRadius.zero
+                      : BorderRadius.circular(12),
+                  border: isMobile
+                      ? null
+                      : Border.all(color: colorScheme.outlineVariant),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: widget.child,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -82,6 +98,57 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
+  Widget _buildThemeToggle(BuildContext context) {
+    final theme = Theme.of(context);
+    final gradients = theme.extension<AdminGradientTheme>()!;
+
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: adminThemeMode,
+      builder: (context, themeMode, _) {
+        final isDark = themeMode == ThemeMode.dark;
+
+        return Tooltip(
+          message: isDark ? 'Chuyển giao diện sáng' : 'Chuyển giao diện tối',
+          child: InkWell(
+            onTap: () {
+              adminThemeMode.value = isDark ? ThemeMode.light : ThemeMode.dark;
+            },
+            borderRadius: BorderRadius.circular(999),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOutCubic,
+              width: 44,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: gradients.primaryAccent,
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.22),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: Icon(
+                  isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                  key: ValueKey(isDark),
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildAuthAction(BuildContext context) {
     return StreamBuilder(
       initialData: _authRepository.currentUser,
@@ -96,6 +163,8 @@ class _AdminShellState extends State<AdminShell> {
             .characters
             .first
             .toUpperCase();
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
 
         return MenuAnchor(
           builder: (context, controller, child) {
@@ -110,15 +179,15 @@ class _AdminShellState extends State<AdminShell> {
                   children: [
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: const Color(
-                        0xFF4F46E5,
-                      ).withValues(alpha: 0.12),
+                      backgroundColor: colorScheme.primary.withValues(
+                        alpha: 0.12,
+                      ),
                       child: Text(
                         avatarText,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF4F46E5),
+                          color: colorScheme.primary,
                         ),
                       ),
                     ),
@@ -137,17 +206,18 @@ class _AdminShellState extends State<AdminShell> {
                 children: [
                   Text(
                     displayName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   if (email.isNotEmpty)
                     Text(
                       email,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF64748B),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                 ],
