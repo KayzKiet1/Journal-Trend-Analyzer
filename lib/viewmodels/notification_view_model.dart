@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../firebase/firebase_messaging_service.dart';
+import '../firebase/fcm_token_service.dart';
 import '../firebase/local_notification_service.dart';
 import '../models/app_notification_model.dart';
 
@@ -25,13 +26,16 @@ class NotificationViewModel extends ChangeNotifier {
   NotificationViewModel({
     FirebaseMessagingService? messagingService,
     LocalNotificationService? localNotificationService,
+    FcmTokenService? tokenService,
   }) : _messagingService = messagingService ?? FirebaseMessagingService(),
        _localNotificationService =
-           localNotificationService ?? LocalNotificationService();
+           localNotificationService ?? LocalNotificationService(),
+       _tokenService = tokenService ?? FcmTokenService();
 
   static const String _notificationsKey = 'fcm_received_notifications';
   static const String _topicsKey = 'fcm_subscribed_topics';
   static const String _notificationsEnabledKey = 'fcm_notifications_enabled';
+  static const String _announcementsTopic = 'announcements';
 
   static const List<NotificationPreference> preferences = [
     NotificationPreference(
@@ -53,6 +57,7 @@ class NotificationViewModel extends ChangeNotifier {
 
   final FirebaseMessagingService _messagingService;
   final LocalNotificationService _localNotificationService;
+  final FcmTokenService _tokenService;
   final List<AppNotification> _notifications = [];
   final Set<String> _subscribedTopics = {};
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
@@ -104,6 +109,8 @@ class NotificationViewModel extends ChangeNotifier {
       await _localNotificationService.requestPermission();
       _permissionStatus = _statusLabel(settings.authorizationStatus);
       _fcmToken = await _messagingService.getToken();
+      await _saveCurrentToken();
+      await _subscribeAnnouncementsTopic();
       await _saveNotificationsEnabled();
       _errorMessage = null;
     } catch (error) {
@@ -168,6 +175,10 @@ class NotificationViewModel extends ChangeNotifier {
     final settings = await _messagingService.getNotificationSettings();
     _permissionStatus = _statusLabel(settings.authorizationStatus);
     _fcmToken = await _messagingService.getToken();
+    await _saveCurrentToken();
+    if (_notificationsEnabled && isNotificationReady) {
+      await _subscribeAnnouncementsTopic();
+    }
   }
 
   void _listenToMessages() {
@@ -179,10 +190,21 @@ class NotificationViewModel extends ChangeNotifier {
     );
     _tokenRefreshSubscription ??= _messagingService.tokenRefreshes.listen((
       token,
-    ) {
+    ) async {
       _fcmToken = token;
+      await _saveCurrentToken();
       notifyListeners();
     });
+  }
+
+  Future<void> _saveCurrentToken() async {
+    await _tokenService.saveToken(_fcmToken);
+  }
+
+  Future<void> _subscribeAnnouncementsTopic() async {
+    await _messagingService.subscribeToTopic(_announcementsTopic);
+    _subscribedTopics.add(_announcementsTopic);
+    await _saveSubscribedTopics();
   }
 
   Future<void> _loadInitialMessage() async {

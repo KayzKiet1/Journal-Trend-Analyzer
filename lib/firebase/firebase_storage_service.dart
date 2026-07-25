@@ -21,11 +21,19 @@ class FirebaseStorageService {
     required Uint8List bytes,
     required String fileName,
     required String userId,
+    String userEmail = '',
   }) async {
     try {
       final safeUserId = userId.trim().isEmpty ? 'anonymous' : userId.trim();
       final ref = _storage.ref().child('reports/$safeUserId/$fileName');
-      final metadata = SettableMetadata(contentType: 'application/pdf');
+      final metadata = SettableMetadata(
+        contentType: 'application/pdf',
+        customMetadata: {
+          'uploadedByUid': safeUserId,
+          'uploadedByEmail': userEmail,
+          'source': 'mobile_report_export',
+        },
+      );
       final snapshot = await ref.putData(bytes, metadata);
       return snapshot.ref.getDownloadURL();
     } on FirebaseException catch (error) {

@@ -6,6 +6,7 @@ class StorageFile {
     required this.size,
     required this.updated,
     required this.downloadUrl,
+    required this.customMetadata,
   });
 
   final String name;
@@ -14,6 +15,12 @@ class StorageFile {
   final int size;
   final String updated;
   final String downloadUrl;
+  final Map<String, dynamic> customMetadata;
+
+  String get uploadedByEmail =>
+      customMetadata['uploadedByEmail']?.toString() ?? '';
+
+  String get uploadedByUid => customMetadata['uploadedByUid']?.toString() ?? '';
 
   bool get isImage => contentType.startsWith('image/');
 
@@ -25,6 +32,9 @@ class StorageFile {
       size: _readInt(map['size']),
       updated: map['updated']?.toString() ?? '',
       downloadUrl: map['downloadUrl']?.toString() ?? '',
+      customMetadata: Map<String, dynamic>.from(
+        map['customMetadata'] as Map? ?? const {},
+      ),
     );
   }
 

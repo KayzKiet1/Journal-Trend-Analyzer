@@ -7,7 +7,10 @@ import '../models/audit_log.dart';
 import '../models/dashboard_summary.dart';
 import '../models/managed_collection.dart';
 import '../models/managed_document.dart';
+import '../models/notification_log.dart';
 import '../models/storage_file.dart';
+import '../models/system_health.dart';
+import '../models/user_profile_summary.dart';
 
 class UserListResult {
   const UserListResult({required this.users, required this.nextPageToken});
@@ -43,14 +46,28 @@ class AuditLogListResult {
   final String nextPageToken;
 }
 
+class NotificationLogListResult {
+  const NotificationLogListResult({
+    required this.logs,
+    required this.nextPageToken,
+  });
+
+  final List<NotificationLog> logs;
+  final String nextPageToken;
+}
+
 abstract class AdminRepository {
   Future<DashboardSummary> getDashboardSummary();
 
   Future<AnalyticsSummary> getAnalyticsSummary({int days = 30});
 
+  Future<SystemHealthSummary> listSystemHealth({int limit = 25});
+
   Future<UserListResult> listUsers({String? pageToken, int maxResults = 50});
 
   Future<AdminUser> getUser(String uid);
+
+  Future<UserProfileSummary> getUserProfileSummary(String uid);
 
   Future<AdminUser> setUserDisabled({
     required String uid,
@@ -96,10 +113,32 @@ abstract class AdminRepository {
 
   Future<void> deleteStorageFile(String path);
 
+  Future<void> recordStorageUpload({
+    required String path,
+    required String fileName,
+    required String contentType,
+    required int size,
+  });
+
   Future<AuditLogListResult> listAuditLogs({String? startAfterId});
+
+  Future<NotificationLogListResult> listNotificationLogs({
+    String? startAfterId,
+  });
 
   Future<String> sendTopicMessage({
     required String topic,
+    required String title,
+    required String body,
+  });
+
+  Future<Map<String, int>> sendUserMessage({
+    required String recipient,
+    required String title,
+    required String body,
+  });
+
+  Future<String> sendAllUsersMessage({
     required String title,
     required String body,
   });
@@ -123,6 +162,12 @@ class FirebaseAdminRepository implements AdminRepository {
   Future<AnalyticsSummary> getAnalyticsSummary({int days = 30}) async {
     final data = await _call('getAnalyticsSummary', {'days': days});
     return AnalyticsSummary.fromMap(data);
+  }
+
+  @override
+  Future<SystemHealthSummary> listSystemHealth({int limit = 25}) async {
+    final data = await _call('listSystemHealth', {'limit': limit});
+    return SystemHealthSummary.fromMap(data);
   }
 
   @override
@@ -150,6 +195,12 @@ class FirebaseAdminRepository implements AdminRepository {
   Future<AdminUser> getUser(String uid) async {
     final data = await _call('getUser', {'uid': uid});
     return AdminUser.fromMap(Map<String, dynamic>.from(data['user'] as Map));
+  }
+
+  @override
+  Future<UserProfileSummary> getUserProfileSummary(String uid) async {
+    final data = await _call('getUserProfileSummary', {'uid': uid});
+    return UserProfileSummary.fromMap(data);
   }
 
   @override
@@ -293,6 +344,21 @@ class FirebaseAdminRepository implements AdminRepository {
   }
 
   @override
+  Future<void> recordStorageUpload({
+    required String path,
+    required String fileName,
+    required String contentType,
+    required int size,
+  }) async {
+    await _call('recordStorageUpload', {
+      'path': path,
+      'fileName': fileName,
+      'contentType': contentType,
+      'size': size,
+    });
+  }
+
+  @override
   Future<AuditLogListResult> listAuditLogs({String? startAfterId}) async {
     final data = await _call('listAuditLogs', {'startAfterId': startAfterId});
     final logs = (data['logs'] as List<dynamic>? ?? const [])
@@ -309,6 +375,27 @@ class FirebaseAdminRepository implements AdminRepository {
   }
 
   @override
+  Future<NotificationLogListResult> listNotificationLogs({
+    String? startAfterId,
+  }) async {
+    final data = await _call('listNotificationLogs', {
+      'startAfterId': startAfterId,
+    });
+    final logs = (data['logs'] as List<dynamic>? ?? const [])
+        .map(
+          (log) => NotificationLog.fromDocumentMap(
+            Map<String, dynamic>.from(log as Map),
+          ),
+        )
+        .toList();
+
+    return NotificationLogListResult(
+      logs: logs,
+      nextPageToken: data['nextPageToken']?.toString() ?? '',
+    );
+  }
+
+  @override
   Future<String> sendTopicMessage({
     required String topic,
     required String title,
@@ -316,6 +403,37 @@ class FirebaseAdminRepository implements AdminRepository {
   }) async {
     final data = await _call('sendTopicMessage', {
       'topic': topic,
+      'title': title,
+      'body': body,
+    });
+    return data['messageId']?.toString() ?? '';
+  }
+
+  @override
+  Future<Map<String, int>> sendUserMessage({
+    required String recipient,
+    required String title,
+    required String body,
+  }) async {
+    final isEmail = recipient.contains('@');
+    final data = await _call('sendUserMessage', {
+      if (isEmail) 'email': recipient else 'uid': recipient,
+      'title': title,
+      'body': body,
+    });
+
+    return {
+      'successCount': _readInt(data['successCount']),
+      'failureCount': _readInt(data['failureCount']),
+    };
+  }
+
+  @override
+  Future<String> sendAllUsersMessage({
+    required String title,
+    required String body,
+  }) async {
+    final data = await _call('sendAllUsersMessage', {
       'title': title,
       'body': body,
     });
@@ -336,4 +454,14 @@ class FirebaseAdminRepository implements AdminRepository {
       throw Exception(error.message ?? error.code);
     }
   }
+}
+
+int _readInt(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  return int.tryParse(value?.toString() ?? '') ?? 0;
 }

@@ -114,6 +114,7 @@ class ProfileViewModel extends ChangeNotifier {
         bytes: pdfBytes,
         fileName: fileName,
         userId: firebaseUser.uid,
+        userEmail: userController.authEmail,
       );
 
       await _analyticsService.logExportPdf(topic: topic);
