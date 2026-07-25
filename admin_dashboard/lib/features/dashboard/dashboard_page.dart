@@ -6,8 +6,6 @@ import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_view.dart';
 import 'dashboard_view_model.dart';
 
-/// Trang Dashboard chính của hệ thống quản trị.
-/// Hiển thị tổng quan các chỉ số hệ thống và cung cấp các liên kết truy cập nhanh.
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -21,7 +19,6 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    // Khởi tạo ViewModel và tự động tải dữ liệu tóm tắt.
     _viewModel = DashboardViewModel()..loadSummary();
   }
 
@@ -34,16 +31,14 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return AdminShell(
-      title: 'Tổng quan hệ thống',
+      title: 'Dashboard Overview',
       child: AnimatedBuilder(
         animation: _viewModel,
         builder: (context, _) {
-          // Trạng thái đang tải dữ liệu lần đầu.
           if (_viewModel.isLoading && _viewModel.summary == null) {
             return const LoadingView();
           }
 
-          // Trạng thái gặp lỗi khi tải dữ liệu.
           if (_viewModel.errorMessage != null && _viewModel.summary == null) {
             return ErrorView(message: _viewModel.errorMessage!);
           }
@@ -58,108 +53,11 @@ class _DashboardPageState extends State<DashboardPage> {
             child: ListView(
               padding: const EdgeInsets.all(32),
               children: [
-                // Khối tiêu đề chào mừng.
-                Text(
-                  'Chào mừng quay trở lại, Admin',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Dưới đây là các số liệu thống kê mới nhất về ứng dụng của bạn.',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                ),
+                _buildHeader(context),
                 const SizedBox(height: 32),
-
-                // Lưới hiển thị các thẻ chỉ số (Metrics).
-                Wrap(
-                  spacing: 20,
-                  runSpacing: 20,
-                  children: [
-                    _MetricTile(
-                      label: 'Người dùng',
-                      value: summary.userCount.toString(),
-                      icon: Icons.people_alt_outlined,
-                      color: Colors.blue,
-                      onTap: () => Navigator.of(context).pushNamed(AdminRoutes.users),
-                    ),
-                    _MetricTile(
-                      label: 'Tạp chí',
-                      value: summary.journalCount.toString(),
-                      icon: Icons.menu_book_outlined,
-                      color: Colors.orange,
-                      onTap: () => Navigator.of(context).pushNamed(AdminRoutes.firestoreCollections),
-                    ),
-                    _MetricTile(
-                      label: 'Bài báo',
-                      value: summary.publicationCount.toString(),
-                      icon: Icons.article_outlined,
-                      color: Colors.green,
-                      onTap: () => Navigator.of(context).pushNamed(AdminRoutes.firestoreCollections),
-                    ),
-                    _MetricTile(
-                      label: 'Tệp lưu trữ',
-                      value: summary.storageFileCount.toString(),
-                      icon: Icons.folder_outlined,
-                      color: Colors.purple,
-                      onTap: () => Navigator.of(context).pushNamed(AdminRoutes.storage),
-                    ),
-                  ],
-                ),
+                _buildMetricsGrid(context, summary),
                 const SizedBox(height: 48),
-
-                // Phân đoạn các liên kết nhanh (Quick Actions).
-                Text(
-                  'Truy cập nhanh',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: const [
-                    _QuickLink(
-                      label: 'Quản lý Người dùng',
-                      routeName: AdminRoutes.users,
-                      icon: Icons.people_alt_outlined,
-                    ),
-                    _QuickLink(
-                      label: 'Dữ liệu Firestore',
-                      routeName: AdminRoutes.firestoreCollections,
-                      icon: Icons.storage_outlined,
-                    ),
-                    _QuickLink(
-                      label: 'Cấu hình Hệ thống',
-                      routeName: AdminRoutes.appConfig,
-                      icon: Icons.tune_outlined,
-                    ),
-                    _QuickLink(
-                      label: 'Quản lý Tệp tin',
-                      routeName: AdminRoutes.storage,
-                      icon: Icons.cloud_circle_outlined,
-                    ),
-                    _QuickLink(
-                      label: 'Phân tích (Analytics)',
-                      routeName: AdminRoutes.analytics,
-                      icon: Icons.analytics_outlined,
-                    ),
-                    _QuickLink(
-                      label: 'Gửi Thông báo',
-                      routeName: AdminRoutes.messaging,
-                      icon: Icons.notifications_outlined,
-                    ),
-                    _QuickLink(
-                      label: 'Nhật ký Hoạt động',
-                      routeName: AdminRoutes.auditLogs,
-                      icon: Icons.history_outlined,
-                    ),
-                  ],
-                ),
+                _buildQuickActions(context),
               ],
             ),
           );
@@ -167,15 +65,153 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     );
   }
+
+  Widget _buildHeader(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Chào mừng trở lại, Admin',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF0F172A),
+                letterSpacing: -0.5,
+              ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Dưới đây là tóm tắt dữ liệu hệ thống tính đến hôm nay.',
+          style: TextStyle(
+            fontSize: 15,
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricsGrid(BuildContext context, dynamic summary) {
+    final isDesktop = MediaQuery.of(context).size.width > 1200;
+    final isTablet = MediaQuery.of(context).size.width > 800;
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: isDesktop ? 4 : (isTablet ? 2 : 1),
+      mainAxisSpacing: 24,
+      crossAxisSpacing: 24,
+      childAspectRatio: 2.1,
+      children: [
+        _MetricTile(
+          label: 'Tổng người dùng',
+          value: summary.userCount.toString(),
+          icon: Icons.people,
+          color: const Color(0xFF6366F1),
+          trend: '+12%',
+          onTap: () => Navigator.of(context).pushNamed(AdminRoutes.users),
+        ),
+        _MetricTile(
+          label: 'Số lượng tạp chí',
+          value: summary.journalCount.toString(),
+          icon: Icons.book,
+          color: const Color(0xFFF59E0B),
+          trend: '+5%',
+          onTap: () => Navigator.of(context).pushNamed(AdminRoutes.firestoreCollections),
+        ),
+        _MetricTile(
+          label: 'Tổng bài báo',
+          value: summary.publicationCount.toString(),
+          icon: Icons.article,
+          color: const Color(0xFF10B981),
+          trend: '+24%',
+          onTap: () => Navigator.of(context).pushNamed(AdminRoutes.firestoreCollections),
+        ),
+        _MetricTile(
+          label: 'Tệp lưu trữ',
+          value: summary.storageFileCount.toString(),
+          icon: Icons.cloud_done,
+          color: const Color(0xFF8B5CF6),
+          trend: '+8%',
+          onTap: () => Navigator.of(context).pushNamed(AdminRoutes.storage),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.bolt, color: Color(0xFFF59E0B), size: 20),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Truy cập nhanh',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: const [
+            _QuickActionCard(
+              label: 'Quản lý Users',
+              icon: Icons.people_outline,
+              route: AdminRoutes.users,
+            ),
+            _QuickActionCard(
+              label: 'Dữ liệu Firestore',
+              icon: Icons.dns,
+              route: AdminRoutes.firestoreCollections,
+            ),
+            _QuickActionCard(
+              label: 'Cloud Storage',
+              icon: Icons.cloud_outlined,
+              route: AdminRoutes.storage,
+            ),
+            _QuickActionCard(
+              label: 'Gửi Thông báo',
+              icon: Icons.notifications_active_outlined,
+              route: AdminRoutes.messaging,
+            ),
+            _QuickActionCard(
+              label: 'Lịch sử Audit',
+              icon: Icons.history,
+              route: AdminRoutes.auditLogs,
+            ),
+            _QuickActionCard(
+              label: 'Cấu hình App',
+              icon: Icons.settings_applications,
+              route: AdminRoutes.appConfig,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
-/// Widget thẻ hiển thị một chỉ số thống kê với hiệu ứng Hover.
 class _MetricTile extends StatefulWidget {
   const _MetricTile({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
+    required this.trend,
     this.onTap,
   });
 
@@ -183,6 +219,7 @@ class _MetricTile extends StatefulWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final String trend;
   final VoidCallback? onTap;
 
   @override
@@ -194,9 +231,6 @@ class _MetricTileState extends State<_MetricTile> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -205,64 +239,79 @@ class _MetricTileState extends State<_MetricTile> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          width: 260,
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: _isHovered ? widget.color : colorScheme.outlineVariant,
-              width: _isHovered ? 2 : 1,
+              color: _isHovered ? widget.color.withOpacity(0.3) : const Color(0xFFE2E8F0),
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: _isHovered 
-                  ? widget.color.withValues(alpha: 0.1) 
-                  : theme.shadowColor.withValues(alpha: 0.04),
-                blurRadius: _isHovered ? 16 : 10,
-                offset: Offset(0, _isHovered ? 8 : 4),
+                color: _isHovered ? widget.color.withOpacity(0.08) : Colors.black.withOpacity(0.02),
+                blurRadius: _isHovered ? 20 : 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: widget.color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    widget.icon, 
-                    color: widget.color, 
-                    size: _isHovered ? 32 : 28,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: widget.color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.label,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: colorScheme.outline,
-                        ),
+                child: Icon(widget.icon, color: widget.color, size: 28),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      '', // Keep layout consistency
+                      style: TextStyle(fontSize: 0),
+                    ),
+                    Text(
+                      widget.label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.value,
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          widget.value,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -1,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.trend,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: widget.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -270,27 +319,63 @@ class _MetricTileState extends State<_MetricTile> {
   }
 }
 
-/// Widget nút bấm truy cập nhanh vào các tính năng quản trị.
-class _QuickLink extends StatelessWidget {
-  const _QuickLink({
+class _QuickActionCard extends StatefulWidget {
+  const _QuickActionCard({
     required this.label,
-    required this.routeName,
     required this.icon,
+    required this.route,
   });
 
   final String label;
-  final String routeName;
   final IconData icon;
+  final String route;
+
+  @override
+  State<_QuickActionCard> createState() => _QuickActionCardState();
+}
+
+class _QuickActionCardState extends State<_QuickActionCard> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: () => Navigator.of(context).pushNamed(routeName),
-      icon: Icon(icon, size: 20),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: InkWell(
+        onTap: () => Navigator.of(context).pushNamed(widget.route),
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+          decoration: BoxDecoration(
+            color: _isHovered ? const Color(0xFF6366F1).withOpacity(0.04) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _isHovered ? const Color(0xFF6366F1).withOpacity(0.5) : const Color(0xFFE2E8F0),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                size: 22,
+                color: _isHovered ? const Color(0xFF6366F1) : const Color(0xFF475569),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: _isHovered ? const Color(0xFF6366F1) : const Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

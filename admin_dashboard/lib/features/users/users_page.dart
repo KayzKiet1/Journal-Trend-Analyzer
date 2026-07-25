@@ -32,7 +32,7 @@ class _UsersPageState extends State<UsersPage> {
   @override
   Widget build(BuildContext context) {
     return AdminShell(
-      title: 'Users',
+      title: 'Quản lý người dùng',
       child: AnimatedBuilder(
         animation: _viewModel,
         builder: (context, _) {
@@ -47,70 +47,17 @@ class _UsersPageState extends State<UsersPage> {
           return RefreshIndicator(
             onRefresh: () => _viewModel.loadUsers(refresh: true),
             child: ListView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(32),
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${_viewModel.users.length} loaded users',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Refresh',
-                      onPressed: _viewModel.isLoading
-                          ? null
-                          : () => _viewModel.loadUsers(refresh: true),
-                      icon: const Icon(Icons.refresh),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                _buildHeader(context),
+                const SizedBox(height: 24),
                 if (_viewModel.errorMessage != null) ...[
-                  Text(
-                    _viewModel.errorMessage!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  _buildErrorBanner(context),
+                  const SizedBox(height: 16),
                 ],
-                Card(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Email')),
-                        DataColumn(label: Text('Role')),
-                        DataColumn(label: Text('Status')),
-                        DataColumn(label: Text('Verified')),
-                        DataColumn(label: Text('Last sign in')),
-                        DataColumn(label: Text('Actions')),
-                      ],
-                      rows: _viewModel.users
-                          .map((user) => _buildUserRow(context, user))
-                          .toList(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (_viewModel.hasMore)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.icon(
-                      onPressed: _viewModel.isLoadingMore
-                          ? null
-                          : _viewModel.loadUsers,
-                      icon: _viewModel.isLoadingMore
-                          ? const SizedBox.square(
-                              dimension: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.expand_more),
-                      label: const Text('Load more'),
-                    ),
-                  ),
+                _buildUsersTable(context),
+                const SizedBox(height: 24),
+                if (_viewModel.hasMore) _buildLoadMoreButton(),
               ],
             ),
           );
@@ -119,38 +66,110 @@ class _UsersPageState extends State<UsersPage> {
     );
   }
 
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Danh sách người dùng',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                  ),
+            ),
+            Text(
+              'Hiển thị ${_viewModel.users.length} tài khoản trong hệ thống.',
+              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        const Spacer(),
+        IconButton.filledTonal(
+          onPressed: _viewModel.isLoading ? null : () => _viewModel.loadUsers(refresh: true),
+          icon: const Icon(Icons.refresh_rounded),
+          tooltip: 'Làm mới',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade100),
+      ),
+      child: Text(_viewModel.errorMessage!, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
+    );
+  }
+
+  Widget _buildUsersTable(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+          dataRowMaxHeight: 64,
+          columns: const [
+            DataColumn(label: Text('TÀI KHOẢN', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.5))),
+            DataColumn(label: Text('VAI TRÒ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.5))),
+            DataColumn(label: Text('TRẠNG THÁI', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.5))),
+            DataColumn(label: Text('XÁC MINH', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.5))),
+            DataColumn(label: Text('ĐĂNG NHẬP CUỐI', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.5))),
+            DataColumn(label: Text('THAO TÁC', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.5))),
+          ],
+          rows: _viewModel.users.map((user) => _buildUserRow(context, user)).toList(),
+        ),
+      ),
+    );
+  }
+
   DataRow _buildUserRow(BuildContext context, AdminUser user) {
     return DataRow(
       cells: [
-        DataCell(Text(user.email.isEmpty ? user.uid : user.email)),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
+                child: Text(user.email.isNotEmpty ? user.email[0].toUpperCase() : '?', 
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF6366F1))),
+              ),
+              const SizedBox(width: 12),
+              Text(user.email.isEmpty ? user.uid : user.email, style: const TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
         DataCell(_RoleChip(isAdmin: user.isAdmin)),
         DataCell(_StatusChip(disabled: user.disabled)),
-        DataCell(Icon(user.emailVerified ? Icons.check : Icons.close)),
-        DataCell(Text(_shortDate(user.lastSignInTime))),
+        DataCell(Icon(user.emailVerified ? Icons.verified_rounded : Icons.pending_rounded, 
+          color: user.emailVerified ? Colors.blue : Colors.amber, size: 20)),
+        DataCell(Text(_shortDate(user.lastSignInTime), style: const TextStyle(color: Color(0xFF475569), fontSize: 13))),
         DataCell(
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                tooltip: 'Open user',
-                onPressed: () => Navigator.of(
-                  context,
-                ).pushNamed(AdminRoutes.userDetail, arguments: user.uid),
-                icon: const Icon(Icons.open_in_new),
+                tooltip: 'Xem chi tiết',
+                onPressed: () => Navigator.of(context).pushNamed(AdminRoutes.userDetail, arguments: user.uid),
+                icon: const Icon(Icons.open_in_new_rounded, size: 20),
               ),
               IconButton(
-                tooltip: user.disabled ? 'Enable user' : 'Disable user',
+                tooltip: user.disabled ? 'Mở khóa' : 'Khóa tài khoản',
                 onPressed: () => _confirmAccountState(user),
-                icon: Icon(user.disabled ? Icons.lock_open : Icons.lock),
+                icon: Icon(user.disabled ? Icons.lock_open_rounded : Icons.lock_outline_rounded, size: 20),
               ),
               IconButton(
-                tooltip: user.isAdmin ? 'Remove admin' : 'Make admin',
+                tooltip: user.isAdmin ? 'Gỡ Admin' : 'Cấp quyền Admin',
                 onPressed: () => _confirmAdminState(user),
-                icon: Icon(
-                  user.isAdmin
-                      ? Icons.admin_panel_settings
-                      : Icons.admin_panel_settings_outlined,
-                ),
+                icon: Icon(user.isAdmin ? Icons.admin_panel_settings : Icons.admin_panel_settings_outlined, size: 20),
               ),
             ],
           ),
@@ -162,89 +181,94 @@ class _UsersPageState extends State<UsersPage> {
   Future<void> _confirmAccountState(AdminUser user) async {
     final shouldDisable = !user.disabled;
     final confirmed = await _confirm(
-      title: shouldDisable ? 'Disable user?' : 'Enable user?',
-      message: user.email.isEmpty ? user.uid : user.email,
+      title: shouldDisable ? 'Khóa tài khoản?' : 'Mở khóa tài khoản?',
+      message: 'Hành động này sẽ ảnh hưởng đến khả năng truy cập của ${user.email}.',
     );
-
-    if (confirmed) {
-      await _viewModel.setDisabled(user, shouldDisable);
-    }
+    if (confirmed) await _viewModel.setDisabled(user, shouldDisable);
   }
 
   Future<void> _confirmAdminState(AdminUser user) async {
     final shouldBeAdmin = !user.isAdmin;
     final confirmed = await _confirm(
-      title: shouldBeAdmin ? 'Grant admin access?' : 'Remove admin access?',
-      message: user.email.isEmpty ? user.uid : user.email,
+      title: shouldBeAdmin ? 'Cấp quyền Admin?' : 'Gỡ quyền Admin?',
+      message: 'Bạn có chắc chắn muốn thay đổi quyền hạn của tài khoản này?',
     );
-
-    if (confirmed) {
-      await _viewModel.setAdmin(user, shouldBeAdmin);
-    }
+    if (confirmed) await _viewModel.setAdmin(user, shouldBeAdmin);
   }
 
-  Future<bool> _confirm({
-    required String title,
-    required String message,
-  }) async {
+  Future<bool> _confirm({required String title, required String message}) async {
     return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(title),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Confirm'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+        content: Text(message),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Hủy')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Xác nhận')),
+        ],
+      ),
+    ) ?? false;
+  }
+
+  Widget _buildLoadMoreButton() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FilledButton.icon(
+        onPressed: _viewModel.isLoadingMore ? null : _viewModel.loadUsers,
+        icon: _viewModel.isLoadingMore 
+          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : const Icon(Icons.expand_more_rounded),
+        label: const Text('Tải thêm'),
+      ),
+    );
   }
 }
 
 class _RoleChip extends StatelessWidget {
   const _RoleChip({required this.isAdmin});
-
   final bool isAdmin;
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(
-        isAdmin ? Icons.admin_panel_settings : Icons.person_outline,
-        size: 18,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: isAdmin ? const Color(0xFF6366F1).withOpacity(0.1) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(20),
       ),
-      label: Text(isAdmin ? 'Admin' : 'User'),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(isAdmin ? Icons.admin_panel_settings_rounded : Icons.person_rounded, 
+            size: 14, color: isAdmin ? const Color(0xFF6366F1) : const Color(0xFF334155)),
+          const SizedBox(width: 4),
+          Text(isAdmin ? 'Admin' : 'User', 
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isAdmin ? const Color(0xFF6366F1) : const Color(0xFF334155))),
+        ],
+      ),
     );
   }
 }
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.disabled});
-
   final bool disabled;
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(
-        disabled ? Icons.lock : Icons.check_circle_outline,
-        size: 18,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: disabled ? Colors.red.shade50 : const Color(0xFFECFDF5),
+        borderRadius: BorderRadius.circular(20),
       ),
-      label: Text(disabled ? 'Disabled' : 'Active'),
+      child: Text(disabled ? 'Bị khóa' : 'Hoạt động', 
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: disabled ? Colors.red : const Color(0xFF047857))),
     );
   }
 }
 
 String _shortDate(String value) {
-  if (value.isEmpty) {
-    return '-';
-  }
-  return value.replaceAll(' GMT', '');
+  if (value.isEmpty) return '-';
+  return value.replaceAll(' GMT', '').split(' ').take(4).join(' ');
 }

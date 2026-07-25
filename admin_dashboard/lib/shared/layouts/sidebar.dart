@@ -14,101 +14,88 @@ class Sidebar extends StatelessWidget {
   final AuthRepository _authRepository;
 
   static const _backgroundColor = Color(0xFF0F172A);
-  static const _activeItemColor = Colors.white;
-  static const _inactiveItemColor = Color(0xFFCBD5E1);
-  static const _categoryColor = Color(0xFF94A3B8);
+  static const _accentColor = Color(0xFF6366F1);
+  static const _inactiveColor = Color(0xFF94A3B8);
+  static const _categoryColor = Color(0xFF475569);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 264,
+      width: 280,
       decoration: const BoxDecoration(
-        color: _backgroundColor,
-        border: Border(right: BorderSide(color: Color(0xFF1E293B), width: 1)),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF1E1B4B), Color(0xFF0F172A)],
+        ),
       ),
       child: Column(
         children: [
           const _SidebarHeader(),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
               children: [
-                const _SidebarCategory(label: 'CHÍNH'),
+                const _SidebarCategory(label: 'MENU CHÍNH', key: ValueKey('cat_main')),
                 _SidebarItem(
+                  key: const ValueKey('nav_dashboard'),
                   label: 'Dashboard',
-                  icon: Icons.dashboard_outlined,
-                  activeIcon: Icons.dashboard,
+                  icon: Icons.grid_view,
                   routeName: AdminRoutes.dashboard,
                   isActive: currentRoute == AdminRoutes.dashboard,
                 ),
                 _SidebarItem(
-                  label: 'Analytics',
-                  icon: Icons.analytics_outlined,
-                  activeIcon: Icons.analytics,
+                  key: const ValueKey('nav_analytics'),
+                  label: 'Phân tích (Analytics)',
+                  icon: Icons.bar_chart,
                   routeName: AdminRoutes.analytics,
                   isActive: currentRoute == AdminRoutes.analytics,
                 ),
-                const SizedBox(height: 20),
-                const _SidebarCategory(label: 'QUẢN LÝ'),
+                const SizedBox(height: 32),
+                const _SidebarCategory(label: 'QUẢN LÝ DỮ LIỆU', key: ValueKey('cat_mgmt')),
                 _SidebarItem(
-                  label: 'Users',
-                  icon: Icons.people_alt_outlined,
-                  activeIcon: Icons.people_alt,
+                  key: const ValueKey('nav_users'),
+                  label: 'Người dùng',
+                  icon: Icons.people_outline,
                   routeName: AdminRoutes.users,
                   isActive: currentRoute.startsWith(AdminRoutes.users),
                 ),
                 _SidebarItem(
-                  label: 'Firestore',
-                  icon: Icons.storage_outlined,
-                  activeIcon: Icons.storage,
+                  key: const ValueKey('nav_firestore'),
+                  label: 'Firestore Collections',
+                  icon: Icons.dns,
                   routeName: AdminRoutes.firestoreCollections,
-                  isActive: currentRoute.startsWith(
-                    AdminRoutes.firestoreCollections,
-                  ),
+                  isActive: currentRoute.startsWith(AdminRoutes.firestoreCollections),
                 ),
                 _SidebarItem(
-                  label: 'Storage',
-                  icon: Icons.folder_outlined,
-                  activeIcon: Icons.folder,
+                  key: const ValueKey('nav_storage'),
+                  label: 'Cloud Storage',
+                  icon: Icons.folder_open,
                   routeName: AdminRoutes.storage,
                   isActive: currentRoute.startsWith(AdminRoutes.storage),
                 ),
-                const SizedBox(height: 20),
-                const _SidebarCategory(label: 'HỆ THỐNG'),
+                const SizedBox(height: 32),
+                const _SidebarCategory(label: 'HỆ THỐNG', key: ValueKey('cat_sys')),
                 _SidebarItem(
-                  label: 'App Config',
-                  icon: Icons.tune_outlined,
-                  activeIcon: Icons.tune,
+                  key: const ValueKey('nav_config'),
+                  label: 'Cấu hình App',
+                  icon: Icons.tune,
                   routeName: AdminRoutes.appConfig,
                   isActive: currentRoute == AdminRoutes.appConfig,
                 ),
                 _SidebarItem(
-                  label: 'Messaging',
-                  icon: Icons.notifications_outlined,
-                  activeIcon: Icons.notifications,
+                  key: const ValueKey('nav_msg'),
+                  label: 'Gửi Thông báo',
+                  icon: Icons.send_and_archive_outlined,
                   routeName: AdminRoutes.messaging,
                   isActive: currentRoute == AdminRoutes.messaging,
                 ),
                 _SidebarItem(
-                  label: 'Notification History',
-                  icon: Icons.mark_email_read_outlined,
-                  activeIcon: Icons.mark_email_read,
-                  routeName: AdminRoutes.notificationHistory,
-                  isActive: currentRoute == AdminRoutes.notificationHistory,
-                ),
-                _SidebarItem(
-                  label: 'Audit Logs',
-                  icon: Icons.history_outlined,
-                  activeIcon: Icons.history,
+                  key: const ValueKey('nav_audit'),
+                  label: 'Lịch sử Audit',
+                  icon: Icons.history,
                   routeName: AdminRoutes.auditLogs,
                   isActive: currentRoute == AdminRoutes.auditLogs,
-                ),
-                _SidebarItem(
-                  label: 'System Health',
-                  icon: Icons.monitor_heart_outlined,
-                  activeIcon: Icons.monitor_heart,
-                  routeName: AdminRoutes.systemHealth,
-                  isActive: currentRoute == AdminRoutes.systemHealth,
                 ),
               ],
             ),
@@ -125,33 +112,35 @@ class _SidebarHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: colorScheme.primary,
-              borderRadius: BorderRadius.circular(8),
+              color: Sidebar._accentColor,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Sidebar._accentColor.withOpacity(0.4),
+                  blurRadius: 15,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-            child: const Icon(Icons.auto_graph, color: Colors.white, size: 22),
+            child: const Icon(Icons.show_chart, color: Colors.white, size: 24),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           const Expanded(
             child: Text(
               'Journal Admin',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
                 color: Colors.white,
+                letterSpacing: -0.8,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -161,98 +150,93 @@ class _SidebarHeader extends StatelessWidget {
 }
 
 class _SidebarCategory extends StatelessWidget {
-  const _SidebarCategory({required this.label});
-
+  const _SidebarCategory({required this.label, super.key});
   final String label;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 12, bottom: 8),
+      padding: const EdgeInsets.only(left: 12, bottom: 12),
       child: Text(
         label,
         style: const TextStyle(
           color: Sidebar._categoryColor,
-          fontSize: 11,
-          letterSpacing: 0.5,
-          fontWeight: FontWeight.w700,
+          fontSize: 10,
+          letterSpacing: 1.5,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
   }
 }
 
-class _SidebarItem extends StatelessWidget {
+class _SidebarItem extends StatefulWidget {
   const _SidebarItem({
     required this.label,
     required this.icon,
-    required this.activeIcon,
     required this.routeName,
     required this.isActive,
+    super.key,
   });
 
   final String label;
   final IconData icon;
-  final IconData activeIcon;
   final String routeName;
   final bool isActive;
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  State<_SidebarItem> createState() => _SidebarItemState();
+}
 
+class _SidebarItemState extends State<_SidebarItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Material(
-        color: isActive
-            ? Colors.white.withValues(alpha: 0.1)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: isActive
-              ? null
-              : () {
-                  if (Scaffold.of(context).isDrawerOpen) {
-                    Navigator.pop(context);
-                  }
-                  Navigator.of(context).pushReplacementNamed(routeName);
-                },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
-            child: Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 140),
-                  width: 3,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: isActive ? colorScheme.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                const SizedBox(width: 9),
-                Icon(
-                  isActive ? activeIcon : icon,
-                  size: 22,
-                  color: isActive
-                      ? Sidebar._activeItemColor
-                      : Sidebar._inactiveItemColor,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                      color: isActive
-                          ? Sidebar._activeItemColor
-                          : Sidebar._inactiveItemColor,
+      padding: const EdgeInsets.only(bottom: 6),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: widget.isActive 
+              ? const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)])
+              : null,
+            color: !widget.isActive && _isHovered ? Colors.white.withOpacity(0.05) : Colors.transparent,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: widget.isActive
+                  ? null
+                  : () => Navigator.of(context).pushReplacementNamed(widget.routeName),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.icon,
+                      size: 22,
+                      color: widget.isActive ? Colors.white : Sidebar._inactiveColor,
                     ),
-                  ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        widget.label,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: widget.isActive ? FontWeight.w700 : FontWeight.w600,
+                          color: widget.isActive ? Colors.white : Sidebar._inactiveColor,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -263,7 +247,6 @@ class _SidebarItem extends StatelessWidget {
 
 class _SidebarFooter extends StatelessWidget {
   const _SidebarFooter({required this.authRepository});
-
   final AuthRepository authRepository;
 
   @override
@@ -273,32 +256,46 @@ class _SidebarFooter extends StatelessWidget {
       stream: authRepository.authStateChanges(),
       builder: (context, snapshot) {
         final user = snapshot.data;
-        final accountLabel = user?.email ?? 'Admin Account';
+        final email = user?.email ?? 'admin@example.com';
 
         return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            color: Color(0xFF1E293B),
-            border: Border(top: BorderSide(color: Color(0xFF334155), width: 1)),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
           ),
           child: Row(
             children: [
-              const CircleAvatar(
-                radius: 16,
-                backgroundColor: Color(0xFF334155),
-                child: Icon(Icons.person, size: 18, color: Colors.white),
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)]),
+                ),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: const Color(0xFF1E293B),
+                  child: Text(
+                    email[0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  accountLabel,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      email.split('@').first,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Text(
+                      'Super Admin',
+                      style: TextStyle(fontSize: 11, color: Sidebar._inactiveColor, fontWeight: FontWeight.w500),
+                    ),
+                  ],
                 ),
               ),
             ],
