@@ -40,14 +40,14 @@ class Sidebar extends StatelessWidget {
                 _SidebarItem(
                   key: const ValueKey('nav_dashboard'),
                   label: 'Dashboard',
-                  icon: Icons.grid_view_rounded,
+                  icon: Icons.grid_view,
                   routeName: AdminRoutes.dashboard,
                   isActive: currentRoute == AdminRoutes.dashboard,
                 ),
                 _SidebarItem(
                   key: const ValueKey('nav_analytics'),
                   label: 'Phân tích (Analytics)',
-                  icon: Icons.bar_chart_rounded,
+                  icon: Icons.bar_chart,
                   routeName: AdminRoutes.analytics,
                   isActive: currentRoute == AdminRoutes.analytics,
                 ),
@@ -56,21 +56,21 @@ class Sidebar extends StatelessWidget {
                 _SidebarItem(
                   key: const ValueKey('nav_users'),
                   label: 'Người dùng',
-                  icon: Icons.people_outline_rounded,
+                  icon: Icons.people_outline,
                   routeName: AdminRoutes.users,
                   isActive: currentRoute.startsWith(AdminRoutes.users),
                 ),
                 _SidebarItem(
                   key: const ValueKey('nav_firestore'),
                   label: 'Firestore Collections',
-                  icon: Icons.dns_outlined,
+                  icon: Icons.dns,
                   routeName: AdminRoutes.firestoreCollections,
                   isActive: currentRoute.startsWith(AdminRoutes.firestoreCollections),
                 ),
                 _SidebarItem(
                   key: const ValueKey('nav_storage'),
                   label: 'Cloud Storage',
-                  icon: Icons.folder_open_rounded,
+                  icon: Icons.folder_open,
                   routeName: AdminRoutes.storage,
                   isActive: currentRoute.startsWith(AdminRoutes.storage),
                 ),
@@ -79,7 +79,7 @@ class Sidebar extends StatelessWidget {
                 _SidebarItem(
                   key: const ValueKey('nav_config'),
                   label: 'Cấu hình App',
-                  icon: Icons.tune_rounded,
+                  icon: Icons.tune,
                   routeName: AdminRoutes.appConfig,
                   isActive: currentRoute == AdminRoutes.appConfig,
                 ),
@@ -93,7 +93,7 @@ class Sidebar extends StatelessWidget {
                 _SidebarItem(
                   key: const ValueKey('nav_audit'),
                   label: 'Lịch sử Audit',
-                  icon: Icons.history_rounded,
+                  icon: Icons.history,
                   routeName: AdminRoutes.auditLogs,
                   isActive: currentRoute == AdminRoutes.auditLogs,
                 ),
@@ -129,7 +129,7 @@ class _SidebarHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(Icons.auto_graph_rounded, color: Colors.white, size: 24),
+            child: const Icon(Icons.show_chart, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 14),
           const Expanded(

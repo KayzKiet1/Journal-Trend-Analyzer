@@ -79,11 +79,11 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
         ),
         const SizedBox(height: 6),
-        Text(
+        const Text(
           'Dưới đây là tóm tắt dữ liệu hệ thống tính đến hôm nay.',
           style: TextStyle(
             fontSize: 15,
-            color: const Color(0xFF64748B),
+            color: Color(0xFF64748B),
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -106,7 +106,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _MetricTile(
           label: 'Tổng người dùng',
           value: summary.userCount.toString(),
-          icon: Icons.people_alt_rounded,
+          icon: Icons.people,
           color: const Color(0xFF6366F1),
           trend: '+12%',
           onTap: () => Navigator.of(context).pushNamed(AdminRoutes.users),
@@ -114,7 +114,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _MetricTile(
           label: 'Số lượng tạp chí',
           value: summary.journalCount.toString(),
-          icon: Icons.auto_stories_rounded,
+          icon: Icons.book,
           color: const Color(0xFFF59E0B),
           trend: '+5%',
           onTap: () => Navigator.of(context).pushNamed(AdminRoutes.firestoreCollections),
@@ -122,7 +122,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _MetricTile(
           label: 'Tổng bài báo',
           value: summary.publicationCount.toString(),
-          icon: Icons.article_rounded,
+          icon: Icons.article,
           color: const Color(0xFF10B981),
           trend: '+24%',
           onTap: () => Navigator.of(context).pushNamed(AdminRoutes.firestoreCollections),
@@ -130,7 +130,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _MetricTile(
           label: 'Tệp lưu trữ',
           value: summary.storageFileCount.toString(),
-          icon: Icons.cloud_done_rounded,
+          icon: Icons.cloud_done,
           color: const Color(0xFF8B5CF6),
           trend: '+8%',
           onTap: () => Navigator.of(context).pushNamed(AdminRoutes.storage),
@@ -151,7 +151,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 color: const Color(0xFFF59E0B).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.bolt_rounded, color: Color(0xFFF59E0B), size: 20),
+              child: const Icon(Icons.bolt, color: Color(0xFFF59E0B), size: 20),
             ),
             const SizedBox(width: 12),
             Text(
@@ -170,12 +170,12 @@ class _DashboardPageState extends State<DashboardPage> {
           children: const [
             _QuickActionCard(
               label: 'Quản lý Users',
-              icon: Icons.people_outline_rounded,
+              icon: Icons.people_outline,
               route: AdminRoutes.users,
             ),
             _QuickActionCard(
               label: 'Dữ liệu Firestore',
-              icon: Icons.dns_outlined,
+              icon: Icons.dns,
               route: AdminRoutes.firestoreCollections,
             ),
             _QuickActionCard(
@@ -190,12 +190,12 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             _QuickActionCard(
               label: 'Lịch sử Audit',
-              icon: Icons.history_toggle_off_rounded,
+              icon: Icons.history,
               route: AdminRoutes.auditLogs,
             ),
             _QuickActionCard(
               label: 'Cấu hình App',
-              icon: Icons.settings_suggest_outlined,
+              icon: Icons.settings_applications,
               route: AdminRoutes.appConfig,
             ),
           ],
@@ -271,6 +271,10 @@ class _MetricTileState extends State<_MetricTile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    const Text(
+                      '', // Keep layout consistency
+                      style: TextStyle(fontSize: 0),
+                    ),
                     Text(
                       widget.label,
                       style: const TextStyle(
