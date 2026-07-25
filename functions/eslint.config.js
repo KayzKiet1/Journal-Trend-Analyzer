@@ -13,6 +13,7 @@ module.exports = [
         module: 'writable',
         require: 'readonly',
         process: 'readonly',
+        Buffer: 'readonly',
       },
     },
     rules: {
