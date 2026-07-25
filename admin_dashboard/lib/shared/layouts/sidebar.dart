@@ -24,9 +24,7 @@ class Sidebar extends StatelessWidget {
       width: 264,
       decoration: const BoxDecoration(
         color: _backgroundColor,
-        border: Border(
-          right: BorderSide(color: Color(0xFF1E293B), width: 1),
-        ),
+        border: Border(right: BorderSide(color: Color(0xFF1E293B), width: 1)),
       ),
       child: Column(
         children: [
@@ -206,7 +204,9 @@ class _SidebarItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
-        color: isActive ? Colors.white.withOpacity(0.1) : Colors.transparent,
+        color: isActive
+            ? Colors.white.withValues(alpha: 0.1)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -235,8 +235,9 @@ class _SidebarItem extends StatelessWidget {
                 Icon(
                   isActive ? activeIcon : icon,
                   size: 22,
-                  color:
-                      isActive ? Sidebar._activeItemColor : Sidebar._inactiveItemColor,
+                  color: isActive
+                      ? Sidebar._activeItemColor
+                      : Sidebar._inactiveItemColor,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -245,8 +246,9 @@ class _SidebarItem extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                      color:
-                          isActive ? Sidebar._activeItemColor : Sidebar._inactiveItemColor,
+                      color: isActive
+                          ? Sidebar._activeItemColor
+                          : Sidebar._inactiveItemColor,
                     ),
                   ),
                 ),
@@ -277,9 +279,7 @@ class _SidebarFooter extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: const BoxDecoration(
             color: Color(0xFF1E293B),
-            border: Border(
-              top: BorderSide(color: Color(0xFF334155), width: 1),
-            ),
+            border: Border(top: BorderSide(color: Color(0xFF334155), width: 1)),
           ),
           child: Row(
             children: [

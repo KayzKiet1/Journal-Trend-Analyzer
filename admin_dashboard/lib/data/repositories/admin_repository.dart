@@ -113,11 +113,11 @@ abstract class AdminRepository {
 
   Future<void> deleteStorageFile(String path);
 
-  Future<void> recordStorageUpload({
-    required String path,
+  Future<String> uploadStorageFile({
+    required String base64Data,
+    required String folder,
     required String fileName,
     required String contentType,
-    required int size,
   });
 
   Future<AuditLogListResult> listAuditLogs({String? startAfterId});
@@ -344,18 +344,19 @@ class FirebaseAdminRepository implements AdminRepository {
   }
 
   @override
-  Future<void> recordStorageUpload({
-    required String path,
+  Future<String> uploadStorageFile({
+    required String base64Data,
+    required String folder,
     required String fileName,
     required String contentType,
-    required int size,
   }) async {
-    await _call('recordStorageUpload', {
-      'path': path,
+    final data = await _call('uploadStorageFile', {
+      'base64Data': base64Data,
+      'folder': folder,
       'fileName': fileName,
       'contentType': contentType,
-      'size': size,
     });
+    return data['path']?.toString() ?? '';
   }
 
   @override

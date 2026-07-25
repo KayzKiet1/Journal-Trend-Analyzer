@@ -1,9 +1,6 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-
-import '../../core/firebase/firebase_service.dart';
 import 'admin_repository.dart';
 
 class StorageUploadRequest {
@@ -25,50 +22,25 @@ abstract class StorageRepository {
 }
 
 class FirebaseStorageRepository implements StorageRepository {
-  FirebaseStorageRepository({
-    FirebaseStorage? storage,
-    FirebaseAuth? auth,
-    AdminRepository? adminRepository,
-  }) : _storage = storage ?? FirebaseService.storage,
-       _auth = auth ?? FirebaseService.auth,
-       _adminRepository = adminRepository ?? const FirebaseAdminRepository();
+  FirebaseStorageRepository({AdminRepository? adminRepository})
+    : _adminRepository = adminRepository ?? const FirebaseAdminRepository();
 
-  final FirebaseStorage _storage;
-  final FirebaseAuth _auth;
   final AdminRepository _adminRepository;
 
   @override
   Future<String> uploadAdminFile(StorageUploadRequest request) async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('Admin sign-in is required before uploading files.');
+    if (request.bytes.isEmpty) {
+      throw Exception('Selected file is empty.');
     }
 
-    final safeFileName = _safeFileName(request.fileName);
-    final safeFolder = _safeFolder(request.folder);
-    final path =
-        '$safeFolder/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
-    final reference = _storage.ref().child(path);
-    final metadata = SettableMetadata(
+    return _adminRepository.uploadStorageFile(
+      base64Data: base64Encode(request.bytes),
+      folder: _safeFolder(request.folder),
+      fileName: _safeFileName(request.fileName),
       contentType: request.contentType.isEmpty
           ? 'application/octet-stream'
           : request.contentType,
-      customMetadata: {
-        'uploadedByUid': user.uid,
-        'uploadedByEmail': user.email ?? '',
-        'originalFileName': request.fileName,
-      },
     );
-
-    await reference.putData(request.bytes, metadata);
-    await _adminRepository.recordStorageUpload(
-      path: path,
-      fileName: request.fileName,
-      contentType: request.contentType,
-      size: request.bytes.length,
-    );
-
-    return path;
   }
 
   String _safeFileName(String value) {

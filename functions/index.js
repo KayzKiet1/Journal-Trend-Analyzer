@@ -348,6 +348,63 @@ exports.listStorageFiles = onCall({ region }, async (request) => {
   };
 });
 
+exports.uploadStorageFile = onCall({ region }, async (request) => {
+  const authContext = assertAdmin(request);
+  const fileName = request.data?.fileName;
+  const contentType = request.data?.contentType || 'application/octet-stream';
+  const folder = safeStorageFolder(request.data?.folder || 'admin_uploads');
+  const base64Data = request.data?.base64Data;
+
+  if (!fileName || typeof fileName !== 'string') {
+    throw new HttpsError('invalid-argument', 'A file name is required.');
+  }
+
+  if (!base64Data || typeof base64Data !== 'string') {
+    throw new HttpsError('invalid-argument', 'File content is required.');
+  }
+
+  const buffer = Buffer.from(base64Data, 'base64');
+  if (buffer.length === 0) {
+    throw new HttpsError('invalid-argument', 'File content cannot be empty.');
+  }
+
+  const safeName = safeStorageFileName(fileName);
+  const path = `${folder}/${authContext.uid}/${Date.now()}_${safeName}`;
+  const metadata = {
+    contentType,
+    metadata: {
+      folder,
+      originalFileName: fileName,
+      uploadedByUid: authContext.uid,
+      uploadedByEmail: authContext.token.email || '',
+      uploadedFrom: 'admin_dashboard',
+    },
+  };
+  const file = getStorage().bucket().file(path);
+
+  await file.save(buffer, {
+    contentType,
+    metadata,
+    resumable: false,
+  });
+
+  const payload = {
+    path,
+    fileName,
+    folder,
+    contentType,
+    size: buffer.length,
+    uploadedByUid: authContext.uid,
+    uploadedByEmail: authContext.token.email || '',
+    createdAt: FieldValue.serverTimestamp(),
+  };
+
+  await getFirestore().collection(storageUploadsCollection).add(payload);
+  await writeAuditLog(authContext, 'uploadStorageFile', path, null, payload);
+
+  return { path };
+});
+
 exports.deleteStorageFile = onCall({ region }, async (request) => {
   const authContext = assertAdmin(request);
   const path = request.data?.path;
@@ -396,6 +453,24 @@ exports.recordStorageUpload = onCall({ region }, async (request) => {
 
   return { recorded: true };
 });
+
+function safeStorageFolder(value) {
+  const normalized = String(value)
+    .trim()
+    .replace(/[^a-zA-Z0-9_/-]+/g, '_')
+    .replace(/\/+/g, '/')
+    .replace(/_+/g, '_')
+    .replace(/^\/+|\/+$/g, '');
+  return normalized || 'admin_uploads';
+}
+
+function safeStorageFileName(value) {
+  const normalized = String(value)
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/_+/g, '_');
+  return normalized || 'upload.bin';
+}
 
 exports.listAuditLogs = onCall({ region }, async (request) => {
   assertAdmin(request);

@@ -23,6 +23,8 @@ class StorageViewModel extends ChangeNotifier {
 
   List<StorageFile> get files => List.unmodifiable(_files);
 
+  int get totalBytes => _files.fold(0, (total, file) => total + file.size);
+
   bool get isLoading => _isLoading;
 
   bool get isUploading => _isUploading;
